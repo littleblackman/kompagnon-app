@@ -1,0 +1,60 @@
+@use "../abstracts/variables" as v;
+
+/* 🌆 Backgrounds */
+.bg-primary {
+  background-color: v.$primary-color;
+}
+
+.bg-secondary {
+  background-color: v.$secondary-color;
+}
+
+.bg-cta {
+  background-color: v.$cta-color;
+}
+
+.bg-light {
+  background-color: v.$background-light;
+}
+
+.bg-dark {
+  background-color: v.$background-dark;
+  color: white;
+}
+
+/* 🏗️ Layout général */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.full-height {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 🏠 Header & Footer */
+.header {
+  background-color: v.$primary-color;
+  color: v.$text-color;
+  padding: 15px 20px;
+  text-align: center;
+
+  h1 {
+    font-size: 3rem;
+  }
+
+  nav {
+    font-size: 2rem;
+  }
+
+}
+
+.footer {
+  background-color: v.$contrast-color;
+  color: white;
+  padding: 10px 15px;
+  text-align: center;
+}
