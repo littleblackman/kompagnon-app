@@ -45,7 +45,6 @@ export const useAuthStore = defineStore('auth', {
 
                 if (response.ok) {
                     this.user = await response.json();
-                    console.log(this.user);
                 }
             } catch (error) {
                 console.error("Impossible de récupérer l'utilisateur :", error)
