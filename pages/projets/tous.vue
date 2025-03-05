@@ -1,0 +1,70 @@
+<script setup>
+definePageMeta({
+  middleware: 'auth'
+})
+
+import { useAuthStore } from '~/store/auth';
+import { computed } from 'vue';
+import { PencilIcon, EyeIcon, WrenchIcon  } from '@heroicons/vue/24/solid'
+
+const auth = useAuthStore()
+
+const { data, pending, error } = useFetch('http://localhost:8000/api/projects', {
+  key: 'projects',
+  headers: {
+    Authorization: `Bearer ${auth.token}`
+  }
+})
+
+const projects = computed(() => data.value || [])
+</script>
+
+<template>
+  <div class="container">
+    <h1 class="text-2xl font-bold mb-4">Liste des projets</h1>
+    <ul v-if="projects" class="list-disc pl-5">
+      <li v-for="project in projects" :key="project.id" class="mb-2">
+        <div class="flex flex-wrap justify-between">
+          <h2><strong>{{ project.name }}</strong> - {{ project.type.name }}</h2>
+
+          <nav class="flex flex-wrap">
+            <NuxtLink to="/projets/buzy" class="px-2">
+              <PencilIcon class="w-4 h-4 link" />
+            </NuxtLink>
+            <NuxtLink to="/projets/voir" class="px-2">
+              <EyeIcon class="w-4 h-4 link" />
+            </NuxtLink>
+            <NuxtLink to="projets/modifier" class="px-2">
+              <WrenchIcon class="w-4 h-4 link"/>
+            </NuxtLink>
+          </nav>
+        </div>
+
+        <i v-html="project.description.slice(0, 200)+'...'"></i>
+      </li>
+    </ul>
+    <p v-else>Chargement...</p>
+  </div>
+</template>
+
+<style scoped>
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+
+.link {
+  text-decoration: none;
+  color: #79AC78;
+  transition: color 0.3s ease-in-out;
+}
+
+.link:hover {
+  color: #FF9B9B;
+  transform: scale(1.4);
+}
+
+
+</style>

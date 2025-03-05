@@ -1,3 +1,11 @@
+<script setup>
+import { useAuthStore } from '~/store/auth'
+import { HomeIcon, UserIcon, FireIcon, EnvelopeIcon, PowerIcon } from '@heroicons/vue/24/solid'
+
+const auth = useAuthStore()
+
+</script>
+
 <template>
   <div class="min-h-screen flex flex-col bg-gray-100">
     <!-- Navbar -->
@@ -7,7 +15,7 @@
           <NuxtLink to="/">Kompagnon</NuxtLink>
         </h1>
         <nav class="flex justify-between">
-          <NuxtLink to="/projets/list" class="px-4" title="Projets">
+          <NuxtLink to="/projets/tous" class="px-4" title="Projets">
             <FireIcon class="w-12 h-12"/>
           </NuxtLink>
           <NuxtLink to="/contact" class="px-4">
@@ -36,12 +44,3 @@
     </footer>
   </div>
 </template>
-
-
-<script setup>
-import { useAuthStore } from '~/store/auth'
-import { HomeIcon, UserIcon, FireIcon, EnvelopeIcon, PowerIcon } from '@heroicons/vue/24/solid'
-
-const auth = useAuthStore()
-
-</script>
