@@ -34,7 +34,7 @@ const projects = computed(() => data.value || [])
             <NuxtLink to="/projets/voir" class="px-2">
               <EyeIcon class="w-4 h-4 link" />
             </NuxtLink>
-            <NuxtLink to="projets/modifier" class="px-2">
+            <NuxtLink to="/projets/modifier" class="px-2">
               <WrenchIcon class="w-4 h-4 link"/>
             </NuxtLink>
           </nav>
