@@ -28,13 +28,13 @@ const projects = computed(() => data.value || [])
           <h2><strong>{{ project.name }}</strong> - {{ project.type.name }}</h2>
 
           <nav class="flex flex-wrap">
-            <NuxtLink to="/projets/buzy" class="px-2">
+            <NuxtLink :to="{ path:`/projets/projet-${project.slug }`}" class="px-2">
               <PencilIcon class="w-4 h-4 link" />
             </NuxtLink>
-            <NuxtLink to="/projets/voir" class="px-2">
+            <NuxtLink :to="{ path:`/projets/voir-${project.slug }`}" class="px-2">
               <EyeIcon class="w-4 h-4 link" />
             </NuxtLink>
-            <NuxtLink to="/projets/modifier" class="px-2">
+            <NuxtLink :to="{ path:`/projets/modifier-${project.slug }`}"class="px-2">
               <WrenchIcon class="w-4 h-4 link"/>
             </NuxtLink>
           </nav>
