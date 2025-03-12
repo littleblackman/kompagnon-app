@@ -1,35 +1,28 @@
+import { useAuthStore } from '~/store/auth';
+
 export default {
-    async updatePart(id, data) {
-        return await this._update("part", id, data);
-    },
+    async savePart(data) {
+        const authStore = useAuthStore();
 
-    async updateSequence(id, data) {
-        return await this._update("sequence", id, data);
-    },
+        if (!authStore.token) {
+            throw new Error("Aucun token d'authentification disponible");
+        }
 
-    async updateScene(id, data) {
-        return await this._update("scene", id, data);
-    },
+        const config = useRuntimeConfig();
 
-    async _update(type, id, data) {
         try {
-            const response = await fetch(`http://localhost:8000/api/${type}/${id}`, {
-                method: "PUT",
+            const response = await $fetch(`${config.public.apiBase}/part/update`, {
+                method: 'PUT',
                 headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${localStorage.getItem("token")}`, // ⚠️ Adapter si besoin
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${authStore.token}`
                 },
-                body: JSON.stringify(data),
+                body: data,
             });
 
-            if (!response.ok) {
-                throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-            }
-
-            return await response.json();
+            return response; // Retourne directement la réponse JSON
         } catch (error) {
-            console.error(`Erreur lors de la mise à jour de ${type} ${id} :`, error);
-            return null;
+            throw new Error("Erreur save part : " + error.message);
         }
     },
 };

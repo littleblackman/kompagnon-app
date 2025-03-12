@@ -16,6 +16,17 @@ export default defineNuxtConfig({
     ],
   },
 
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.API_BASE || 'http://localhost:8000/api',
+    }
+  },
+  nitro: {
+    routeRules: {
+      '/api/**': { proxy: 'http://localhost:8000/api/**' }
+    }
+  },
+
   compatibilityDate: "2025-02-11",
 
 

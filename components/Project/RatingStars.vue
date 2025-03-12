@@ -1,3 +1,7 @@
+<script setup>
+import { StarIcon } from "@heroicons/vue/24/solid/index.js";
+defineProps({ rating: Number });
+</script>
 <template>
   <div class="flex items-center whitespace-nowrap">
     <span v-for="n in 10" :key="n">
@@ -8,8 +12,3 @@
     </span>
   </div>
 </template>
-
-<script setup>
-import { StarIcon } from "@heroicons/vue/24/solid/index.js";
-defineProps({ rating: Number });
-</script>

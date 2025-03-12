@@ -1,6 +1,8 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-100">
-    <div class="bg-white p-8 rounded-lg shadow-lg w-96">
+  <div class="flex h-screen overflow-hidden">
+    <!-- Colonne formulaire -->
+    <div class="w-1/2 flex flex-col items-center justify-center">
+
       <h2 class="text-2xl font-bold text-center mb-4">Connexion</h2>
       <form @submit.prevent="login">
         <div class="mb-4">
@@ -19,11 +21,23 @@
         </button>
       </form>
       <p v-if="errorMessage" class="text-red-500 mt-4 text-center">{{ errorMessage }}</p>
+
+
+    </div>
+
+    <!-- Colonne image -->
+    <div class="w-1/2 h-screen overflow-hidden">
+      <img src="/images/tana.jpg"
+           class="w-full h-full object-cover"
+           alt="Tana le Kompagnon idéal">
     </div>
   </div>
 </template>
 
 <script setup>
+definePageMeta({
+  layout: 'home'
+});
 import { ref } from 'vue'
 import { useAuthStore } from '~/store/auth'
 

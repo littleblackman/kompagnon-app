@@ -1,82 +1,70 @@
 <script setup>
-import { ref } from "vue";
+import { ref, watch, reactive } from "vue";
 import SequenceList from "@/components/Project/SequenceList.vue";
-import PersistProject from "@/utils/PersistProject.js";
+import PartModal from "@/components/Project/PartModal.vue";
 
 const props = defineProps({
   parts: Array,
   criterias: Array,
   personnages: Array,
   status: Array,
-})
+  projectId: Number,
+});
 
-// edit project
-const editingPart = ref(null);
-const editedData = ref({ name: "", description: "" });
+const parts = reactive([...props.parts]);
 
-const editPartName = (part) => {
-  editingPart.value = part.id;
-  editedData.value = { ...part };
+watch(() => props.parts, (newParts) => {
+  Object.assign(parts, [...newParts]);
+}, { deep: true });
+
+const modalOpen = ref(false);
+const currentPart = ref(null);
+
+// Ouvrir la modale pour édition ou création
+const openModal = (part = null) => {
+  currentPart.value = part;
+  modalOpen.value = true;
 };
 
-const editPartDescription = (part) => {
-  editingPart.value = part.id;
-  editedData.value = { ...part };
-};
-
-const savePartData = async (part) => {
-  if (!editedData.value.name.trim() || !editedData.value.description.trim()) {
-    editingPart.value = null;
-    return;
+const handleSavePart = (updatedPart) => {
+  const index = parts.findIndex(p => p.id === updatedPart.id);
+  if (index !== -1) {
+    // Update existing part
+    parts[index]['name'] = updatedPart.name;
+    parts[index]['description'] = updatedPart.description;
+  } else {
+    // Add new part
+    parts.push(updatedPart);
   }
-
-  // Update
-  part.name = editedData.value.name;
-  part.description = editedData.value.description;
-
-  // persist
-  await PersistProject.updatePart(part.id, {
-    name: editedData.value.name,
-    description: editedData.value.description,
-  });
-
-  editingPart.value = null;
+  modalOpen.value = false;
 };
 </script>
 
 <template>
+  <div>
+    <button @click="() => { currentPart = null; modalOpen = true }" class="px-3 py-2 rounded bg-light text-white mb-4 cursor-pointer">
+      + Ajouter une partie
+    </button>
 
-  <ul class="mt-6">
-    <li v-for="part in parts" :key="part.id">
+    <ul class="mt-6">
+      <li v-for="part in parts" :key="part.id">
+        <h2 class="font-bold text-2xl cursor-pointer" @click="currentPart=part; modalOpen=true">
+          {{ part.name }}
+        </h2>
+        <hr class="border-2 my-2" />
+        <p v-html="part.description || ''"
+           class="cursor-pointer"
+           @click="currentPart=part; modalOpen=true">
+        </p>
+        <SequenceList :sequences="part.sequences" :criterias="criterias" :personnages="personnages"/>
+      </li>
+    </ul>
 
-      <h2 v-if="editingPart !== part.id"
-          class="font-bold text-2xl cursor-pointer"
-          @dblclick="editPartName(part)">
-        {{ part.name }}
-      </h2>
-      <input v-else
-             v-model="editedData.name"
-             @keyup.enter="savePartData(part)"
-             @blur="savePartData(part)"
-             class="text-2xl border border-gray-300 rounded px-2"
-             autofocus />
-
-      <hr class="border-2" />
-
-      <p v-if="editingPart !== part.id"
-         v-html="part.description ? part.description : '<i>..description...</i>'"
-         class="cursor-pointer"
-         @dblclick="editPartDescription(part)">
-      </p>
-      <textarea v-else
-                v-model="editedData.description"
-                @keyup.enter="savePartData(part)"
-                @blur="savePartData(part)"
-                class="border border-gray-300 rounded px-2 w-full">
-      </textarea>
-
-      <SequenceList :sequences="part.sequences" :criterias="criterias" :personnages="personnages"/>
-
-    </li>
-  </ul>
+    <!-- Modale externalisée -->
+    <PartModal v-if="modalOpen"
+               :part="currentPart"
+               :projectId="projectId"
+               @save="handleSavePart"
+               @close="modalOpen = false"/>
+  </div>
 </template>

@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+import { defineStore } from 'pinia';
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -9,7 +9,8 @@ export const useAuthStore = defineStore('auth', {
     actions: {
         async login(email: string, password: string) {
             try {
-                const response = await fetch('http://127.0.0.1:8000/api/login_check', {
+                const config = useRuntimeConfig();
+                const response = await fetch(`${config.public.apiBase}/login_check`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({email, password})
@@ -36,7 +37,8 @@ export const useAuthStore = defineStore('auth', {
             if (!this.token) return
 
             try {
-                const response = await fetch('http://127.0.0.1:8000/api/users/me', {
+                const config = useRuntimeConfig();
+                const response = await fetch(`${config.public.apiBase}/users/me`, {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${this.token}`
@@ -64,6 +66,14 @@ export const useAuthStore = defineStore('auth', {
                 this.token = token
                 this.fetchUser();
             }
+        },
+
+        // check if the user is authenticated else redirect to login
+        requireAuth() {
+            if (!this.token) {
+                navigateTo('/login')
+            }
         }
+
     }
 })

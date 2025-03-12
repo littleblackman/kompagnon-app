@@ -5,6 +5,8 @@ import { ref, computed, watch, onMounted } from "vue";
 import PartList from "@/components/Project/PartList.vue";
 
 const auth = useAuthStore();
+auth.requireAuth();
+
 const route = useRoute();
 const slug = route.params.slug;
 
@@ -56,7 +58,7 @@ const status = computed(() => metadatas.value?.status ?? []);
     <h1 class="font-extrabold text-3xl">{{ project.name }}</h1>
     <p v-html="project.description" class="italic mb-10"></p>
 
-    <PartList :parts="project.parts" :criterias="criterias" :status="status" :personnages="personnages" />
+    <PartList :parts="project.parts" :criterias="criterias" :status="status" :personnages="personnages" :projectId="project.id"/>
 
   </div>
 </template>
