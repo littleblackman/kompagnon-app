@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import { useProjectStore } from "~/store/project";
 
 const props = defineProps({
@@ -11,25 +11,15 @@ const emit = defineEmits(["close"]);
 const projectStore = useProjectStore();
 
 const editedPart = ref({ name: "", description: "" });
+const afterPartId = ref<number | null>(null);
+
+// Liste des parties disponibles pour le select
+const availableParts = computed(() => projectStore.parts);
 
 watch(() => props.part, (newPart) => {
   editedPart.value = newPart ? { ...newPart } : { name: "", description: "" };
+  afterPartId.value = null;
 }, { immediate: true });
-
-
-const deletePart = async () => {
-  if (!confirm("Voulez-vous vraiment supprimer cette partie ?")) {
-    return;
-  }
-
-  try {
-    await projectStore.deletePart(editedPart.value.id);
-    emit("close");
-  } catch (error) {
-    console.error("Erreur API :", error);
-    alert("Erreur lors de la suppression.");
-  }
-}
 
 const savePart = async () => {
   if (!editedPart.value.name.trim()) {
@@ -39,7 +29,7 @@ const savePart = async () => {
 
   try {
     editedPart.value.project_id = props.projectId;
-    await projectStore.addPart(editedPart.value);
+    await projectStore.addPart(editedPart.value, afterPartId.value);
     emit("close");
   } catch (error) {
     console.error("Erreur API :", error);
@@ -61,21 +51,28 @@ const savePart = async () => {
       <label class="block mb-2 font-semibold">Description :</label>
       <textarea v-model="editedPart.description" class="w-full border p-2 rounded h-24"></textarea>
 
+      <!-- Ajout du select pour l'emplacement -->
+      <label class="block mt-4 font-semibold">Emplacement après :</label>
+      <select v-model="afterPartId" class="border rounded p-2 w-full">
+        <option :value="null">Début du projet</option>
+        <option v-for="part in availableParts" :key="part.id" :value="part.id">
+          {{ part.name }}
+        </option>
+      </select>
+
       <div class="flex justify-between gap-2 mt-4">
-          <button v-if="editedPart.id" @click="deletePart" class="px-4 py-2 rounded bg-red-500 text-white">
-            Supprimer
+        <button v-if="editedPart.id" @click="deletePart" class="px-4 py-2 rounded bg-red-500 text-white">
+          Supprimer
+        </button>
+
+        <div>
+          <button @click="emit('close')" class="px-4 py-2 rounded bg-gray-400 text-white mr-2">
+            Annuler
           </button>
-
-          <div>
-              <button @click="emit('close')" class="px-4 py-2 rounded bg-gray-400 text-white mr-2">
-                Annuler
-              </button>
-              <button @click="savePart" class="px-4 py-2 rounded bg-blue-500 text-white">
-                Enregistrer
-              </button>
-          </div>
-
-
+          <button @click="savePart" class="px-4 py-2 rounded bg-blue-500 text-white">
+            Enregistrer
+          </button>
+        </div>
       </div>
     </div>
   </div>

@@ -8,6 +8,7 @@ interface Part {
     description: string;
     position: number;
     sequences?: Sequence[];
+    afterPartId?: number;
 }
 
 interface Sequence {
@@ -31,6 +32,12 @@ interface Project {
     description: string;
     parts: Part[];
 }
+
+interface UpdatePartResponse {
+    part: Part;
+    positions: { id: number; position: number }[];
+}
+
 
 export const useProjectStore = defineStore('project', () => {
     const authStore = useAuthStore();
@@ -77,26 +84,32 @@ export const useProjectStore = defineStore('project', () => {
             const index = parts.value.findIndex(p => p.id === partId);
             parts.value.splice(index, 1);
 
-            // update project parts
-
         } catch (error) {
             console.error("Erreur lors de la suppression d'une partie :", error);
         }
     }
 
     // add a new part
-    async function addPart(newPart: Part, orderAfterId?: number) {
+    async function addPart(newPart: Part, afterPartId?: number) {
         if (!project.value) {
             console.error("Aucun projet chargé.");
             return;
         }
 
+
+        console.log(afterPartId);
+
         try {
             const config = useRuntimeConfig();
             const authStore = useAuthStore();
 
+            // add afterPartId to the new part
+            if(afterPartId) {
+                newPart.afterPartId = afterPartId;
+            }
+
             // save in the database
-            const savedPart: Part = await $fetch(`${config.public.apiBase}/part/update`, {
+            const result: UpdatePartResponse = await $fetch(`${config.public.apiBase}/part/update`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -104,6 +117,10 @@ export const useProjectStore = defineStore('project', () => {
                 },
                 body: newPart,
             });
+
+            const { part: savedPart, positions } = result;
+
+            console.log(result);
 
             // check if existing part
             const existingIndex = parts.value.findIndex(p => p.id === savedPart.id);
@@ -118,8 +135,8 @@ export const useProjectStore = defineStore('project', () => {
 
             } else {
                 // add the new part
-                if (orderAfterId) {
-                    const index = parts.value.findIndex(p => p.id === orderAfterId);
+                if (afterPartId) {
+                    const index = parts.value.findIndex(p => p.id === afterPartId);
                     parts.value.splice(index + 1, 0, savedPart);
                 } else {
                     parts.value.unshift(savedPart);
