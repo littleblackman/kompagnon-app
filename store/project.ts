@@ -35,7 +35,7 @@ interface Project {
 
 interface UpdatePartResponse {
     part: Part;
-    positions: { id: number; position: number }[];
+    positions: number[];
 }
 
 
@@ -96,9 +96,6 @@ export const useProjectStore = defineStore('project', () => {
             return;
         }
 
-
-        console.log(afterPartId);
-
         try {
             const config = useRuntimeConfig();
             const authStore = useAuthStore();
@@ -119,6 +116,7 @@ export const useProjectStore = defineStore('project', () => {
             });
 
             const { part: savedPart, positions } = result;
+
 
             console.log(result);
 
@@ -143,7 +141,14 @@ export const useProjectStore = defineStore('project', () => {
                 }
             }
 
-            // update project parts
+            // 🟢 Reorder parts
+            if (positions && positions.length > 0) {
+                parts.value.sort((a, b) => {
+                    return positions.indexOf(a.id) - positions.indexOf(b.id);
+                });
+            }
+
+            // project.parts
             project.value.parts = [...parts.value];
 
         } catch (error) {
