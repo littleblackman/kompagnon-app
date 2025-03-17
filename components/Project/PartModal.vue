@@ -2,6 +2,8 @@
 import { ref, watch, computed } from "vue";
 import { useProjectStore } from "~/store/project";
 
+const showDeleteConfirm = ref(false);
+
 const props = defineProps({
   part: { type: Object, default: null },
   projectId: { type: Number, required: true }
@@ -36,6 +38,21 @@ const savePart = async () => {
     alert("Erreur lors de la sauvegarde.");
   }
 };
+
+const confirmDelete = async () => {
+  if (!editedPart.value.id) return;
+
+  try {
+    await projectStore.deletePart(editedPart.value.id);
+    emit("close");
+  } catch (error) {
+    console.error("Erreur API :", error);
+    alert("Erreur lors de la suppression.");
+  }
+};
+
+
+
 </script>
 
 <template>
@@ -61,10 +78,13 @@ const savePart = async () => {
       </select>
 
       <div class="flex justify-between gap-2 mt-4">
-        <button v-if="editedPart.id" @click="deletePart" class="px-4 py-2 rounded bg-red-500 text-white">
+        <button
+            v-if="editedPart.id"
+            @click="showDeleteConfirm = true"
+            class="px-4 py-2 rounded bg-red-500 text-white"
+        >
           Supprimer
         </button>
-
         <div>
           <button @click="emit('close')" class="px-4 py-2 rounded bg-gray-400 text-white mr-2">
             Annuler
@@ -74,6 +94,27 @@ const savePart = async () => {
           </button>
         </div>
       </div>
+
+
+      <div v-if="showDeleteConfirm" class="mt-4 p-4 border border-red-500 rounded bg-red-50">
+        <p class="text-red-700 mb-2">Confirmer la suppression de cette partie ?</p>
+            <div class="flex justify-end gap-2">
+              <button
+                  @click="showDeleteConfirm = false"
+                  class="px-3 py-1 rounded bg-gray-400 text-white"
+              >
+                Annuler
+              </button>
+              <button
+                  @click="confirmDelete"
+                  class="px-3 py-1 rounded bg-red-600 text-white"
+              >
+                Oui, supprimer
+              </button>
+            </div>
+      </div>
+
+
     </div>
   </div>
 </template>
