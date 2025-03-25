@@ -38,6 +38,12 @@ interface UpdatePartResponse {
     positions: number[];
 }
 
+interface CriteriaResponse {
+    sequenceId: number;
+    criteriaId: number;
+    value: number
+}
+
 
 export const useProjectStore = defineStore('project', () => {
     const authStore = useAuthStore();
@@ -89,6 +95,37 @@ export const useProjectStore = defineStore('project', () => {
         }
     }
 
+
+    async function saveCriteria(value: number, sequenceId: number, criteriaId: number) {
+
+        try {
+            const config = useRuntimeConfig();
+            const authStore = useAuthStore();
+
+            const criteriaData : CriteriaResponse = {
+                sequenceId: sequenceId,
+                criteriaId: criteriaId,
+                value: value
+            }
+
+            const result: CriteriaResponse = await $fetch(`${config.public.apiBase}/criteria/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${authStore.token}`
+                },
+                body: criteriaData,
+            });
+
+
+
+
+        } catch (error) {
+            console.error("Erreur lors de l'ajout/mise à jour d'une partie :", error);
+        }
+
+    }
+
     // add a new part
     async function addPart(newPart: Part, afterPartId?: number) {
         if (!project.value) {
@@ -116,9 +153,6 @@ export const useProjectStore = defineStore('project', () => {
             });
 
             const { part: savedPart, positions } = result;
-
-
-            console.log(result);
 
             // check if existing part
             const existingIndex = parts.value.findIndex(p => p.id === savedPart.id);
@@ -167,18 +201,8 @@ export const useProjectStore = defineStore('project', () => {
         }
     }
 
-    // add scene
-    function addScene(newScene: Scene, sequenceId: number) {
-        const sequence = sequences.value.find(s => s.id === sequenceId);
-        if (sequence) {
-            sequence.scenes = sequence.scenes || [];
-            sequence.scenes.push(newScene);
-            scenes.value.push(newScene);
-        }
-    }
-
     return {
         project, parts, sequences, scenes,
-        fetchProject, addPart, deletePart, saveSequence, addScene
+        fetchProject, addPart, deletePart, saveSequence, saveCriteria
     };
 });
