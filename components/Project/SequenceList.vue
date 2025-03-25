@@ -1,11 +1,56 @@
 <script setup>
 import RatingStars from "@/components/Project/RatingStars.vue";
+import SequenceModal from "~/components/Project/SequenceModal.vue";
+import { useProjectStore } from "~/store/project";
+import { useMetadataStore } from "~/store/metadata";
+const projectStore = useProjectStore();
+const metadataStore = useMetadataStore();
+
+onMounted(() => {
+  if (!metadataStore.loaded) {
+    metadataStore.fetchMetadata();
+  }
+});
+
 
 const props = defineProps({
   sequences: Array,
-  criterias: Array,
   personnages: Array,
+  projectId: Number,
 });
+
+const sequenceModalOpen = ref(false);
+const currentSequence = ref(null);
+
+const openSequenceModal = (sequence = null) => {
+  if (!sequence) {
+    sequence = {
+      name: '',
+      description: ''
+    };
+  }
+  currentSequence.value = sequence;
+  sequenceModalOpen.value = true;
+};
+
+const handleSaveSequence = async (sequence) => {
+  try {
+
+    await projectStore.saveSequence(sequence, props.projectId);
+    sequenceModalOpen.value = false;
+
+    // update sequence list
+    const existingIndex = props.sequences.findIndex(seq => seq.id === savedSequence.id);
+    if (existingIndex !== -1) {
+      props.sequences[existingIndex] = savedSequence;
+    } else {
+      props.sequences.push(savedSequence);
+    }
+  } catch (error) {
+    console.error("Erreur lors de la sauvegarde :", error);
+  }
+};
+
 
 // retrieve personnage names in line
 const showPersonnages = (sequencePersonnages) => {
@@ -23,12 +68,25 @@ const getCriteriaRating = (sequence, criteriaId) => {
   const sequenceCriteria = sequence.sequenceCriterias?.find(sc => sc.id === criteriaId);
   return sequenceCriteria?.rating || 0;
 };
+
 </script>
 
 <template>
-  <ul>
-    <li v-for="sequence in sequences" :key="sequence.id" class="pl-6 pr-3 pt-6 pb-6 bg-white">
-      <h3 class="font-bold">{{ sequence.name }}</h3>
+  <ul class="bg-white">
+
+    <button class="px-3 py-2 rounded bg-primary mt-4 cursor-pointer" @click="openSequenceModal()">
+      + Ajouter une séquence
+    </button>
+
+    <SequenceModal v-if="sequenceModalOpen"
+                   :sequence="currentSequence"
+                   :projectId="projectId"
+                   @close="sequenceModalOpen = false"
+                   @save="handleSaveSequence"
+              />
+
+    <li v-for="sequence in sequences" :key="sequence.id" class="pl-6 pr-3 pt-6 pb-6">
+      <h3 class="font-bold cursor-pointer" @click="openSequenceModal(sequence)">{{ sequence.name }}</h3>
 
       <div class="flex">
         <div class="text-justify w-3/4 mr-3">
@@ -39,18 +97,10 @@ const getCriteriaRating = (sequence, criteriaId) => {
         </div>
 
         <div>
-          <table class="w-full border-collapse">
-            <tbody>
-            <tr v-for="criteria in criterias" :key="criteria.id">
-              <td class="text-xs p-2 align-top w-[100px] break-words">
+          <div v-for="criteria in metadataStore.criterias" :key="criteria.id">
                 {{ criteria.name }}
-              </td>
-              <td class="p-2">
                 <RatingStars :rating="getCriteriaRating(sequence, criteria.id)" />
-              </td>
-            </tr>
-            </tbody>
-          </table>
+          </div>
         </div>
       </div>
     </li>

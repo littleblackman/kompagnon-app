@@ -26,7 +26,7 @@ const handleSavePart = (updatedPart) => {
 
 <template>
   <div>
-    <button @click="openModal()" class="px-3 py-2 rounded bg-light text-white mb-4 cursor-pointer">
+    <button @click="openModal()" class="px-3 py-2 rounded bg-light text-white mb-4 cursor-pointer font-bold">
       + Ajouter une partie
     </button>
 
@@ -36,7 +36,7 @@ const handleSavePart = (updatedPart) => {
           {{ part.name }}
         </h2>
         <p v-html="part.description || ''" class="cursor-pointer" @click="openModal(part)"></p>
-        <SequenceList :sequences="part.sequences" />
+        <SequenceList :sequences="part.sequences" :projectId="projectStore.project?.id"/>
       </li>
     </ul>
 

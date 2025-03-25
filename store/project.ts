@@ -141,7 +141,7 @@ export const useProjectStore = defineStore('project', () => {
                 }
             }
 
-            // 🟢 Reorder parts
+            // Reorder parts
             if (positions && positions.length > 0) {
                 parts.value.sort((a, b) => {
                     return positions.indexOf(a.id) - positions.indexOf(b.id);
@@ -158,7 +158,7 @@ export const useProjectStore = defineStore('project', () => {
 
 
     // add sequence
-    function addSequence(newSequence: Sequence, partId: number) {
+    function saveSequence(newSequence: Sequence, partId: number) {
         const part = parts.value.find(p => p.id === partId);
         if (part) {
             part.sequences = part.sequences || [];
@@ -179,6 +179,6 @@ export const useProjectStore = defineStore('project', () => {
 
     return {
         project, parts, sequences, scenes,
-        fetchProject, addPart, deletePart, addSequence, addScene
+        fetchProject, addPart, deletePart, saveSequence, addScene
     };
 });
