@@ -37,7 +37,7 @@ export const useAuthStore = defineStore('auth', {
             if (!this.token) return
 
             try {
-                const config = useRuntimeConfig();
+                const config = useRuntimeConfig()
                 const response = await fetch(`${config.public.apiBase}/users/me`, {
                     method: 'GET',
                     headers: {
@@ -45,11 +45,17 @@ export const useAuthStore = defineStore('auth', {
                     }
                 })
 
-                if (response.ok) {
-                    this.user = await response.json();
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        this.logout()
+                    }
+                    throw new Error('Token invalide ou utilisateur non autorisé')
                 }
+
+                this.user = await response.json()
             } catch (error) {
-                console.error("Impossible de récupérer l'utilisateur :", error)
+                console.error("Erreur lors de fetchUser :", error)
+                throw error
             }
         },
 

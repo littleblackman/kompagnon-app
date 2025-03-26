@@ -35,22 +35,22 @@
 </template>
 
 <script setup>
-definePageMeta({
-  layout: 'home'
-});
-import { ref } from 'vue'
-import { useAuthStore } from '~/store/auth'
+  definePageMeta({
+    layout: 'home'
+  });
+  import { ref } from 'vue'
+  import { useAuthStore } from '~/store/auth'
 
-const email = ref('')
-const password = ref('')
-const errorMessage = ref('')
-const authStore = useAuthStore()
+  const email = ref('')
+  const password = ref('')
+  const errorMessage = ref('')
+  const authStore = useAuthStore()
 
-const login = async () => {
-  try {
-    await authStore.login(email.value, password.value)
-  } catch (error) {
-    errorMessage.value = "Échec de l'authentification. Vérifiez vos identifiants."
+  const login = async () => {
+    try {
+      await authStore.login(email.value, password.value)
+    } catch (error) {
+      errorMessage.value = "Échec de l'authentification. Vérifiez vos identifiants."
+    }
   }
-}
 </script>
