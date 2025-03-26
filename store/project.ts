@@ -17,6 +17,8 @@ interface Sequence {
     description: string;
     position: number;
     scenes?: Scene[];
+    part_id?: number;
+    afterSequenceId?: number;
 }
 
 interface Scene {
@@ -191,15 +193,63 @@ export const useProjectStore = defineStore('project', () => {
     }
 
 
-    // add sequence
-    function saveSequence(newSequence: Sequence, partId: number) {
-        const part = parts.value.find(p => p.id === partId);
-        if (part) {
-            part.sequences = part.sequences || [];
-            part.sequences.push(newSequence);
-            sequences.value.push(newSequence);
+    // save sequence
+    async function saveSequence(newSequence: Sequence, partId: number, afterSequenceId?: number): Promise<Sequence | null> {
+        try {
+            const config = useRuntimeConfig();
+            const authStore = useAuthStore();
+
+            newSequence.part_id = partId;
+
+            if (afterSequenceId) {
+                // on l'ajoute au payload uniquement si défini
+                (newSequence as any).afterSequenceId = afterSequenceId;
+            }
+
+
+            console.log(newSequence);
+
+            const result: { sequence: Sequence } = await $fetch(`${config.public.apiBase}/sequence/update`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${authStore.token}`,
+                },
+                body: newSequence,
+            });
+
+            const savedSequence = result.sequence;
+
+            // Mise à jour locale dans part
+            const part = parts.value.find(p => p.id === partId);
+            if (part) {
+                part.sequences = part.sequences || [];
+                const index = part.sequences.findIndex(s => s.id === savedSequence.id);
+                if (index !== -1) {
+                    part.sequences[index] = savedSequence;
+                } else {
+                    part.sequences.push(savedSequence);
+                }
+            }
+
+            // Mise à jour globale
+            const indexGlobal = sequences.value.findIndex(s => s.id === savedSequence.id);
+            if (indexGlobal !== -1) {
+                sequences.value[indexGlobal] = savedSequence;
+            } else {
+                sequences.value.push(savedSequence);
+            }
+
+            return savedSequence;
+        } catch (error) {
+            console.error("Erreur lors de la sauvegarde d'une séquence :", error);
+            return null;
         }
     }
+
+
+
+
 
     return {
         project, parts, sequences, scenes,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import { useProjectStore } from "~/store/project";
+const projectStore = useProjectStore();
 
 const showDeleteConfirm = ref(false);
 
@@ -10,7 +11,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["close"]);
-const projectStore = useProjectStore();
 
 const editedPart = ref({ name: "", description: "" });
 const afterPartId = ref<number | null>(null);
@@ -20,7 +20,18 @@ const availableParts = computed(() => projectStore.parts);
 
 watch(() => props.part, (newPart) => {
   editedPart.value = newPart ? { ...newPart } : { name: "", description: "" };
-  afterPartId.value = null;
+
+  if (newPart?.id) {
+    const index = projectStore.parts.findIndex(p => p.id === newPart.id);
+    if (index > 0) {
+      afterPartId.value = projectStore.parts[index - 1].id;
+    } else {
+      afterPartId.value = null;
+    }
+  } else {
+    afterPartId.value = null;
+  }
+
 }, { immediate: true });
 
 const savePart = async () => {

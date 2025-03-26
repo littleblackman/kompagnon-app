@@ -35,13 +35,11 @@ const openSequenceModal = (sequence = null) => {
   sequenceModalOpen.value = true;
 };
 
-const handleSaveSequence = async (sequence) => {
+const handleSaveSequence = async ({ sequence, afterSequenceId }) => {
   try {
-
-    await projectStore.saveSequence(sequence, props.projectId);
+    const savedSequence = await projectStore.saveSequence(sequence, props.projectId, afterSequenceId);
     sequenceModalOpen.value = false;
 
-    // update sequence list
     const existingIndex = props.sequences.findIndex(seq => seq.id === savedSequence.id);
     if (existingIndex !== -1) {
       props.sequences[existingIndex] = savedSequence;
@@ -52,6 +50,9 @@ const handleSaveSequence = async (sequence) => {
     console.error("Erreur lors de la sauvegarde :", error);
   }
 };
+
+
+
 
 
 // retrieve personnage names in line
@@ -149,10 +150,6 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
               </template>
               <span v-else>Aucun personnage</span>
             </i>
-
-
-
-
             <div class="font-bold mr-1 cursor-pointer" @click="updatePersonnage()">+</div>
           </div>
           <p v-html="sequence.description"></p>
