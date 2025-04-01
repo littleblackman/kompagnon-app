@@ -1,9 +1,13 @@
-<script setup>
+<script setup lang="ts">
 import RatingStars from "@/components/Project/RatingStars.vue";
 import SequenceModal from "~/components/Project/SequenceModal.vue";
 import PersonnageModal from "~/components/Project/PersonnageModal.vue";
+import FieldIcon from '@/components/FieldIcon.vue'
+import { SparklesIcon,  PaintBrushIcon,  InformationCircleIcon } from '@heroicons/vue/24/solid'
+
 import { useProjectStore } from "~/store/project";
 import { useMetadataStore } from "~/store/metadata";
+
 const projectStore = useProjectStore();
 const metadataStore = useMetadataStore();
 
@@ -23,6 +27,9 @@ const sequenceModalOpen = ref(false);
 const currentSequence = ref(null);
 const personnageModalOpen = ref(false);
 const selectedPersonnage = ref(null);
+
+
+/**** SEQUENCES & SAVE PART ****/
 
 const openSequenceModal = (sequence = null) => {
   if (!sequence) {
@@ -52,19 +59,15 @@ const handleSaveSequence = async ({ sequence, afterSequenceId }) => {
 };
 
 
+/*** Icon field ***/
+function updateField(field: keyof typeof sequence.value, value: string) {
+
+  console.log(field, value);
+}
 
 
 
-// retrieve personnage names in line
-const showPersonnages = (sequencePersonnages) => {
-  if (!sequencePersonnages || !Array.isArray(sequencePersonnages)) {
-    return 'Aucun personnage';
-  }
-  return sequencePersonnages
-      .map(sp => sp.personnage ? [sp.personnage.firstName, sp.personnage.lastName].filter(Boolean).join(' ') : null)
-      .filter(Boolean)
-      .join(', ') || 'Aucun personnage';
-};
+/**** PERSONNAGES PART ****/
 
 const updatePersonnage = (personnage = null) => {
 
@@ -89,6 +92,10 @@ const getPersonnageName = (p) => {
   return [p.firstName, p.lastName].filter(Boolean).join(' ');
 };
 
+
+
+/**** CRITERIAS PART ****/
+
 // get note by criteria
 const getCriteriaRating = (sequence, criteriaId) => {
   const sequenceCriteria = sequence.sequenceCriterias?.find(sc => sc.id === criteriaId);
@@ -107,12 +114,13 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
 
 
 
+
 </script>
 
 <template>
   <ul class="bg-white">
 
-    <button class="px-3 py-2 rounded bg-primary mt-4 cursor-pointer" @click="openSequenceModal()">
+    <button class="px-3 py-2 rounded bg-secondary mt-4 cursor-pointer" @click="openSequenceModal()">
       + Ajouter une séquence
     </button>
 
@@ -132,11 +140,13 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
 
 
     <li v-for="sequence in sequences" :key="sequence.id" class="pl-6 pr-3 pt-6 pb-6">
-      <h3 class="font-bold cursor-pointer" @click="openSequenceModal(sequence)">{{ sequence.name }}</h3>
 
+      <h3 class="font-bold cursor-pointer" @click="openSequenceModal(sequence)">
+        {{ sequence.name }}
+      </h3>
       <div class="flex">
         <div class="text-justify w-3/4 mr-3">
-          <div class="bg-primary flex justify-between">
+          <div class="bg-secondary flex justify-between">
             <i>Personnages :
               <template v-if="sequence.sequencePersonnages && sequence.sequencePersonnages.length">
                   <span
@@ -156,6 +166,30 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
         </div>
 
         <div>
+
+          <div class="flex">
+            <FieldIcon
+                :icon="SparklesIcon"
+                :text="sequence.intention"
+                color="text-pink-500"
+                :onSave="(val) => updateField('intention', val)"
+            />
+
+            <FieldIcon
+                :icon="PaintBrushIcon"
+                :text="sequence.aesthetic_idea"
+                color="text-blue-500"
+                :onSave="(val) => updateField('aesthetic_idea', val)"
+            />
+
+            <FieldIcon
+                :icon="InformationCircleIcon"
+                :text="sequence.information"
+                color="text-yellow-500"
+                :onSave="(val) => updateField('information', val)"
+            />
+          </div>
+
           <div v-for="criteria in metadataStore.criterias" :key="criteria.id">
             {{ criteria.name }}
             <RatingStars

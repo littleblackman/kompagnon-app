@@ -26,7 +26,7 @@ const handleSavePart = (updatedPart) => {
 
 <template>
   <div>
-    <button @click="openModal()" class="px-3 py-2 rounded bg-light text-white mb-4 cursor-pointer font-bold">
+    <button @click="openModal()" class="px-3 py-2 bg-primary bg-cta rounded mb-4 cursor-pointer font-bold">
       + Ajouter une partie
     </button>
 

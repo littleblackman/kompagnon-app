@@ -14,8 +14,7 @@
 }
 
 .bg-light {
-  background-color: v.$contrast-color;
-  color: white;
+  background-color: v.$background-light;
 }
 
 .bg-dark {
@@ -38,14 +37,9 @@
 
 /* 🏠 Header & Footer */
 .header {
-  background-color: v.$primary-color;
   color: v.$text-color;
   padding: 15px 20px;
   text-align: center;
-
-  h1 {
-    font-size: 3rem;
-  }
 
   nav {
     font-size: 2rem;
@@ -53,9 +47,28 @@
 
 }
 
+.sidebar {
+  background-color: v.$background-dark;
+}
+
+.icon-style {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: v.$secondary-color;
+  transition: color v.$transition-speed ease-in-out;
+
+  &:hover {
+    color: v.$cta-color;
+  }
+}
+
 .footer {
   background-color: v.$contrast-color;
   color: white;
   padding: 10px 15px;
   text-align: center;
+}
+
+.text-color {
+  color: v.$text-color;
 }
