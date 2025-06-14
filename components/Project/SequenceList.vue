@@ -121,9 +121,6 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
 <template>
   <ul class="bg-white">
 
-    <button class="px-3 py-2 rounded bg-secondary mt-4 cursor-pointer" @click="openSequenceModal()">
-      + Ajouter une séquence
-    </button>
 
     <SequenceModal v-if="sequenceModalOpen"
                    :sequence="currentSequence"
