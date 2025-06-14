@@ -36,7 +36,7 @@ const handleSavePart = (updatedPart) => {
           {{ part.name }}
         </h2>
         <p v-html="part.description || ''" class="cursor-pointer" @click="openModal(part)"></p>
-        <SequenceList :sequences="part.sequences" :projectId="projectStore.project?.id"/>
+        <SequenceList :sequences="part.sequences" :projectId="projectStore.project?.id" :partId="part.id"/>
       </li>
     </ul>
 

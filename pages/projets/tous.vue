@@ -22,38 +22,48 @@ const projects = computed(() => data.value || [])
 </script>
 
 <template>
-  <div class="flex" style="height: 80vh;">
-    <div class="w-1∕2 p-10">
-      <h1 class="text-2xl font-bold mb-4">Liste des projets</h1>
-      <ul v-if="projects" class="list-disc pl-5">
-        <li v-for="project in projects" :key="project.id" class="mb-2">
-          <div class="flex flex-wrap justify-between">
-            <h2><strong>{{ project.name }}</strong> - {{ project.type.name }}</h2>
+  <div class="flex" style="height: 60vh;">
 
-            <nav class="flex flex-wrap">
-              <NuxtLink :to="{ path:`/projets/projet-${project.slug }`}" class="px-2">
-                <PencilIcon class="w-4 h-4 link" />
-              </NuxtLink>
-              <NuxtLink :to="{ path:`/projets/voir-${project.slug }`}" class="px-2">
-                <EyeIcon class="w-4 h-4 link" />
-              </NuxtLink>
-              <NuxtLink :to="{ path:`/projets/modifier-${project.slug }`}"class="px-2">
-                <WrenchIcon class="w-4 h-4 link"/>
-              </NuxtLink>
-            </nav>
-          </div>
 
-          <i v-html="project.description.slice(0, 200)+'...'"></i>
-        </li>
-      </ul>
-      <p v-else>Chargement...</p>
-    </div>
+      <div class="w-1/2 flex flex-col items-center p-6">
 
-    <div class="w-1∕2">
-      <img src="/public/images/tete-de-mort-et-coq.webp" class="w-full h-full object-cover" alt="Tana le Kompagnon idéal">
-    </div>
+        <h1 class="text-2xl font-bold mb-4">Liste des projets</h1>
+        <ul v-if="projects" class="list-disc pl-5">
+          <li v-for="project in projects" :key="project.id" class="mb-2">
+            <div class="flex flex-wrap justify-between">
+              <h2><strong>{{ project.name }}</strong> - {{ project.type.name }}</h2>
+
+              <nav class="flex flex-wrap">
+                <NuxtLink :to="{ path:`/projets/projet-${project.slug }`}" class="px-2">
+                  <PencilIcon class="w-4 h-4 link" />
+                </NuxtLink>
+                <NuxtLink :to="{ path:`/projets/voir-${project.slug }`}" class="px-2">
+                  <EyeIcon class="w-4 h-4 link" />
+                </NuxtLink>
+                <NuxtLink :to="{ path:`/projets/modifier-${project.slug }`}"class="px-2">
+                  <WrenchIcon class="w-4 h-4 link"/>
+                </NuxtLink>
+              </nav>
+            </div>
+
+            <i v-html="project.description.slice(0, 200)+'...'"></i>
+          </li>
+        </ul>
+        <p v-else>Chargement...</p>
+
+      </div>
+
+
+      <!-- Colonne image -->
+      <div class="w-1/2 h-screen overflow-hidden" style="height: 92vh;">
+        <img src="/images/tana.jpg"
+             class="w-full h-full object-cover"
+             alt="Tana le Kompagnon idéal">
+      </div>
+
 
   </div>
+
 </template>
 
 <style scoped>

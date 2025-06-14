@@ -206,11 +206,10 @@ export const useProjectStore = defineStore('project', () => {
                 (newSequence as any).afterSequenceId = afterSequenceId;
             }
 
-
             console.log(newSequence);
 
             const result: { sequence: Sequence } = await $fetch(`${config.public.apiBase}/sequence/update`, {
-                method: 'PUT',
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${authStore.token}`,

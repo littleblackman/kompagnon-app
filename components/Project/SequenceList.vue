@@ -21,6 +21,7 @@ const props = defineProps({
   sequences: Array,
   personnages: Array,
   projectId: Number,
+  partId: Number
 });
 
 const sequenceModalOpen = ref(false);
@@ -44,7 +45,7 @@ const openSequenceModal = (sequence = null) => {
 
 const handleSaveSequence = async ({ sequence, afterSequenceId }) => {
   try {
-    const savedSequence = await projectStore.saveSequence(sequence, props.projectId, afterSequenceId);
+    const savedSequence = await projectStore.saveSequence(sequence, props.partId, afterSequenceId);
     sequenceModalOpen.value = false;
 
     const existingIndex = props.sequences.findIndex(seq => seq.id === savedSequence.id);
@@ -170,21 +171,21 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
           <div class="flex">
             <FieldIcon
                 :icon="SparklesIcon"
-                :text="sequence.intention"
+                :text="sequence.intention ?? ''"
                 color="text-pink-500"
                 :onSave="(val) => updateField('intention', val)"
             />
 
             <FieldIcon
                 :icon="PaintBrushIcon"
-                :text="sequence.aesthetic_idea"
+                :text="sequence.aesthetic_idea ?? ''  "
                 color="text-blue-500"
                 :onSave="(val) => updateField('aesthetic_idea', val)"
             />
 
             <FieldIcon
                 :icon="InformationCircleIcon"
-                :text="sequence.information"
+                :text="sequence.information ?? ''"
                 color="text-yellow-500"
                 :onSave="(val) => updateField('information', val)"
             />
