@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { useAuthStore } from '~/store/auth';
+import type { Project, Part, Sequence, Scene } from '~/types';
 
 interface Part {
     id: number;
@@ -46,212 +47,461 @@ interface CriteriaResponse {
     value: number
 }
 
-
-export const useProjectStore = defineStore('project', () => {
-    const authStore = useAuthStore();
-
-    const project = ref<Project | null>(null);
-    const parts = ref<Part[]>([]);
-    const sequences = ref<Sequence[]>([]);
-    const scenes = ref<Scene[]>([]);
-
-    // load project
-    async function fetchProject(slug: string) {
-        try {
-            const config = useRuntimeConfig();
-            const response: Project = await $fetch(`${config.public.apiBase}/project/${slug}`, {
-                headers: { Authorization: `Bearer ${authStore.token}` },
-            });
-
-            project.value = response;
-            parts.value = response.parts || [];
-            sequences.value = parts.value.flatMap(part => part.sequences || []);
-            scenes.value = sequences.value.flatMap(seq => seq.scenes || []);
-        } catch (error) {
-            console.error("Erreur chargement projet :", error);
+export const useProjectStore = defineStore('project', {
+    state: () => ({
+        project: null as Project | null,
+        parts: [] as Part[],
+        sequences: [] as Sequence[],
+        scenes: [] as Scene[],
+        expandedParts: new Set<number>(),
+        sortOrder: 'position' as 'position' | 'name' | 'date',
+        filters: {
+            search: '',
+            status: 'all' as 'all' | 'completed' | 'in-progress'
         }
-    }
+    }),
 
-    // delete part
-    async function deletePart(partId: number) {
-
-        try {
-            const config = useRuntimeConfig();
-            const authStore = useAuthStore();
-
-            // save in the database
-            await $fetch(`${config.public.apiBase}/part/delete/${partId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${authStore.token}`
-                }
-            });
-
-            // remove the part
-            const index = parts.value.findIndex(p => p.id === partId);
-            parts.value.splice(index, 1);
-
-        } catch (error) {
-            console.error("Erreur lors de la suppression d'une partie :", error);
+    getters: {
+        isPartExpanded: (state) => (partId: number) => {
+            return state.expandedParts.has(partId);
         }
-    }
+    },
 
-
-    async function saveCriteria(value: number, sequenceId: number, criteriaId: number) {
-
-        try {
-            const config = useRuntimeConfig();
-            const authStore = useAuthStore();
-
-            const criteriaData : CriteriaResponse = {
-                sequenceId: sequenceId,
-                criteriaId: criteriaId,
-                value: value
-            }
-
-            const result: CriteriaResponse = await $fetch(`${config.public.apiBase}/criteria/update`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${authStore.token}`
-                },
-                body: criteriaData,
-            });
-
-
-
-
-        } catch (error) {
-            console.error("Erreur lors de l'ajout/mise à jour d'une partie :", error);
-        }
-
-    }
-
-    // add a new part
-    async function addPart(newPart: Part, afterPartId?: number) {
-        if (!project.value) {
-            console.error("Aucun projet chargé.");
-            return;
-        }
-
-        try {
-            const config = useRuntimeConfig();
-            const authStore = useAuthStore();
-
-            // add afterPartId to the new part
-            if(afterPartId) {
-                newPart.afterPartId = afterPartId;
-            }
-
-            // save in the database
-            const result: UpdatePartResponse = await $fetch(`${config.public.apiBase}/part/update`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${authStore.token}`
-                },
-                body: newPart,
-            });
-
-            const { part: savedPart, positions } = result;
-
-            // check if existing part
-            const existingIndex = parts.value.findIndex(p => p.id === savedPart.id);
-
-            if (existingIndex !== -1) {
-                // update part name and description
-                parts.value[existingIndex] = {
-                    ...parts.value[existingIndex],
-                    name: savedPart.name,
-                    description: savedPart.description
-                };
-
-            } else {
-                // add the new part
-                if (afterPartId) {
-                    const index = parts.value.findIndex(p => p.id === afterPartId);
-                    parts.value.splice(index + 1, 0, savedPart);
-                } else {
-                    parts.value.unshift(savedPart);
-                }
-            }
-
-            // Reorder parts
-            if (positions && positions.length > 0) {
-                parts.value.sort((a, b) => {
-                    return positions.indexOf(a.id) - positions.indexOf(b.id);
+    actions: {
+        // Gestion du projet
+        async fetchProject(slug: string) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+                const response: Project = await $fetch(`${config.public.apiBase}/project/${slug}`, {
+                    headers: { Authorization: `Bearer ${authStore.token}` },
                 });
+
+                this.project = response;
+                this.parts = response.parts || [];
+                this.sequences = this.parts.flatMap(part => part.sequences || []);
+                this.scenes = this.sequences.flatMap(seq => seq.scenes || []);
+                
+                // Développer toutes les parties par défaut
+                this.expandAllParts();
+            } catch (error) {
+                console.error("Erreur chargement projet :", error);
             }
+        },
 
-            // project.parts
-            project.value.parts = [...parts.value];
+        // Gestion des parties
+        addPartToState(part: Part) {
+            if (!this.project) return;
+            this.project.parts.push(part);
+            this.parts.push(part);
+            // Développer la nouvelle partie
+            this.expandedParts.add(part.id);
+        },
 
-        } catch (error) {
-            console.error("Erreur lors de l'ajout/mise à jour d'une partie :", error);
-        }
-    }
-
-
-    // save sequence
-    async function saveSequence(newSequence: Sequence, partId: number, afterSequenceId?: number): Promise<Sequence | null> {
-        try {
-            const config = useRuntimeConfig();
-            const authStore = useAuthStore();
-
-            newSequence.part_id = partId;
-
-            if (afterSequenceId) {
-                // on l'ajoute au payload uniquement si défini
-                (newSequence as any).afterSequenceId = afterSequenceId;
-            }
-
-            console.log(newSequence);
-
-            const result: { sequence: Sequence } = await $fetch(`${config.public.apiBase}/sequence/update`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${authStore.token}`,
-                },
-                body: newSequence,
-            });
-
-            const savedSequence = result.sequence;
-
-            // Mise à jour locale dans part
-            const part = parts.value.find(p => p.id === partId);
-            if (part) {
-                part.sequences = part.sequences || [];
-                const index = part.sequences.findIndex(s => s.id === savedSequence.id);
-                if (index !== -1) {
-                    part.sequences[index] = savedSequence;
-                } else {
-                    part.sequences.push(savedSequence);
+        updatePart(part: Part) {
+            if (!this.project) return;
+            const index = this.project.parts.findIndex(p => p.id === part.id);
+            if (index !== -1) {
+                this.project.parts[index] = part;
+                const partsIndex = this.parts.findIndex(p => p.id === part.id);
+                if (partsIndex !== -1) {
+                    this.parts[partsIndex] = part;
                 }
             }
+        },
 
-            // Mise à jour globale
-            const indexGlobal = sequences.value.findIndex(s => s.id === savedSequence.id);
-            if (indexGlobal !== -1) {
-                sequences.value[indexGlobal] = savedSequence;
+        // Gestion des séquences
+        addSequence(sequence: Sequence) {
+            if (!this.project) return;
+            const part = this.project.parts.find(p => p.id === sequence.part_id);
+            if (part) {
+                if (!part.sequences) part.sequences = [];
+                part.sequences.push(sequence);
+            }
+        },
+
+        // Gestion des scènes
+        addScene(scene: Scene) {
+            if (!this.project) return;
+            for (const part of this.project.parts) {
+                if (part.sequences) {
+                    for (const sequence of part.sequences) {
+                        if (sequence.id === scene.sequence_id) {
+                            if (!sequence.scenes) sequence.scenes = [];
+                            sequence.scenes.push(scene);
+                            return;
+                        }
+                    }
+                }
+            }
+        },
+
+        // Gestion de l'expansion
+        togglePart(partId: number) {
+            if (this.expandedParts.has(partId)) {
+                this.expandedParts.delete(partId);
             } else {
-                sequences.value.push(savedSequence);
+                this.expandedParts.add(partId);
+            }
+        },
+
+        collapseAllParts() {
+            this.expandedParts.clear();
+        },
+
+        expandAllParts() {
+            if (!this.project) return;
+            this.project.parts.forEach(part => {
+                this.expandedParts.add(part.id);
+            });
+        },
+
+        // Gestion du tri
+        toggleSort() {
+            const orders = ['position', 'name', 'date'];
+            const currentIndex = orders.indexOf(this.sortOrder);
+            this.sortOrder = orders[(currentIndex + 1) % orders.length] as 'position' | 'name' | 'date';
+            this.sortParts();
+        },
+
+        sortParts() {
+            if (!this.project) return;
+            this.project.parts.sort((a, b) => {
+                switch (this.sortOrder) {
+                    case 'name':
+                        return a.name.localeCompare(b.name);
+                    case 'date':
+                        return b.id - a.id;
+                    default:
+                        return a.position - b.position;
+                }
+            });
+        },
+
+        // Gestion des filtres
+        toggleFilter() {
+            const statuses = ['all', 'completed', 'in-progress'];
+            const currentIndex = statuses.indexOf(this.filters.status);
+            this.filters.status = statuses[(currentIndex + 1) % statuses.length] as 'all' | 'completed' | 'in-progress';
+        },
+
+        setSearchFilter(search: string) {
+            this.filters.search = search;
+        },
+
+        // delete part
+        async deletePart(partId: number) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                // save in the database
+                await $fetch(`${config.public.apiBase}/part/delete/${partId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`
+                    }
+                });
+
+                // remove the part
+                const index = this.parts.findIndex(p => p.id === partId);
+                this.parts.splice(index, 1);
+
+            } catch (error) {
+                console.error("Erreur lors de la suppression d'une partie :", error);
+            }
+        },
+
+        async saveCriteria(value: number, sequenceId: number, criteriaId: number) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                const criteriaData: CriteriaResponse = {
+                    sequenceId: sequenceId,
+                    criteriaId: criteriaId,
+                    value: value
+                }
+
+                const result: CriteriaResponse = await $fetch(`${config.public.apiBase}/criteria/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`
+                    },
+                    body: criteriaData,
+                });
+
+            } catch (error) {
+                console.error("Erreur lors de l'ajout/mise à jour d'une partie :", error);
+            }
+        },
+
+        // add a new part
+        async addPart(newPart: Part, afterPartId?: number) {
+            if (!this.project) {
+                console.error("Aucun projet chargé.");
+                return;
             }
 
-            return savedSequence;
-        } catch (error) {
-            console.error("Erreur lors de la sauvegarde d'une séquence :", error);
-            return null;
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                // add afterPartId to the new part
+                if (afterPartId) {
+                    newPart.afterPartId = afterPartId;
+                }
+
+                // save in the database
+                const result: UpdatePartResponse = await $fetch(`${config.public.apiBase}/part/update`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`
+                    },
+                    body: newPart,
+                });
+
+                const { part: savedPart, positions } = result;
+
+                // check if existing part
+                const existingIndex = this.parts.findIndex(p => p.id === savedPart.id);
+
+                if (existingIndex !== -1) {
+                    // update part name and description
+                    this.parts[existingIndex] = {
+                        ...this.parts[existingIndex],
+                        name: savedPart.name,
+                        description: savedPart.description
+                    };
+
+                } else {
+                    // add the new part
+                    if (afterPartId) {
+                        const index = this.parts.findIndex(p => p.id === afterPartId);
+                        this.parts.splice(index + 1, 0, savedPart);
+                    } else {
+                        this.parts.unshift(savedPart);
+                    }
+                }
+
+                // Reorder parts
+                if (positions && positions.length > 0) {
+                    this.parts.sort((a, b) => {
+                        return positions.indexOf(a.id) - positions.indexOf(b.id);
+                    });
+                }
+
+                // project.parts
+                this.project.parts = [...this.parts];
+
+            } catch (error) {
+                console.error("Erreur lors de l'ajout/mise à jour d'une partie :", error);
+            }
+        },
+
+        // save sequence
+        async saveSequence(newSequence: Sequence, partId: number, afterSequenceId?: number): Promise<Sequence | null> {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                newSequence.part_id = partId;
+
+                if (afterSequenceId) {
+                    (newSequence as any).afterSequenceId = afterSequenceId;
+                }
+
+                const result = await $fetch(`${config.public.apiBase}/sequence/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                    body: newSequence,
+                });
+
+                const savedSequence = result.sequence;
+
+                // Mise à jour locale dans part
+                const part = this.project?.parts.find(p => p.id === partId);
+                if (part) {
+                    if (!part.sequences) {
+                        part.sequences = [];
+                    }
+                    // On vire l'ancienne si elle existe
+                    part.sequences = part.sequences.filter(s => s.id !== savedSequence.id);
+                    // On ajoute la nouvelle
+                    part.sequences.push(savedSequence);
+                    // Trier les séquences par position
+                    part.sequences.sort((a, b) => a.position - b.position);
+                }
+
+                // Mise à jour globale
+                this.sequences = this.sequences.filter(s => s.id !== savedSequence.id);
+                this.sequences.push(savedSequence);
+                // Trier les séquences globales par position
+                this.sequences.sort((a, b) => a.position - b.position);
+
+                // Mettre à jour le projet pour refléter les changements
+                if (this.project) {
+                    const projectPart = this.project.parts.find(p => p.id === partId);
+                    if (projectPart) {
+                        projectPart.sequences = part?.sequences || [];
+                    }
+                }
+
+                return savedSequence;
+            } catch (error) {
+                console.error("Erreur lors de la sauvegarde d'une séquence :", error);
+                return null;
+            }
+        },
+
+        async deleteSequence(sequenceId: number) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                await $fetch(`${config.public.apiBase}/sequence/delete/${sequenceId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                });
+
+                // Mise à jour locale
+                if (this.project) {
+                    for (const part of this.project.parts) {
+                        if (part.sequences) {
+                            const index = part.sequences.findIndex(s => s.id === sequenceId);
+                            if (index !== -1) {
+                                part.sequences.splice(index, 1);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Mise à jour de la liste globale des séquences
+                const index = this.sequences.findIndex(s => s.id === sequenceId);
+                if (index !== -1) {
+                    this.sequences.splice(index, 1);
+                }
+            } catch (error) {
+                console.error("Erreur lors de la suppression de la séquence :", error);
+                throw error;
+            }
+        },
+
+        async saveScene(newScene: Scene, sequenceId: number, afterSceneId?: number): Promise<Scene | null> {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                newScene.sequence_id = sequenceId;
+
+                if (afterSceneId) {
+                    (newScene as any).afterSceneId = afterSceneId;
+                }
+
+                const result = await $fetch(`${config.public.apiBase}/scene/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                    body: newScene,
+                });
+
+                const savedScene = result.scene;
+
+                // Mise à jour locale dans sequence
+                const sequence = this.sequences.find(s => s.id === sequenceId);
+                if (sequence) {
+                    if (!sequence.scenes) {
+                        sequence.scenes = [];
+                    }
+                    // On vire l'ancienne si elle existe
+                    sequence.scenes = sequence.scenes.filter(s => s.id !== savedScene.id);
+                    // On ajoute la nouvelle
+                    sequence.scenes.push(savedScene);
+                    // Trier les scènes par position
+                    sequence.scenes.sort((a, b) => a.position - b.position);
+                }
+
+                // Mise à jour dans le projet
+                if (this.project) {
+                    for (const part of this.project.parts) {
+                        if (part.sequences) {
+                            for (const seq of part.sequences) {
+                                if (seq.id === sequenceId) {
+                                    if (!seq.scenes) {
+                                        seq.scenes = [];
+                                    }
+                                    seq.scenes = seq.scenes.filter(s => s.id !== savedScene.id);
+                                    seq.scenes.push(savedScene);
+                                    seq.scenes.sort((a, b) => a.position - b.position);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Mise à jour globale
+                this.scenes = this.scenes.filter(s => s.id !== savedScene.id);
+                this.scenes.push(savedScene);
+                // Trier les scènes globales par position
+                this.scenes.sort((a, b) => a.position - b.position);
+
+                return savedScene;
+            } catch (error) {
+                console.error("Erreur lors de la sauvegarde d'une scène :", error);
+                return null;
+            }
+        },
+
+        async deleteScene(sceneId: number) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                await $fetch(`${config.public.apiBase}/scene/delete/${sceneId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                });
+
+                // Mise à jour locale
+                if (this.project) {
+                    for (const part of this.project.parts) {
+                        if (part.sequences) {
+                            for (const sequence of part.sequences) {
+                                if (sequence.scenes) {
+                                    const index = sequence.scenes.findIndex(s => s.id === sceneId);
+                                    if (index !== -1) {
+                                        sequence.scenes.splice(index, 1);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Mise à jour de la liste globale des scènes
+                const index = this.scenes.findIndex(s => s.id === sceneId);
+                if (index !== -1) {
+                    this.scenes.splice(index, 1);
+                }
+            } catch (error) {
+                console.error("Erreur lors de la suppression de la scène :", error);
+                throw error;
+            }
         }
     }
-
-
-
-
-
-    return {
-        project, parts, sequences, scenes,
-        fetchProject, addPart, deletePart, saveSequence, saveCriteria
-    };
 });

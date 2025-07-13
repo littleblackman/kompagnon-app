@@ -3,8 +3,9 @@ export interface Scene {
   name: string
   description: string
   position: number
-  sequence_id?: number
-  project_id: number
+  sequence_id: number
+  status_id?: number
+  content: string
 }
 
 export interface Sequence {
@@ -12,9 +13,12 @@ export interface Sequence {
   name: string
   description: string
   position: number
+  part_id: number
+  status_id?: number
   scenes?: Scene[]
-  part_id?: number
   afterSequenceId?: number
+  intention?: string
+  aesthetic_idea?: string
 }
 
 export interface Part {
@@ -22,7 +26,9 @@ export interface Part {
   name: string
   description: string
   position: number
+  project_id: number
   sequences?: Sequence[]
+  status_id?: number
 }
 
 export interface Project {

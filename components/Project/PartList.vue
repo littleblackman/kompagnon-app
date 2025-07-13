@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from '#imports'
+import { ref, computed } from '#imports'
 import type { Part } from '~/types'
 import SequenceList from "@/components/Project/SequenceList.vue";
 import PartModal from "@/components/Project/PartModal.vue";
 import ActionButtons from "@/components/Project/ActionButtons.vue";
 import { useProjectStore } from "~/store/project";
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 
 // Récupérer le store
 const projectStore = useProjectStore();
@@ -19,23 +20,57 @@ const openModal = (part: Part | null = null) => {
   modalOpen.value = true;
 };
 
-// Met à jour le store directement après modification
+// Ferme la modale après sauvegarde (la sauvegarde est gérée par PartModal)
 const handleSavePart = (updatedPart: Part) => {
-  projectStore.addPart(updatedPart);
   modalOpen.value = false;
+};
+
+// Gestion de l'expansion
+const togglePart = (partId: number) => {
+  projectStore.togglePart(partId);
+};
+
+// Vérifier si une partie est développée
+const isPartExpanded = (partId: number) => {
+  return projectStore.expandedParts.has(partId);
 };
 </script>
 
 <template>
-  <div>
+  <div style="width: 100%;">
     <!-- Liste des parties -->
-    <ul class="mt-6">
-      <li v-for="part in projectStore.project?.parts" :key="part.id">
-        <h2 class="font-bold text-2xl cursor-pointer" @click="openModal(part)">
-          {{ part.name }}
-        </h2>
-        <p v-html="part.description || ''" class="cursor-pointer" @click="openModal(part)"></p>
-        <SequenceList :sequences="part.sequences" :projectId="projectStore.project?.id || 0" :partId="part.id" />
+    <ul class="mt-6 space-y-4">
+      <li v-for="part in projectStore.project?.parts" :key="part.id" 
+          class="bg-orange-50 rounded-lg p-4 hover:bg-orange-100 transition-colors">
+        <div class="flex items-start gap-2">
+          <button 
+            @click="togglePart(part.id)"
+            class="text-gray-500 hover:text-gray-700 mt-2 cursor-pointer transition-colors"
+          >
+            <ChevronDownIcon v-if="isPartExpanded(part.id)" class="w-5 h-5" />
+            <ChevronRightIcon v-else class="w-5 h-5" />
+          </button>
+          <div class="flex-1">
+            <h2 
+              class="font-bold text-2xl cursor-pointer hover:text-blue-600 transition-colors text-color-primary" 
+              @click="openModal(part)"
+            >
+              {{ part.name }}
+            </h2>
+            <p 
+              v-html="part.description || ''" 
+              class="cursor-pointer hover:text-blue-600 transition-colors text-gray-700" 
+              @click="openModal(part)"
+            ></p>
+            <div v-if="isPartExpanded(part.id)" class="mt-4">
+              <SequenceList 
+                :sequences="part.sequences" 
+                :projectId="projectStore.project?.id || 0" 
+                :partId="part.id" 
+              />
+            </div>
+          </div>
+        </div>
       </li>
     </ul>
 

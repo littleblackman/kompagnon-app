@@ -24,7 +24,6 @@ const parts = computed(() => projectStore.parts);
   <div v-else class="flex flex-col items-center p-6">
     <h1 class="font-extrabold text-3xl">{{ project.name }}</h1>
     <p v-html="project.description" class="italic mb-10"></p>
-
     <PartList :parts="parts" :projectId="project.id"/>
   </div>
 </template>

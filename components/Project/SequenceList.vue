@@ -3,6 +3,7 @@ import RatingStars from "@/components/Project/RatingStars.vue";
 import SequenceModal from "~/components/Project/SequenceModal.vue";
 import PersonnageModal from "~/components/Project/PersonnageModal.vue";
 import FieldIcon from '@/components/FieldIcon.vue'
+import SceneList from '@/components/Project/SceneList.vue'
 import { SparklesIcon,  PaintBrushIcon,  InformationCircleIcon } from '@heroicons/vue/24/solid'
 
 import { useProjectStore } from "~/store/project";
@@ -22,6 +23,12 @@ const props = defineProps({
   personnages: Array,
   projectId: Number,
   partId: Number
+});
+
+// Trier les séquences par position
+const sortedSequences = computed(() => {
+  if (!props.sequences) return [];
+  return [...props.sequences].sort((a, b) => a.position - b.position);
 });
 
 const sequenceModalOpen = ref(false);
@@ -48,17 +55,38 @@ const handleSaveSequence = async ({ sequence, afterSequenceId }) => {
     const savedSequence = await projectStore.saveSequence(sequence, props.partId, afterSequenceId);
     sequenceModalOpen.value = false;
 
-    const existingIndex = props.sequences.findIndex(seq => seq.id === savedSequence.id);
-    if (existingIndex !== -1) {
-      props.sequences[existingIndex] = savedSequence;
-    } else {
-      props.sequences.push(savedSequence);
+    // Mise à jour locale des séquences
+    if (props.sequences) {
+      const existingIndex = props.sequences.findIndex(seq => seq.id === savedSequence.id);
+      if (existingIndex !== -1) {
+        props.sequences[existingIndex] = savedSequence;
+      } else {
+        props.sequences.push(savedSequence);
+      }
+      // Trier les séquences par position
+      props.sequences.sort((a, b) => a.position - b.position);
     }
   } catch (error) {
     console.error("Erreur lors de la sauvegarde :", error);
   }
 };
 
+const handleDeleteSequence = async (sequence) => {
+  try {
+    await projectStore.deleteSequence(sequence.id);
+    sequenceModalOpen.value = false;
+    
+    // Mise à jour locale des séquences
+    if (props.sequences) {
+      const index = props.sequences.findIndex(seq => seq.id === sequence.id);
+      if (index !== -1) {
+        props.sequences.splice(index, 1);
+      }
+    }
+  } catch (error) {
+    console.error("Erreur lors de la suppression :", error);
+  }
+};
 
 /*** Icon field ***/
 function updateField(field: keyof typeof sequence.value, value: string) {
@@ -127,6 +155,7 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
                    :projectId="projectId"
                    @close="sequenceModalOpen = false"
                    @save="handleSaveSequence"
+                   @delete="handleDeleteSequence"
               />
 
     <PersonnageModal
@@ -137,7 +166,7 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
     />
 
 
-    <li v-for="sequence in sequences" :key="sequence.id" class="pl-6 pr-3 pt-6 pb-6">
+    <li v-for="sequence in sortedSequences" :key="sequence.id" class="pl-6 pr-3 pt-6 pb-6">
 
       <h3 class="font-bold cursor-pointer" @click="openSequenceModal(sequence)">
         {{ sequence.name }}
@@ -161,6 +190,12 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
             <div class="font-bold mr-1 cursor-pointer" @click="updatePersonnage()">+</div>
           </div>
           <p v-html="sequence.description"></p>
+          
+          <SceneList 
+            :scenes="sequence.scenes" 
+            :projectId="projectId"
+            :sequenceId="sequence.id"
+          />
         </div>
 
         <div>
