@@ -107,7 +107,7 @@ const cancelDelete = () => {
       <input type="text" v-model="currentSequence.name" class="border rounded p-2 w-full mb-4">
 
       <label class="block mb-2 font-semibold">Description :</label>
-      <RichTextEditor v-model="currentSequence.description" />
+      <RichTextEditor v-model="currentSequence.description" content-type="organizational" />
 
       <!-- Select de l'emplacement -->
       <label class="block mt-4 font-semibold">Emplacement après :</label>

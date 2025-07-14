@@ -189,6 +189,7 @@ const closeModal = () => {
             <RichTextEditor 
               v-model="currentScene.content" 
               class="h-full"
+              content-type="printable"
               :editor-height="'100%'"
             />
           </div>

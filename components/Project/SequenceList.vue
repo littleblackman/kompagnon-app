@@ -20,10 +20,12 @@ onMounted(() => {
 
 const props = defineProps({
   sequences: Array,
-  personnages: Array,
   projectId: Number,
   partId: Number
 });
+
+// Utiliser les personnages du store plutôt que les props
+const personnages = computed(() => projectStore.personnages);
 
 // Trier les séquences par position
 const sortedSequences = computed(() => {
@@ -89,17 +91,28 @@ const handleDeleteSequence = async (sequence) => {
 };
 
 /*** Icon field ***/
-function updateField(field: keyof typeof sequence.value, value: string) {
+async function updateField(field: string, value: string, sequenceId: number) {
+  try {
+    const sequence = props.sequences.find(s => s.id === sequenceId);
+    if (!sequence) return;
 
-  console.log(field, value);
+
+    // Mise à jour locale immédiate
+    sequence[field] = value;
+    
+
+    // Sauvegarde via API
+    await projectStore.saveSequence(sequence, props.partId);
+  } catch (error) {
+    console.error(`Erreur lors de la mise à jour du champ ${field}:`, error);
+  }
 }
 
 
 
 /**** PERSONNAGES PART ****/
 
-const updatePersonnage = (personnage = null) => {
-
+const updatePersonnage = (personnage = null, sequenceId = null) => {
   if(!personnage) {
     personnage = {
       firstName: '',
@@ -108,16 +121,28 @@ const updatePersonnage = (personnage = null) => {
     };
   }
 
-  selectedPersonnage.value = personnage;
+  selectedPersonnage.value = { ...personnage, sequenceId };
   personnageModalOpen.value = true;
 };
 
-const handleSavePersonnage = (personnage) => {
-  console.log('personnage modifié :', personnage);
+const handleSavePersonnage = async (personnage) => {
+  try {
+    const savedPersonnage = await projectStore.savePersonnage(personnage);
+    if (savedPersonnage) {
+      console.log('Personnage sauvegardé :', savedPersonnage);
+      // Recharger le projet pour mettre à jour les relations
+      if (projectStore.project) {
+        await projectStore.fetchProject(projectStore.project.slug);
+      }
+    }
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde du personnage :', error);
+  }
   personnageModalOpen.value = false;
 };
 
 const getPersonnageName = (p) => {
+  if (!p) return '';
   return [p.firstName, p.lastName].filter(Boolean).join(' ');
 };
 
@@ -127,14 +152,29 @@ const getPersonnageName = (p) => {
 
 // get note by criteria
 const getCriteriaRating = (sequence, criteriaId) => {
-  const sequenceCriteria = sequence.sequenceCriterias?.find(sc => sc.id === criteriaId);
+  const sequenceCriteria = sequence.sequenceCriterias?.find(sc => sc.criteria?.id === criteriaId);
   return sequenceCriteria?.rating || 0;
 };
 
 const updateRating = async ({ value, sequenceId, criteriaId }) => {
-  console.log('update rating', value, sequenceId, criteriaId);
   try {
     await projectStore.saveCriteria(value, sequenceId, criteriaId);
+    
+    // Mise à jour locale immédiate
+    const sequence = props.sequences?.find(s => s.id === sequenceId);
+    if (sequence && sequence.sequenceCriterias) {
+      let sequenceCriteria = sequence.sequenceCriterias.find(sc => sc.criteria?.id === criteriaId);
+      if (sequenceCriteria) {
+        // Mettre à jour l'existant
+        sequenceCriteria.rating = value;
+      } else {
+        // Créer nouvelle entrée (si elle n'existe pas localement)
+        sequence.sequenceCriterias.push({
+          criteria: { id: criteriaId },
+          rating: value
+        });
+      }
+    }
 
   } catch (error) {
     console.error("Erreur lors de la sauvegarde :", error);
@@ -168,7 +208,7 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
 
     <li v-for="sequence in sortedSequences" :key="sequence.id" class="pl-6 pr-3 pt-6 pb-6">
 
-      <h3 class="font-bold cursor-pointer" @click="openSequenceModal(sequence)">
+      <h3 class="font-bold cursor-pointer text-gray-500 organizational-text" @click="openSequenceModal(sequence)">
         {{ sequence.name }}
       </h3>
       <div class="flex">
@@ -180,16 +220,16 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
                       v-for="(sp, index) in sequence.sequencePersonnages"
                       :key="sp.id"
                       class="text-blue-600 hover:underline cursor-pointer"
-                      @click="updatePersonnage(sp.personnage)"
+                      @click="updatePersonnage(sp.personnage, sequence.id)"
                   >
                     {{ getPersonnageName(sp.personnage) }}<span v-if="index < sequence.sequencePersonnages.length - 1">, </span>
                   </span>
               </template>
               <span v-else>Aucun personnage</span>
             </i>
-            <div class="font-bold mr-1 cursor-pointer" @click="updatePersonnage()">+</div>
+            <div class="font-bold mr-1 cursor-pointer" @click="updatePersonnage(null, sequence.id)">+</div>
           </div>
-          <p v-html="sequence.description"></p>
+          <div v-html="sequence.description" class="text-gray-500 organizational-text"></div>
           
           <SceneList 
             :scenes="sequence.scenes" 
@@ -205,21 +245,21 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
                 :icon="SparklesIcon"
                 :text="sequence.intention ?? ''"
                 color="text-pink-500"
-                :onSave="(val) => updateField('intention', val)"
+                :onSave="(val) => updateField('intention', val, sequence.id)"
             />
 
             <FieldIcon
                 :icon="PaintBrushIcon"
                 :text="sequence.aesthetic_idea ?? ''  "
                 color="text-blue-500"
-                :onSave="(val) => updateField('aesthetic_idea', val)"
+                :onSave="(val) => updateField('aesthetic_idea', val, sequence.id)"
             />
 
             <FieldIcon
                 :icon="InformationCircleIcon"
                 :text="sequence.information ?? ''"
                 color="text-yellow-500"
-                :onSave="(val) => updateField('information', val)"
+                :onSave="(val) => updateField('information', val, sequence.id)"
             />
           </div>
 
@@ -238,3 +278,15 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
     </li>
   </ul>
 </template>
+
+<style scoped>
+/* Contenu organisationnel (Sequences) */
+.organizational-text {
+  color: #9CA3AF !important; /* gray-400 */
+  font-style: italic;
+}
+
+.organizational-text * {
+  color: #9CA3AF !important;
+}
+</style>

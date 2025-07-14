@@ -129,7 +129,7 @@ const vHtml = {
             </button>
           </div>
         </div>
-        <div class="mt-2 prose prose-sm max-w-none scene-content" v-html="scene.content"></div>
+        <div class="mt-2 prose prose-sm max-w-none scene-content printable-content p-4" v-html="scene.content"></div>
       </div>
     </div>
     <div v-else class="ml-4 p-4 text-gray-500 italic">
@@ -139,6 +139,28 @@ const vHtml = {
 </template>
 
 <style>
+/* Contenu organisationnel (Parts et Sequences) */
+.organizational-text {
+  color: #9CA3AF !important; /* gray-400 */
+  font-style: italic;
+}
+
+.organizational-text * {
+  color: #9CA3AF !important;
+}
+
+/* Contenu imprimable (Scenes) */
+.printable-content {
+  color: #111827 !important; /* gray-900 */
+  background-color: #FFFBEB; /* amber-50 */
+  border-left: 4px solid #F59E0B; /* amber-500 */
+  padding-left: 1.2rem;
+}
+
+.printable-content * {
+  color: #111827 !important;
+}
+
 .scene-content {
   font-size: 0.875rem;
   line-height: 1.5;

@@ -3,7 +3,8 @@ import { ref, watch } from 'vue';
 import Editor from '@tinymce/tinymce-vue';
 
 const props = defineProps<{
-  modelValue: string
+  modelValue: string;
+  contentType?: 'organizational' | 'printable';
 }>();
 
 const emit = defineEmits(['update:modelValue']);
@@ -33,50 +34,25 @@ watch(currentDescription, (newVal) => {
         height: 300,
         menubar: false,
         plugins: [
-          'lists', 'link', 'charmap', 'preview', 'anchor',
-          'searchreplace', 'visualblocks', 'code', 'fullscreen',
-          'insertdatetime', 'table', 'help', 'wordcount',
-          'emoticons', 'image', 'media', 'codesample',
-          'pagebreak', 'nonbreaking', 'visualchars',
-          'quickbars', 'autoresize'
+          'lists', 'link', 'emoticons'
         ],
-        toolbar: [
-          'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image media table codesample',
-          'forecolor backcolor | fontfamily fontsize | removeformat | charmap emoticons | hr pagebreak nonbreaking | toc visualchars | fullscreen code | help'
-        ],
-        quickbars_selection_toolbar: 'bold italic | quicklink h2 h3 blockquote',
-        quickbars_insert_toolbar: 'quickimage quicktable',
-        contextmenu: 'link image table',
-        content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; }',
+        toolbar: 'styles | bold italic underline | forecolor backcolor | bullist numlist | link emoticons | removeformat',
+        quickbars_selection_toolbar: 'bold italic underline | quicklink',
+        quickbars_insert_toolbar: false,
+        contextmenu: 'link',
+        content_style: `body { 
+          font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; 
+          font-size: 16px; 
+          color: #000000;
+          ${props.contentType === 'organizational' ? 'color: #9CA3AF !important; font-style: italic;' : ''}
+          ${props.contentType === 'printable' ? 'color: #111827 !important; background-color: #FFFBEB; padding-left: 1.2rem!important; border-left: 4px solid #F59E0B;' : ''}
+        }`,
         style_formats: [
-          { title: 'Headings', items: [
-            { title: 'Heading 1', format: 'h1' },
-            { title: 'Heading 2', format: 'h2' },
-            { title: 'Heading 3', format: 'h3' },
-            { title: 'Heading 4', format: 'h4' },
-            { title: 'Heading 5', format: 'h5' },
-            { title: 'Heading 6', format: 'h6' }
-          ]},
-          { title: 'Inline', items: [
-            { title: 'Bold', format: 'bold' },
-            { title: 'Italic', format: 'italic' },
-            { title: 'Underline', format: 'underline' },
-            { title: 'Strikethrough', format: 'strikethrough' },
-            { title: 'Superscript', format: 'superscript' },
-            { title: 'Subscript', format: 'subscript' },
-            { title: 'Code', format: 'code' }
-          ]},
-          { title: 'Blocks', items: [
-            { title: 'Paragraph', format: 'p' },
-            { title: 'Blockquote', format: 'blockquote' },
-            { title: 'Div', format: 'div' },
-            { title: 'Pre', format: 'pre' }
-          ]},
-          { title: 'Alignment', items: [
-            { title: 'Left', format: 'alignleft' },
-            { title: 'Center', format: 'aligncenter' },
-            { title: 'Right', format: 'alignright' },
-            { title: 'Justify', format: 'alignjustify' }
+          { title: 'Titres', items: [
+            { title: 'Titre 1', format: 'h1' },
+            { title: 'Titre 2', format: 'h2' },
+            { title: 'Titre 3', format: 'h3' },
+            { title: 'Paragraphe', format: 'p' }
           ]}
         ]
       }"

@@ -36,4 +36,20 @@ export interface Project {
   name: string
   description: string
   parts: Part[]
+}
+
+export interface Personnage {
+  id: number
+  firstName: string
+  lastName: string
+  background?: string
+  age?: number
+  origin?: string
+  avatar?: string
+  images?: string[]
+  level?: number
+  analysis?: string
+  strength?: string
+  weakness?: string
+  project_id: number
 } 

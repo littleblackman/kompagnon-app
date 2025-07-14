@@ -57,11 +57,11 @@ const isPartExpanded = (partId: number) => {
             >
               {{ part.name }}
             </h2>
-            <p 
+            <div 
               v-html="part.description || ''" 
-              class="cursor-pointer hover:text-blue-600 transition-colors text-gray-700" 
+              class="cursor-pointer hover:text-blue-600 transition-colors text-gray-500 organizational-text" 
               @click="openModal(part)"
-            ></p>
+            ></div>
             <div v-if="isPartExpanded(part.id)" class="mt-4">
               <SequenceList 
                 :sequences="part.sequences" 
@@ -86,3 +86,15 @@ const isPartExpanded = (partId: number) => {
     />
   </div>
 </template>
+
+<style scoped>
+/* Contenu organisationnel (Parts) */
+.organizational-text {
+  color: #9CA3AF !important; /* gray-400 */
+  font-style: italic;
+}
+
+.organizational-text * {
+  color: #9CA3AF !important;
+}
+</style>

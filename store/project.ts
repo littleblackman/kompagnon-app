@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { useAuthStore } from '~/store/auth';
-import type { Project, Part, Sequence, Scene } from '~/types';
+import type { Project, Part, Sequence, Scene, Personnage } from '~/types';
 
 interface Part {
     id: number;
@@ -53,6 +53,7 @@ export const useProjectStore = defineStore('project', {
         parts: [] as Part[],
         sequences: [] as Sequence[],
         scenes: [] as Scene[],
+        personnages: [] as Personnage[],
         expandedParts: new Set<number>(),
         sortOrder: 'position' as 'position' | 'name' | 'date',
         filters: {
@@ -81,6 +82,7 @@ export const useProjectStore = defineStore('project', {
                 this.parts = response.parts || [];
                 this.sequences = this.parts.flatMap(part => part.sequences || []);
                 this.scenes = this.sequences.flatMap(seq => seq.scenes || []);
+                this.personnages = response.personnages || [];
                 
                 // Développer toutes les parties par défaut
                 this.expandAllParts();
@@ -501,6 +503,70 @@ export const useProjectStore = defineStore('project', {
             } catch (error) {
                 console.error("Erreur lors de la suppression de la scène :", error);
                 throw error;
+            }
+        },
+
+        // Gestion des personnages
+        async savePersonnage(personnageData: Partial<Personnage>) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                if (!this.project) {
+                    console.error("Aucun projet chargé.");
+                    return null;
+                }
+
+                const dataToSend = {
+                    ...personnageData,
+                    project_id: this.project.id
+                };
+
+                const savedPersonnage: Personnage = await $fetch(`${config.public.apiBase}/personnage/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`
+                    },
+                    body: dataToSend
+                });
+
+                // Mise à jour locale de la liste des personnages
+                const existingIndex = this.personnages.findIndex(p => p.id === savedPersonnage.id);
+                if (existingIndex !== -1) {
+                    // Mise à jour d'un personnage existant
+                    this.personnages[existingIndex] = savedPersonnage;
+                } else {
+                    // Ajout d'un nouveau personnage
+                    this.personnages.push(savedPersonnage);
+                }
+
+                return savedPersonnage;
+            } catch (error) {
+                console.error("Erreur lors de la sauvegarde d'un personnage :", error);
+                return null;
+            }
+        },
+
+        async deletePersonnage(personnageId: number) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                await $fetch(`${config.public.apiBase}/personnage/delete/${personnageId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                });
+
+                // Mise à jour locale - supprimer de la liste
+                this.personnages = this.personnages.filter(p => p.id !== personnageId);
+
+                return true;
+            } catch (error) {
+                console.error("Erreur lors de la suppression du personnage :", error);
+                return false;
             }
         }
     }

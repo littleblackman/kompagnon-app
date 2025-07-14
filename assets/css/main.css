@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+/* Force TinyMCE height in PersonnageModal */
+.tox.tox-tinymce[role="application"] {
+  height: 600px !important;
+}
+
+/* Alternative: auto height if container allows */
+.h-full .tox.tox-tinymce[role="application"] {
+  height: 100% !important;
+  min-height: 400px !important;
+}
