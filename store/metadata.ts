@@ -5,7 +5,6 @@ import { useAuthStore } from '~/store/auth';
 interface MetadataResponse {
     criterias: Criteria[];
     status: Status[];
-    personnages: Personnage[];
 }
 
 interface Criteria {
@@ -20,19 +19,12 @@ interface Status {
     description: string;
 }
 
-interface Personnage {
-    id: number;
-    firstName: string;
-    lastName?: string;
-    background?: string;
-}
 
 export const useMetadataStore = defineStore('metadata', () => {
     const authStore = useAuthStore();
 
     const criterias = ref<Criteria[]>([]);
     const status = ref<Status[]>([]);
-    const personnages = ref<Personnage[]>([]);
 
     const loaded = ref(false);
 
@@ -45,7 +37,6 @@ export const useMetadataStore = defineStore('metadata', () => {
 
             criterias.value = response.criterias || [];
             status.value = response.status || [];
-            personnages.value = response.personnages || [];
 
             loaded.value = true;
         } catch (error) {
@@ -57,7 +48,6 @@ export const useMetadataStore = defineStore('metadata', () => {
     return {
         criterias,
         status,
-        personnages,
         loaded,
         fetchMetadata
     };

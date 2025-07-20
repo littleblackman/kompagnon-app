@@ -25,6 +25,11 @@ export const useAuthStore = defineStore('auth', {
                 localStorage.setItem('token', data.token)
 
                 await this.fetchUser()
+                
+                // Charger les metadata après connexion
+                const { useMetadataStore } = await import('~/store/metadata');
+                const metadataStore = useMetadataStore();
+                await metadataStore.fetchMetadata();
 
                 navigateTo('/')
             } catch (error) {
@@ -66,11 +71,18 @@ export const useAuthStore = defineStore('auth', {
             navigateTo('/login')
         },
 
-        initAuth() {
+        async initAuth() {
             const token = localStorage.getItem('token')
             if (token) {
                 this.token = token
-                this.fetchUser();
+                await this.fetchUser();
+                
+                // Charger les metadata si token valide
+                const { useMetadataStore } = await import('~/store/metadata');
+                const metadataStore = useMetadataStore();
+                if (!metadataStore.loaded) {
+                    await metadataStore.fetchMetadata();
+                }
             }
         },
 

@@ -2,21 +2,21 @@
 import RatingStars from "@/components/Project/RatingStars.vue";
 import SequenceModal from "~/components/Project/SequenceModal.vue";
 import PersonnageModal from "~/components/Project/PersonnageModal.vue";
+import PersonnageDetectionModal from "~/components/Project/PersonnageDetectionModal.vue";
+import PersonnageConfigModal from "~/components/Project/PersonnageConfigModal.vue";
 import FieldIcon from '@/components/FieldIcon.vue'
 import SceneList from '@/components/Project/SceneList.vue'
 import { SparklesIcon,  PaintBrushIcon,  InformationCircleIcon } from '@heroicons/vue/24/solid'
 
 import { useProjectStore } from "~/store/project";
 import { useMetadataStore } from "~/store/metadata";
+import { usePersonnageStore } from "~/store/personnage";
 
 const projectStore = useProjectStore();
 const metadataStore = useMetadataStore();
+const personnageStore = usePersonnageStore();
 
-onMounted(() => {
-  if (!metadataStore.loaded) {
-    metadataStore.fetchMetadata();
-  }
-});
+// Metadata sont maintenant chargées au login dans auth.ts
 
 const props = defineProps({
   sequences: Array,
@@ -24,8 +24,7 @@ const props = defineProps({
   partId: Number
 });
 
-// Utiliser les personnages du store plutôt que les props
-const personnages = computed(() => projectStore.personnages);
+// Les personnages sont maintenant gérés via les séquences
 
 // Trier les séquences par position
 const sortedSequences = computed(() => {
@@ -37,6 +36,7 @@ const sequenceModalOpen = ref(false);
 const currentSequence = ref(null);
 const personnageModalOpen = ref(false);
 const selectedPersonnage = ref(null);
+const showPersonnageConfig = ref(false);
 
 
 /**** SEQUENCES & SAVE PART ****/
@@ -117,7 +117,8 @@ const updatePersonnage = (personnage = null, sequenceId = null) => {
     personnage = {
       firstName: '',
       lastName: '',
-      age: 0
+      age: 0,
+      background: ''
     };
   }
 
@@ -127,7 +128,12 @@ const updatePersonnage = (personnage = null, sequenceId = null) => {
 
 const handleSavePersonnage = async (personnage) => {
   try {
-    const savedPersonnage = await projectStore.savePersonnage(personnage);
+    if (!projectStore.project?.id) {
+      console.error('Aucun projet chargé');
+      return;
+    }
+    
+    const savedPersonnage = await personnageStore.savePersonnage(personnage, projectStore.project.id);
     if (savedPersonnage) {
       console.log('Personnage sauvegardé :', savedPersonnage);
       // Recharger le projet pour mettre à jour les relations
@@ -142,8 +148,26 @@ const handleSavePersonnage = async (personnage) => {
 };
 
 const getPersonnageName = (p) => {
-  if (!p) return '';
-  return [p.firstName, p.lastName].filter(Boolean).join(' ');
+  return personnageStore.getPersonnageName(p);
+};
+
+const removePersonnageFromSequence = async (sequencePersonnageId, sequenceId) => {
+  try {
+    // Trouver le personnageId depuis le sequencePersonnage
+    const sequence = props.sequences?.find(s => s.id === sequenceId);
+    const sequencePersonnage = sequence?.sequencePersonnages?.find(sp => sp.id === sequencePersonnageId);
+    
+    if (sequencePersonnage && sequencePersonnage.personnage) {
+      await personnageStore.removePersonnageFromSequence(sequenceId, sequencePersonnage.personnage.id);
+      
+      // Recharger le projet pour mettre à jour l'affichage
+      if (projectStore.project?.slug) {
+        await projectStore.fetchProject(projectStore.project.slug);
+      }
+    }
+  } catch (error) {
+    console.error('Erreur lors de la suppression du personnage de la séquence :', error);
+  }
 };
 
 
@@ -204,11 +228,15 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
         @close="personnageModalOpen = false"
         @save="handleSavePersonnage"
     />
+    
+    <PersonnageDetectionModal />
+    
+    <PersonnageConfigModal v-model:showConfig="showPersonnageConfig" />
 
 
     <li v-for="sequence in sortedSequences" :key="sequence.id" class="pl-6 pr-3 pt-6 pb-6">
 
-      <h3 class="font-bold cursor-pointer text-gray-500 organizational-text" @click="openSequenceModal(sequence)">
+      <h3 :id="`sequence-${sequence.id}`" class="font-bold cursor-pointer text-black text-lg" @click="openSequenceModal(sequence)">
         {{ sequence.name }}
       </h3>
       <div class="flex">
@@ -219,15 +247,36 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
                   <span
                       v-for="(sp, index) in sequence.sequencePersonnages"
                       :key="sp.id"
-                      class="text-blue-600 hover:underline cursor-pointer"
-                      @click="updatePersonnage(sp.personnage, sequence.id)"
+                      class="inline-flex items-center mr-1"
                   >
-                    {{ getPersonnageName(sp.personnage) }}<span v-if="index < sequence.sequencePersonnages.length - 1">, </span>
+                    <span 
+                      class="text-blue-600 hover:underline cursor-pointer mr-1"
+                      @click="updatePersonnage(sp.personnage, sequence.id)"
+                    >
+                      {{ getPersonnageName(sp.personnage) }}
+                    </span>
+                    <button
+                      @click="removePersonnageFromSequence(sp.id, sequence.id)"
+                      class="text-red-500 hover:text-red-700 text-xs ml-1 cursor-pointer"
+                      title="Retirer de cette séquence"
+                    >
+                      ×
+                    </button>
+                    <span v-if="index < sequence.sequencePersonnages.length - 1" class="mr-1">, </span>
                   </span>
               </template>
               <span v-else>Aucun personnage</span>
             </i>
-            <div class="font-bold mr-1 cursor-pointer" @click="updatePersonnage(null, sequence.id)">+</div>
+            <div class="flex items-center space-x-1">
+              <div class="font-bold cursor-pointer" @click="updatePersonnage(null, sequence.id)">+</div>
+              <button 
+                @click="showPersonnageConfig = true"
+                class="text-xs text-gray-500 hover:text-gray-700 cursor-pointer"
+                title="Configurer la détection automatique"
+              >
+                ⚙️
+              </button>
+            </div>
           </div>
           <div v-html="sequence.description" class="text-gray-500 organizational-text"></div>
           

@@ -5,7 +5,12 @@ export interface Scene {
   position: number
   sequence_id: number
   status_id?: number
-  content: string
+  content?: string
+}
+
+export interface SequencePersonnage {
+  id: number
+  personnage: Personnage
 }
 
 export interface Sequence {
@@ -19,6 +24,7 @@ export interface Sequence {
   afterSequenceId?: number
   intention?: string
   aesthetic_idea?: string
+  sequencePersonnages?: SequencePersonnage[]
 }
 
 export interface Part {
@@ -35,7 +41,9 @@ export interface Project {
   id: number
   name: string
   description: string
+  slug?: string
   parts: Part[]
+  personnages?: Personnage[]
 }
 
 export interface Personnage {

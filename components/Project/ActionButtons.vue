@@ -4,9 +4,7 @@ import { useProjectStore } from '~/store/project'
 import { 
   ChevronDoubleUpIcon, 
   ChevronDoubleDownIcon,
-  PlusIcon,
-  FunnelIcon,
-  ArrowsUpDownIcon
+  PlusIcon
 } from '@heroicons/vue/24/outline'
 import type { Part, Sequence, Scene } from '~/types'
 import PartModal from './PartModal.vue'
@@ -45,14 +43,6 @@ const closeModal = () => {
   modalType.value = null
 }
 
-// Actions de vue
-const toggleSort = () => {
-  projectStore.toggleSort()
-}
-
-const toggleFilter = () => {
-  projectStore.toggleFilter()
-}
 
 // Gestion de la sauvegarde des séquences
 const handleSaveSequence = async ({ sequence, afterSequenceId }) => {
@@ -99,7 +89,7 @@ const handleSaveSequence = async ({ sequence, afterSequenceId }) => {
         </div>
 
         <!-- Section Création -->
-        <div class="border-b pb-2 mb-2">
+        <div>
           <h3 class="text-xs font-semibold text-gray-500 px-2 mb-1">Création</h3>
           <button
             @click="openModal('part')"
@@ -118,25 +108,6 @@ const handleSaveSequence = async ({ sequence, afterSequenceId }) => {
             class="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
           >
             + Scène
-          </button>
-        </div>
-
-        <!-- Section Vue -->
-        <div>
-          <h3 class="text-xs font-semibold text-gray-500 px-2 mb-1">Vue</h3>
-          <button
-            @click="toggleSort"
-            class="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded flex items-center gap-2"
-          >
-            <ArrowsUpDownIcon class="w-4 h-4" />
-            Trier
-          </button>
-          <button
-            @click="toggleFilter"
-            class="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded flex items-center gap-2"
-          >
-            <FunnelIcon class="w-4 h-4" />
-            Filtrer
           </button>
         </div>
       </div>

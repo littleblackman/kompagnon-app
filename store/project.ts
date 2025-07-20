@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { useAuthStore } from '~/store/auth';
+import { usePersonnageStore } from '~/store/personnage';
 import type { Project, Part, Sequence, Scene, Personnage } from '~/types';
 
 interface Part {
@@ -83,6 +84,11 @@ export const useProjectStore = defineStore('project', {
                 this.sequences = this.parts.flatMap(part => part.sequences || []);
                 this.scenes = this.sequences.flatMap(seq => seq.scenes || []);
                 this.personnages = response.personnages || [];
+                
+                // Initialiser la table de référence des personnages
+                console.log('Loading project personnages:', response.personnages || []);
+                const personnageStore = usePersonnageStore();
+                personnageStore.personnages = response.personnages || [];
                 
                 // Développer toutes les parties par défaut
                 this.expandAllParts();
@@ -466,6 +472,33 @@ export const useProjectStore = defineStore('project', {
             }
         },
 
+        async saveSceneOrder(scenes: Scene[]) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                // Préparer les données pour l'API (juste ID et position)
+                const scenePositions = scenes.map(scene => ({
+                    id: scene.id,
+                    position: scene.position
+                }));
+
+                // Appeler la nouvelle route /api/scene/order
+                await $fetch(`${config.public.apiBase}/scene/order`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                    body: { scenes: scenePositions },
+                });
+
+            } catch (error) {
+                console.error("Erreur lors de la sauvegarde de l'ordre des scènes :", error);
+                throw error;
+            }
+        },
+
         async deleteScene(sceneId: number) {
             try {
                 const config = useRuntimeConfig();
@@ -506,68 +539,6 @@ export const useProjectStore = defineStore('project', {
             }
         },
 
-        // Gestion des personnages
-        async savePersonnage(personnageData: Partial<Personnage>) {
-            try {
-                const config = useRuntimeConfig();
-                const authStore = useAuthStore();
-
-                if (!this.project) {
-                    console.error("Aucun projet chargé.");
-                    return null;
-                }
-
-                const dataToSend = {
-                    ...personnageData,
-                    project_id: this.project.id
-                };
-
-                const savedPersonnage: Personnage = await $fetch(`${config.public.apiBase}/personnage/update`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`
-                    },
-                    body: dataToSend
-                });
-
-                // Mise à jour locale de la liste des personnages
-                const existingIndex = this.personnages.findIndex(p => p.id === savedPersonnage.id);
-                if (existingIndex !== -1) {
-                    // Mise à jour d'un personnage existant
-                    this.personnages[existingIndex] = savedPersonnage;
-                } else {
-                    // Ajout d'un nouveau personnage
-                    this.personnages.push(savedPersonnage);
-                }
-
-                return savedPersonnage;
-            } catch (error) {
-                console.error("Erreur lors de la sauvegarde d'un personnage :", error);
-                return null;
-            }
-        },
-
-        async deletePersonnage(personnageId: number) {
-            try {
-                const config = useRuntimeConfig();
-                const authStore = useAuthStore();
-
-                await $fetch(`${config.public.apiBase}/personnage/delete/${personnageId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        Authorization: `Bearer ${authStore.token}`,
-                    },
-                });
-
-                // Mise à jour locale - supprimer de la liste
-                this.personnages = this.personnages.filter(p => p.id !== personnageId);
-
-                return true;
-            } catch (error) {
-                console.error("Erreur lors de la suppression du personnage :", error);
-                return false;
-            }
-        }
+        // Les méthodes de gestion des personnages ont été déplacées vers le store personnage
     }
 });

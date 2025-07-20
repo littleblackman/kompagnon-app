@@ -52,6 +52,7 @@ const isPartExpanded = (partId: number) => {
           </button>
           <div class="flex-1">
             <h2 
+              :id="`part-${part.id}`"
               class="font-bold text-2xl cursor-pointer hover:text-blue-600 transition-colors text-color-primary" 
               @click="openModal(part)"
             >
