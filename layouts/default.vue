@@ -12,37 +12,195 @@ useHead({
 })
 
 import { useAuthStore } from '~/store/auth'
-import { HomeIcon, UserIcon, EnvelopeIcon, PowerIcon } from '@heroicons/vue/24/solid'
+import { useAnalyticsStore } from '~/store/analytics'
+import { HomeIcon, UserIcon, PowerIcon, FolderIcon, PlusIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid'
+import { onMounted, computed, ref } from 'vue'
 
 const auth = useAuthStore()
+const analyticsStore = useAnalyticsStore()
+
+// État du menu (ouvert/fermé)
+const isMenuOpen = ref(false)
+
+// Toggle du menu
+const toggleMenu = () => {
+  isMenuOpen.value = !isMenuOpen.value
+}
+
+// Charger les projets pour le menu
+onMounted(async () => {
+  if (auth.token) {
+    await analyticsStore.refreshIfNeeded()
+  }
+})
+
+// Limiter à 3 projets récents dans le menu
+const recentProjects = computed(() => 
+  analyticsStore.projectStatistics.slice(0, 3)
+)
 </script>
 
 <template>
   <div class="flex h-screen overflow-hidden bg-light text-color">
 
     <!-- Sidebar -->
-    <aside class="w-20 flex flex-col items-center py-6 sidebar">
-      <nav class="space-y-8 flex flex-col items-center justify-between">
+    <aside :class="['sidebar-container', { 'sidebar-expanded': isMenuOpen }]">
+      <!-- Sidebar fermé (icônes seulement) -->
+      <div class="sidebar-collapsed">
+        <!-- Bouton toggle -->
+        <button 
+          @click="toggleMenu"
+          class="sidebar-toggle"
+          :title="isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'"
+        >
+          <Bars3Icon v-if="!isMenuOpen" class="w-5 h-5" />
+          <XMarkIcon v-else class="w-5 h-5" />
+        </button>
 
-        <NuxtLink to="/projets/tous" title="Projets">
-          <HomeIcon class="icon-style" />
-        </NuxtLink>
-
-        <NuxtLink to="/contact" title="Contact">
-          <EnvelopeIcon class="icon-style" />
-        </NuxtLink>
-
-        <div v-if="auth.user" :title="auth.user.email">
-          <UserIcon class="icon-style" />
+        <!-- Logo compact -->
+        <div class="sidebar-logo">
+          <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
+            <span class="text-white font-bold text-lg">K</span>
+          </div>
         </div>
-        <NuxtLink v-else to="/login" title="Connexion">
-          <PowerIcon class="icon-style" />
-        </NuxtLink>
 
-        <NuxtLink v-if="auth.user" to="/logout" title="Déconnexion">
-          <PowerIcon class="icon-style" />
-        </NuxtLink>
-      </nav>
+        <!-- Navigation icônes -->
+        <nav class="sidebar-nav">
+          <NuxtLink 
+            to="/" 
+            class="sidebar-icon"
+            :class="{ 'sidebar-icon-active': $route.path === '/' }"
+            title="Tableau de bord"
+          >
+            <HomeIcon class="w-5 h-5" />
+          </NuxtLink>
+
+          <NuxtLink 
+            to="/projets/tous" 
+            class="sidebar-icon"
+            :class="{ 'sidebar-icon-active': $route.path === '/projets/tous' }"
+            title="Tous les projets"
+          >
+            <FolderIcon class="w-5 h-5" />
+          </NuxtLink>
+
+          <NuxtLink 
+            to="/projets/creer" 
+            class="sidebar-icon"
+            :class="{ 'sidebar-icon-active': $route.path === '/projets/creer' }"
+            title="Nouveau projet"
+          >
+            <PlusIcon class="w-5 h-5" />
+          </NuxtLink>
+        </nav>
+
+        <!-- Utilisateur en bas -->
+        <div class="sidebar-user">
+          <div v-if="auth.user" class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center" :title="auth.user.email">
+            <UserIcon class="w-4 h-4 text-gray-600" />
+          </div>
+          <NuxtLink v-else to="/login" class="sidebar-icon" title="Connexion">
+            <PowerIcon class="w-5 h-5" />
+          </NuxtLink>
+        </div>
+      </div>
+
+      <!-- Sidebar étendu (avec texte) -->
+      <div v-if="isMenuOpen" class="sidebar-expanded-content">
+        <!-- Header -->
+        <div class="p-6 border-b border-gray-100">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
+              <span class="text-white font-bold text-lg">K</span>
+            </div>
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">Kompagnon</h2>
+              <p class="text-sm text-gray-500">Assistant créatif</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation avec texte -->
+        <nav class="p-4 space-y-2">
+          <NuxtLink 
+            to="/" 
+            class="nav-item"
+            :class="{ 'nav-item-active': $route.path === '/' }"
+            @click="isMenuOpen = false"
+          >
+            <HomeIcon class="w-5 h-5" />
+            <span>Tableau de bord</span>
+          </NuxtLink>
+
+          <NuxtLink 
+            to="/projets/tous" 
+            class="nav-item"
+            :class="{ 'nav-item-active': $route.path === '/projets/tous' }"
+            @click="isMenuOpen = false"
+          >
+            <FolderIcon class="w-5 h-5" />
+            <span>Tous les projets</span>
+          </NuxtLink>
+
+          <NuxtLink 
+            to="/projets/creer" 
+            class="nav-item"
+            :class="{ 'nav-item-active': $route.path === '/projets/creer' }"
+            @click="isMenuOpen = false"
+          >
+            <PlusIcon class="w-5 h-5" />
+            <span>Nouveau projet</span>
+          </NuxtLink>
+        </nav>
+
+        <!-- Projets récents -->
+        <div v-if="auth.token && recentProjects.length > 0" class="px-4 pb-4">
+          <div class="border-t border-gray-100 pt-4">
+            <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+              Projets récents
+            </h3>
+            <div class="space-y-1">
+              <NuxtLink
+                v-for="project in recentProjects"
+                :key="project.id"
+                :to="`/projets/projet-${project.slug}`"
+                class="project-item"
+                :class="{ 'project-item-active': $route.path.includes(`projet-${project.slug}`) }"
+                @click="isMenuOpen = false"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">
+                      {{ project.name }}
+                    </p>
+                    <p class="text-xs text-gray-500">
+                      {{ project.scenes }} scènes
+                    </p>
+                  </div>
+                  <div class="w-2 h-2 bg-green-400 rounded-full flex-shrink-0 ml-2"></div>
+                </div>
+              </NuxtLink>
+            </div>
+          </div>
+        </div>
+
+        <!-- Utilisateur étendu -->
+        <div class="mt-auto p-4 border-t border-gray-100">
+          <div v-if="auth.user" class="flex items-center space-x-3">
+            <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+              <UserIcon class="w-4 h-4 text-gray-600" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 truncate">
+                {{ auth.user.email }}
+              </p>
+            </div>
+            <NuxtLink to="/logout" class="text-gray-400 hover:text-gray-600">
+              <PowerIcon class="w-4 h-4" />
+            </NuxtLink>
+          </div>
+        </div>
+      </div>
     </aside>
 
     <!-- Main -->
