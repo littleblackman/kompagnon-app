@@ -5,7 +5,8 @@ import { useProjectStore } from '~/store/project';
 import { usePersonnageStore } from '~/store/personnage';
 import { onMounted, computed, ref } from "vue";
 import PersonnageModal from "@/components/Project/PersonnageModal.vue";
-import { PencilIcon, TrashIcon, UserPlusIcon, ArrowLeftIcon } from '@heroicons/vue/24/solid';
+import ProjectSubMenu from "@/components/Project/SubMenu.vue";
+import { PencilIcon, TrashIcon, UserPlusIcon } from '@heroicons/vue/24/solid';
 
 const auth = useAuthStore();
 auth.requireAuth();
@@ -13,7 +14,7 @@ auth.requireAuth();
 const projectStore = useProjectStore();
 const personnageStore = usePersonnageStore();
 const route = useRoute();
-const slug = route.params.slug;
+const slug = route.params.slug as string;
 
 // Charger le projet au montage
 onMounted(() => projectStore.fetchProject(slug));
@@ -85,17 +86,12 @@ const sortedPersonnages = computed(() => {
 
 <template>
   <div v-if="!project">Chargement...</div>
-  <div v-else class="container mx-auto p-6">
+  <div v-else>
+    <ProjectSubMenu :project-slug="slug" />
+    <div class="container mx-auto p-6">
     <!-- Header -->
     <div class="mb-8">
-      <div class="flex items-center gap-4 mb-4">
-        <NuxtLink 
-          :to="`/projets/projet-${slug}`"
-          class="text-blue-600 hover:text-blue-800 transition-colors"
-          title="Retour au projet"
-        >
-          <ArrowLeftIcon class="w-5 h-5" />
-        </NuxtLink>
+      <div class="mb-4">
         <h1 class="text-3xl font-bold text-gray-900">Personnages - {{ project.name }}</h1>
       </div>
       
@@ -193,6 +189,7 @@ const sortedPersonnages = computed(() => {
       @close="personnageModalOpen = false"
       @save="handleSavePersonnage"
     />
+    </div>
   </div>
 </template>
 

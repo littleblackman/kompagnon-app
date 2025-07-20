@@ -4,6 +4,7 @@ definePageMeta({
 })
 
 import { useAuthStore } from '~/store/auth';
+import ProjectForm from '@/components/ProjectForm.vue';
 
 const auth = useAuthStore();
 auth.requireAuth();

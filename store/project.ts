@@ -539,6 +539,85 @@ export const useProjectStore = defineStore('project', {
             }
         },
 
+        // Gestion des projets
+        async createProject(projectData: { name: string; description: string; type_id: number }) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                const result = await $fetch(`${config.public.apiBase}/project/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`
+                    },
+                    body: projectData
+                });
+
+                return result;
+            } catch (error) {
+                console.error("Erreur lors de la création du projet :", error);
+                throw error;
+            }
+        },
+
+        async updateProject(projectData: { id: number; name: string; description: string; type_id: number }) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                const result = await $fetch(`${config.public.apiBase}/project/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`
+                    },
+                    body: projectData
+                });
+
+                // Mettre à jour le projet local si c'est le projet actuellement chargé
+                if (this.project && this.project.id === projectData.id) {
+                    this.project.name = projectData.name;
+                    this.project.description = projectData.description;
+                    // Note: le type sera mis à jour lors du prochain fetchProject
+                }
+
+                return result;
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour du projet :", error);
+                throw error;
+            }
+        },
+
+        async deleteProject(projectId: number) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                await $fetch(`${config.public.apiBase}/project/delete/${projectId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        Authorization: `Bearer ${authStore.token}`
+                    }
+                });
+
+                // Nettoyer le store si c'est le projet actuellement chargé
+                if (this.project && this.project.id === projectId) {
+                    this.project = null;
+                    this.parts = [];
+                    this.sequences = [];
+                    this.scenes = [];
+                    this.personnages = [];
+                    this.expandedParts.clear();
+                }
+
+                return true;
+            } catch (error) {
+                console.error("Erreur lors de la suppression du projet :", error);
+                throw error;
+            }
+        },
+
         // Les méthodes de gestion des personnages ont été déplacées vers le store personnage
     }
 });

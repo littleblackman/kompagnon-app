@@ -4,6 +4,7 @@ import { useAuthStore } from '~/store/auth';
 import { useProjectStore } from '~/store/project';
 import { onMounted, computed, ref, watch } from "vue";
 import { PencilIcon } from '@heroicons/vue/24/solid';
+import ProjectSubMenu from "@/components/Project/SubMenu.vue";
 
 const auth = useAuthStore();
 auth.requireAuth();
@@ -114,7 +115,9 @@ watch([showOrganizational, showPrintable, showH2, showH3, showH4, numberParts], 
     <div class="text-lg">Chargement...</div>
   </div>
   
-  <div v-else class="flex flex-col items-center p-6">
+  <div v-else>
+    <ProjectSubMenu :project-slug="slug" />
+    <div class="flex flex-col items-center p-6">
     <!-- En-tête du projet -->
     <div class="w-full max-w-4xl mb-8">
       <div class="flex items-center gap-3 mb-4">
@@ -309,6 +312,7 @@ watch([showOrganizational, showPrintable, showH2, showH3, showH4, numberParts], 
       class="text-center text-gray-500 py-12"
     >
       <p>Aucun contenu disponible pour ce projet</p>
+    </div>
     </div>
   </div>
 </template>

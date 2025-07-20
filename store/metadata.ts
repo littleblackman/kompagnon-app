@@ -5,6 +5,7 @@ import { useAuthStore } from '~/store/auth';
 interface MetadataResponse {
     criterias: Criteria[];
     status: Status[];
+    types: Type[];
 }
 
 interface Criteria {
@@ -19,12 +20,19 @@ interface Status {
     description: string;
 }
 
+interface Type {
+    id: number;
+    name: string;
+    description: string;
+}
+
 
 export const useMetadataStore = defineStore('metadata', () => {
     const authStore = useAuthStore();
 
     const criterias = ref<Criteria[]>([]);
     const status = ref<Status[]>([]);
+    const types = ref<Type[]>([]);
 
     const loaded = ref(false);
 
@@ -37,6 +45,7 @@ export const useMetadataStore = defineStore('metadata', () => {
 
             criterias.value = response.criterias || [];
             status.value = response.status || [];
+            types.value = response.types || [];
 
             loaded.value = true;
         } catch (error) {
@@ -48,6 +57,7 @@ export const useMetadataStore = defineStore('metadata', () => {
     return {
         criterias,
         status,
+        types,
         loaded,
         fetchMetadata
     };

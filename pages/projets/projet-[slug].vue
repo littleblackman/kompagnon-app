@@ -4,6 +4,7 @@ import { useAuthStore } from '~/store/auth';
 import { useProjectStore } from '~/store/project';
 import { onMounted, computed, ref } from "vue";
 import PartList from "@/components/Project/PartList.vue";
+import ProjectSubMenu from "@/components/Project/SubMenu.vue";
 import { EyeIcon, Bars3Icon, XMarkIcon, UserGroupIcon } from '@heroicons/vue/24/solid';
 
 const auth = useAuthStore();
@@ -11,7 +12,7 @@ auth.requireAuth();
 
 const projectStore = useProjectStore();
 const route = useRoute();
-const slug = route.params.slug;
+const slug = route.params.slug as string;
 
 // ✅ Charger le projet une seule fois au montage
 onMounted(() => projectStore.fetchProject(slug));
@@ -34,7 +35,9 @@ const scrollToElement = (elementId: string) => {
 
 <template>
   <div v-if="!project">Chargement...</div>
-  <div v-else class="relative">
+  <div v-else>
+    <ProjectSubMenu :project-slug="slug" />
+    <div class="relative">
     <!-- Bouton burger fixe -->
     <button
       @click="showTableOfContents = !showTableOfContents"
@@ -112,24 +115,11 @@ const scrollToElement = (elementId: string) => {
       <div class="w-full max-w-4xl mb-6">
         <div class="flex items-center gap-3 mb-2">
           <h1 id="project-title" class="font-extrabold text-3xl">{{ project.name }}</h1>
-          <NuxtLink 
-            :to="`/projets/voir-${slug}`"
-            class="px-2"
-            title="Mode Lecture"
-          >
-            <EyeIcon class="w-4 h-4 link" />
-          </NuxtLink>
-          <NuxtLink 
-            :to="`/projets/personnages-${slug}`"
-            class="px-2"
-            title="Gestion des Personnages"
-          >
-            <UserGroupIcon class="w-4 h-4 link" />
-          </NuxtLink>
         </div>
         <p v-if="project.description" v-html="project.description" class="italic text-justify"></p>
       </div>
       <PartList :parts="parts" :projectId="project.id"/>
+    </div>
     </div>
   </div>
 </template>
