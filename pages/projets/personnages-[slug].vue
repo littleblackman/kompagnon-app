@@ -6,7 +6,7 @@ import { usePersonnageStore } from '~/store/personnage';
 import { onMounted, computed, ref } from "vue";
 import PersonnageModal from "@/components/Project/PersonnageModal.vue";
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
-import { PencilIcon, TrashIcon, UserPlusIcon } from '@heroicons/vue/24/solid';
+import { PencilIcon, TrashIcon, UserPlusIcon, UserIcon } from '@heroicons/vue/24/solid';
 
 const auth = useAuthStore();
 auth.requireAuth();
@@ -63,6 +63,30 @@ const deletePersonnage = async (personnageId) => {
 // Fonction pour obtenir le nom complet
 const getPersonnageName = (personnage) => {
   return personnageStore.getPersonnageName(personnage);
+};
+
+// Fonction pour obtenir l'avatar du personnage
+const getPersonnageAvatar = (personnage) => {
+  if (!personnage || !personnage.images) return null;
+  
+  // Si les images sont une chaîne JSON, la parser
+  let images = personnage.images;
+  if (typeof images === 'string') {
+    try {
+      images = JSON.parse(images);
+    } catch {
+      return null;
+    }
+  }
+  
+  // Si c'est un tableau et qu'il a des éléments, prendre le premier
+  if (Array.isArray(images) && images.length > 0) {
+    const config = useRuntimeConfig();
+    const baseUrl = config.public.apiBase.replace('/api', '');
+    return `${baseUrl}/${images[0]}`;
+  }
+  
+  return null;
 };
 
 // Personnages triés par niveau (1 = le plus élevé) puis alphabétique
@@ -128,11 +152,27 @@ const sortedPersonnages = computed(() => {
       >
         <!-- En-tête carte personnage -->
         <div class="flex justify-between items-start mb-4">
-          <div>
-            <h3 class="text-xl font-semibold text-gray-900">
-              {{ getPersonnageName(personnage) }}
-            </h3>
-            <p v-if="personnage.age" class="text-sm text-gray-500">{{ personnage.age }} ans</p>
+          <div class="flex items-center gap-3">
+            <!-- Avatar rond -->
+            <div class="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+              <img 
+                v-if="getPersonnageAvatar(personnage)"
+                :src="getPersonnageAvatar(personnage)" 
+                :alt="getPersonnageName(personnage)"
+                class="w-full h-full object-cover"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
+                <UserIcon class="w-6 h-6" />
+              </div>
+            </div>
+            
+            <!-- Nom et âge -->
+            <div>
+              <h3 class="text-xl font-semibold text-gray-900">
+                {{ getPersonnageName(personnage) }}
+              </h3>
+              <p v-if="personnage.age" class="text-sm text-gray-500">{{ personnage.age }} ans</p>
+            </div>
           </div>
           <div class="flex gap-2">
             <button

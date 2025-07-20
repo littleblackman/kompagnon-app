@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 import RichTextEditor from '~/components/RichTextEditor.vue';
+import ImageUploader from '~/components/Project/ImageUploader.vue';
 
 const props = defineProps({
   personnage: Object
@@ -19,6 +20,16 @@ watch(() => props.personnage, (newVal) => {
 
 const handleSave = () => {
   emit('save', currentPersonnage.value);
+};
+
+const handleImagesUpdated = (images) => {
+  currentPersonnage.value.images = images;
+  // Mettre à jour l'avatar (première image)
+  if (images.length > 0) {
+    currentPersonnage.value.avatar = images[0];
+  } else {
+    currentPersonnage.value.avatar = undefined;
+  }
 };
 
 </script>
@@ -121,6 +132,18 @@ const handleSave = () => {
                 v-html="currentPersonnage.analysis || '<em class=\'text-gray-500\'>Aucune analyse disponible</em>'"
               >
               </div>
+            </div>
+
+            <!-- Images -->
+            <div v-if="currentPersonnage.id" class="bg-purple-50 p-6 rounded-lg">
+              <h4 class="text-lg font-semibold mb-4 text-gray-800 border-b border-purple-300 pb-2">
+                Images
+              </h4>
+              <ImageUploader
+                :personnage-id="currentPersonnage.id"
+                :images="currentPersonnage.images || []"
+                @images-updated="handleImagesUpdated"
+              />
             </div>
           </div>
 

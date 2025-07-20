@@ -292,6 +292,132 @@ export const usePersonnageStore = defineStore('personnage', {
             }
         },
 
+        // Gestion des images de personnages
+        async uploadImages(personnageId: number, files: File[]): Promise<string[]> {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+                
+                const formData = new FormData();
+                files.forEach((file) => {
+                    formData.append('images[]', file);
+                });
+
+                const response = await $fetch(`${config.public.apiBase}/personnage/${personnageId}/upload-images`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                    body: formData
+                }) as { images: string[] };
+
+                // Mettre à jour le personnage local
+                const personnage = this.personnages.find(p => p.id === personnageId);
+                if (personnage) {
+                    // S'assurer que personnage.images est un tableau
+                    let currentImages = personnage.images || [];
+                    if (typeof currentImages === 'string') {
+                        try {
+                            currentImages = JSON.parse(currentImages);
+                        } catch {
+                            currentImages = [];
+                        }
+                    }
+                    if (!Array.isArray(currentImages)) {
+                        currentImages = [];
+                    }
+
+                    // Ajouter les nouvelles images
+                    personnage.images = [...currentImages, ...response.images];
+                    
+                    // Si c'est la première image, la définir comme avatar
+                    if (!personnage.avatar && response.images.length > 0) {
+                        personnage.avatar = response.images[0];
+                    }
+                }
+
+                return response.images;
+            } catch (error) {
+                console.error("Erreur lors de l'upload des images :", error);
+                throw error;
+            }
+        },
+
+        async reorderImages(personnageId: number, orderedImages: string[]): Promise<boolean> {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                await $fetch(`${config.public.apiBase}/personnage/${personnageId}/reorder-images`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                    body: { images: orderedImages }
+                });
+
+                // Mettre à jour le personnage local
+                const personnage = this.personnages.find(p => p.id === personnageId);
+                if (personnage) {
+                    personnage.images = orderedImages;
+                    // La première image devient l'avatar
+                    if (orderedImages.length > 0) {
+                        personnage.avatar = orderedImages[0];
+                    }
+                }
+
+                return true;
+            } catch (error) {
+                console.error("Erreur lors de la réorganisation des images :", error);
+                throw error;
+            }
+        },
+
+        // Note: deleteImage nécessitera probablement un endpoint API côté backend
+        async deleteImage(personnageId: number, imageUrl: string): Promise<boolean> {
+            try {
+                const personnage = this.personnages.find(p => p.id === personnageId);
+                if (!personnage || !personnage.images) return false;
+
+                // S'assurer que personnage.images est un tableau
+                let imagesArray = personnage.images;
+                if (typeof imagesArray === 'string') {
+                    try {
+                        imagesArray = JSON.parse(imagesArray);
+                    } catch {
+                        imagesArray = [];
+                    }
+                }
+                if (!Array.isArray(imagesArray)) {
+                    imagesArray = [];
+                }
+
+                // Supprimer l'image de la liste locale
+                personnage.images = imagesArray.filter(img => img !== imageUrl);
+                
+                // Si c'était l'avatar, prendre la première image restante
+                if (personnage.avatar === imageUrl) {
+                    personnage.avatar = personnage.images.length > 0 ? personnage.images[0] : undefined;
+                }
+
+                // TODO: Ajouter l'appel API quand l'endpoint sera disponible
+                // await $fetch(`${config.public.apiBase}/personnage/${personnageId}/delete-image`, {
+                //     method: 'DELETE',
+                //     headers: {
+                //         'Content-Type': 'application/json',
+                //         Authorization: `Bearer ${authStore.token}`,
+                //     },
+                //     body: { imageUrl }
+                // });
+
+                return true;
+            } catch (error) {
+                console.error("Erreur lors de la suppression de l'image :", error);
+                throw error;
+            }
+        },
+
         // Initialiser la table de référence des personnages (une seule fois au chargement)
         setPersonnages(personnages: Personnage[]) {
             console.log('Initializing personnages reference table with:', personnages.length, 'characters');

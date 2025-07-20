@@ -12,15 +12,6 @@
         </NuxtLink>
         
         <NuxtLink 
-          :to="`/projets/modifier-${projectSlug}`"
-          class="nav-link"
-          :class="{ 'active': $route.path.includes('modifier-') }"
-        >
-          <CogIcon class="w-5 h-5" />
-          <span>Paramètres</span>
-        </NuxtLink>
-        
-        <NuxtLink 
           :to="`/projets/voir-${projectSlug}`"
           class="nav-link"
           :class="{ 'active': $route.path.includes('voir-') }"
@@ -37,6 +28,16 @@
           <UserGroupIcon class="w-5 h-5" />
           <span>Personnages</span>
         </NuxtLink>
+
+         <NuxtLink 
+          :to="`/projets/modifier-${projectSlug}`"
+          class="nav-link"
+          :class="{ 'active': $route.path.includes('modifier-') }"
+        >
+          <CogIcon class="w-5 h-5" />
+          <span>Paramètres</span>
+        </NuxtLink>
+        
       </nav>
     </div>
   </div>
