@@ -6,7 +6,12 @@ import PersonnageDetectionModal from "~/components/Project/PersonnageDetectionMo
 import PersonnageConfigModal from "~/components/Project/PersonnageConfigModal.vue";
 import FieldIcon from '@/components/FieldIcon.vue'
 import SceneList from '@/components/Project/SceneList.vue'
-import { SparklesIcon,  PaintBrushIcon,  InformationCircleIcon } from '@heroicons/vue/24/solid'
+import { 
+  LightBulbIcon,      // Pour intention
+  EyeIcon,            // Pour idée esthétique  
+  InformationCircleIcon 
+} from '@heroicons/vue/24/solid'
+import { ArrowUpIcon, ArrowDownIcon, PencilIcon } from '@heroicons/vue/24/outline'
 
 import { useProjectStore } from "~/store/project";
 import { useMetadataStore } from "~/store/metadata";
@@ -45,7 +50,14 @@ const openSequenceModal = (sequence = null) => {
   if (!sequence) {
     sequence = {
       name: '',
-      description: ''
+      description: '',
+      part_id: props.partId
+    };
+  } else {
+    // S'assurer que la séquence a bien le part_id
+    sequence = {
+      ...sequence,
+      part_id: props.partId
     };
   }
   currentSequence.value = sequence;
@@ -57,16 +69,17 @@ const handleSaveSequence = async ({ sequence, afterSequenceId }) => {
     const savedSequence = await projectStore.saveSequence(sequence, props.partId, afterSequenceId);
     sequenceModalOpen.value = false;
 
-    // Mise à jour locale des séquences
-    if (props.sequences) {
-      const existingIndex = props.sequences.findIndex(seq => seq.id === savedSequence.id);
-      if (existingIndex !== -1) {
-        props.sequences[existingIndex] = savedSequence;
-      } else {
-        props.sequences.push(savedSequence);
+    // Si c'est une nouvelle séquence, recharger la partie pour avoir les bonnes positions
+    if (!sequence.id) {
+      await projectStore.reloadPart(props.partId);
+    } else {
+      // Mise à jour locale pour modification existante
+      if (props.sequences) {
+        const existingIndex = props.sequences.findIndex(seq => seq.id === savedSequence.id);
+        if (existingIndex !== -1) {
+          props.sequences[existingIndex] = savedSequence;
+        }
       }
-      // Trier les séquences par position
-      props.sequences.sort((a, b) => a.position - b.position);
     }
   } catch (error) {
     console.error("Erreur lors de la sauvegarde :", error);
@@ -87,6 +100,50 @@ const handleDeleteSequence = async (sequence) => {
     }
   } catch (error) {
     console.error("Erreur lors de la suppression :", error);
+  }
+};
+
+const handleMoveSequence = async (sequence, direction) => {
+  const currentIndex = sortedSequences.value.findIndex(s => s.id === sequence.id);
+  
+  try {
+    if (direction === 'up' && currentIndex > 0) {
+      // Échanger avec la séquence précédente
+      const sequencesCopy = [...sortedSequences.value];
+      
+      [sequencesCopy[currentIndex], sequencesCopy[currentIndex - 1]] = 
+      [sequencesCopy[currentIndex - 1], sequencesCopy[currentIndex]];
+      
+      // Recalculer les positions
+      sequencesCopy.forEach((s, index) => {
+        s.position = index + 1;
+      });
+      
+      // Sauvegarder le nouvel ordre
+      await projectStore.saveSequenceOrder(sequencesCopy);
+      
+    } else if (direction === 'down' && currentIndex < sortedSequences.value.length - 1) {
+      // Échanger avec la séquence suivante
+      const sequencesCopy = [...sortedSequences.value];
+      
+      [sequencesCopy[currentIndex], sequencesCopy[currentIndex + 1]] = 
+      [sequencesCopy[currentIndex + 1], sequencesCopy[currentIndex]];
+      
+      // Recalculer les positions
+      sequencesCopy.forEach((s, index) => {
+        s.position = index + 1;
+      });
+      
+      // Sauvegarder le nouvel ordre
+      await projectStore.saveSequenceOrder(sequencesCopy);
+    }
+    
+    // Recharger le projet pour voir les changements
+    if (projectStore.project?.slug) {
+      await projectStore.fetchProject(projectStore.project.slug);
+    }
+  } catch (error) {
+    console.error('Erreur lors du déplacement de la séquence:', error);
   }
 };
 
@@ -173,6 +230,8 @@ const removePersonnageFromSequence = async (sequencePersonnageId, sequenceId) =>
 
 
 /**** CRITERIAS PART ****/
+// Ces critères seront automatiquement analysés par l'IA
+// Affichage en lecture seule uniquement
 
 // get note by criteria
 const getCriteriaRating = (sequence, criteriaId) => {
@@ -180,30 +239,10 @@ const getCriteriaRating = (sequence, criteriaId) => {
   return sequenceCriteria?.rating || 0;
 };
 
-const updateRating = async ({ value, sequenceId, criteriaId }) => {
-  try {
-    await projectStore.saveCriteria(value, sequenceId, criteriaId);
-    
-    // Mise à jour locale immédiate
-    const sequence = props.sequences?.find(s => s.id === sequenceId);
-    if (sequence && sequence.sequenceCriterias) {
-      let sequenceCriteria = sequence.sequenceCriterias.find(sc => sc.criteria?.id === criteriaId);
-      if (sequenceCriteria) {
-        // Mettre à jour l'existant
-        sequenceCriteria.rating = value;
-      } else {
-        // Créer nouvelle entrée (si elle n'existe pas localement)
-        sequence.sequenceCriterias.push({
-          criteria: { id: criteriaId },
-          rating: value
-        });
-      }
-    }
-
-  } catch (error) {
-    console.error("Erreur lors de la sauvegarde :", error);
-  }
-}
+// Fonction vide pour éviter les erreurs (les clics sont désactivés dans RatingStars)
+const updateRating = () => {
+  // Désactivé - sera géré par l'IA automatiquement
+};
 
 
 
@@ -236,9 +275,83 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
 
     <li v-for="sequence in sortedSequences" :key="sequence.id" class="pl-6 pr-3 pt-6 pb-6">
 
-      <h3 :id="`sequence-${sequence.id}`" class="font-bold cursor-pointer text-black text-lg" @click="openSequenceModal(sequence)">
-        {{ sequence.name }}
-      </h3>
+      <div class="flex items-center justify-between mb-2">
+        <h3 :id="`sequence-${sequence.id}`" class="font-bold text-black text-xl">
+          {{ sequence.name }}
+        </h3>
+        
+        <div class="flex items-center space-x-2">
+          <!-- Boutons d'action -->
+          <div class="flex items-center space-x-1">
+            <!-- Bouton Éditer -->
+            <button 
+              class="p-1 rounded text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+              @click="openSequenceModal(sequence)"
+              title="Éditer la séquence"
+            >
+              <PencilIcon class="h-4 w-4" />
+            </button>
+            
+            <!-- Boutons de réorganisation -->
+            <button 
+              :disabled="sortedSequences.findIndex(s => s.id === sequence.id) === 0"
+              :class="['p-1 rounded', sortedSequences.findIndex(s => s.id === sequence.id) === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50']"
+              @click="handleMoveSequence(sequence, 'up')"
+              title="Déplacer vers le haut"
+            >
+              <ArrowUpIcon class="h-4 w-4" />
+            </button>
+            
+            <button 
+              :disabled="sortedSequences.findIndex(s => s.id === sequence.id) === sortedSequences.length - 1"
+              :class="['p-1 rounded', sortedSequences.findIndex(s => s.id === sequence.id) === sortedSequences.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50']"
+              @click="handleMoveSequence(sequence, 'down')"
+              title="Déplacer vers le bas"
+            >
+              <ArrowDownIcon class="h-4 w-4" />
+            </button>
+          </div>
+          
+          <!-- Boutons d'édition des métadonnées -->
+          <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-1 text-xs text-gray-500">
+            <span>Intention</span>
+            <FieldIcon
+                :icon="LightBulbIcon"
+                :text="sequence.intention ?? ''"
+                color="text-amber-500"
+                title="Intention"
+                placeholder="Indiquez les émotions et sensations que doit ressentir votre public durant cette séquence..."
+                :onSave="(val) => updateField('intention', val, sequence.id)"
+            />
+          </div>
+          
+          <div class="flex items-center space-x-1 text-xs text-gray-500">
+            <span>Esthétique</span>
+            <FieldIcon
+                :icon="EyeIcon"
+                :text="sequence.aesthetic_idea ?? ''"
+                color="text-purple-500"
+                title="Idée esthétique"
+                placeholder="Décrivez l'approche artistique et visuelle que vous souhaitez mettre en œuvre pour cette séquence..."
+                :onSave="(val) => updateField('aesthetic_idea', val, sequence.id)"
+            />
+          </div>
+          
+          <div class="flex items-center space-x-1 text-xs text-gray-500">
+            <span>Info</span>
+            <FieldIcon
+                :icon="InformationCircleIcon"
+                :text="sequence.information ?? ''"
+                color="text-blue-500"
+                title="Information"
+                placeholder="Précisez les informations narratives essentielles qui justifient cette séquence..."
+                :onSave="(val) => updateField('information', val, sequence.id)"
+            />
+          </div>
+          </div>
+        </div>
+      </div>
       <div class="flex">
         <div class="text-justify w-3/4 mr-3">
           <div class="bg-secondary flex justify-between">
@@ -289,29 +402,7 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
 
         <div>
 
-          <div class="flex">
-            <FieldIcon
-                :icon="SparklesIcon"
-                :text="sequence.intention ?? ''"
-                color="text-pink-500"
-                :onSave="(val) => updateField('intention', val, sequence.id)"
-            />
-
-            <FieldIcon
-                :icon="PaintBrushIcon"
-                :text="sequence.aesthetic_idea ?? ''  "
-                color="text-blue-500"
-                :onSave="(val) => updateField('aesthetic_idea', val, sequence.id)"
-            />
-
-            <FieldIcon
-                :icon="InformationCircleIcon"
-                :text="sequence.information ?? ''"
-                color="text-yellow-500"
-                :onSave="(val) => updateField('information', val, sequence.id)"
-            />
-          </div>
-
+          <!-- Critères - Seront analysés automatiquement par l'IA -->
           <div v-for="criteria in metadataStore.criterias" :key="criteria.id">
             {{ criteria.name }}
             <RatingStars
@@ -337,5 +428,44 @@ const updateRating = async ({ value, sequenceId, criteriaId }) => {
 
 .organizational-text * {
   color: #9CA3AF !important;
+}
+
+/* Amélioration des tooltips natifs */
+[title] {
+  position: relative;
+}
+
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(0, 0, 0, 0.9);
+  color: white;
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  white-space: normal;
+  max-width: 300px;
+  z-index: 50;
+  pointer-events: none;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+[title]:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 6px 0 6px;
+  border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+  margin-bottom: 0.125rem;
+  z-index: 50;
 }
 </style>

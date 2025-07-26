@@ -8,7 +8,7 @@
           :class="{ 'active': $route.path.includes('projet-') }"
         >
           <PencilIcon class="w-5 h-5" />
-          <span>Créer</span>
+          <span>Écrire</span>
         </NuxtLink>
         
         <NuxtLink 

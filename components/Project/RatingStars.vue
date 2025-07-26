@@ -16,16 +16,18 @@ const hoverValue = ref(0);
 
 // Fonction au survol
 const handleHover = (value) => {
-  hoverValue.value = value;
+  // Désactivé - sera géré par l'IA
+  // hoverValue.value = value;
 };
 
-// Fonction au clic
+// Fonction au clic  
 const handleClick = (value) => {
-  emit('rate', {
-    value,
-    sequenceId: props.sequenceId,
-    criteriaId: props.criteriaId
-  });
+  // Désactivé - sera géré par l'IA
+  // emit('rate', {
+  //   value,
+  //   sequenceId: props.sequenceId,
+  //   criteriaId: props.criteriaId
+  // });
 };
 </script>
 
@@ -34,7 +36,7 @@ const handleClick = (value) => {
     <span
         v-for="n in 10"
         :key="n"
-        class="cursor-pointer"
+        class="cursor-default"
         @click="handleClick(n)"
         @mouseover="handleHover(n)"
         @mouseleave="hoverValue = 0"

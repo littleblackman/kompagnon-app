@@ -13,24 +13,40 @@ useHead({
 
 import { useAuthStore } from '~/store/auth'
 import { useAnalyticsStore } from '~/store/analytics'
+import { useUserStore } from '~/store/user'
 import { HomeIcon, UserIcon, PowerIcon, FolderIcon, PlusIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid'
 import { onMounted, computed, ref } from 'vue'
+import ProfileModal from '~/components/ProfileModal.vue'
 
 const auth = useAuthStore()
 const analyticsStore = useAnalyticsStore()
+const userStore = useUserStore()
 
 // État du menu (ouvert/fermé)
 const isMenuOpen = ref(false)
+// État de la modal profil
+const isProfileModalOpen = ref(false)
 
 // Toggle du menu
 const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value
 }
 
-// Charger les projets pour le menu
+// Ouvrir/fermer modal profil
+const openProfileModal = () => {
+  isProfileModalOpen.value = true
+  isMenuOpen.value = false // Fermer le menu latéral
+}
+
+const closeProfileModal = () => {
+  isProfileModalOpen.value = false
+}
+
+// Charger les projets et le profil pour le menu
 onMounted(async () => {
   if (auth.token) {
     await analyticsStore.refreshIfNeeded()
+    await userStore.fetchProfile()
   }
 })
 
@@ -38,6 +54,14 @@ onMounted(async () => {
 const recentProjects = computed(() => 
   analyticsStore.projectStatistics.slice(0, 3)
 )
+
+// Construire l'URL complète de l'avatar
+const avatarUrl = computed(() => {
+  if (!userStore.profile?.avatar) return null;
+  const config = useRuntimeConfig();
+  const baseUrl = config.public.apiBase.replace('/api', '');
+  return `${baseUrl}/${userStore.profile.avatar}`;
+})
 </script>
 
 <template>
@@ -96,9 +120,20 @@ const recentProjects = computed(() =>
 
         <!-- Utilisateur en bas -->
         <div class="sidebar-user">
-          <div v-if="auth.user" class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center" :title="auth.user.email">
-            <UserIcon class="w-4 h-4 text-gray-600" />
-          </div>
+          <button 
+            v-if="auth.user" 
+            @click="openProfileModal"
+            class="w-8 h-8 rounded-full overflow-hidden bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition-colors" 
+            :title="userStore.displayName"
+          >
+            <img 
+              v-if="avatarUrl" 
+              :src="avatarUrl" 
+              :alt="userStore.displayName"
+              class="w-full h-full object-cover"
+            >
+            <UserIcon v-else class="w-4 h-4 text-gray-600" />
+          </button>
           <NuxtLink v-else to="/login" class="sidebar-icon" title="Connexion">
             <PowerIcon class="w-5 h-5" />
           </NuxtLink>
@@ -187,13 +222,29 @@ const recentProjects = computed(() =>
         <!-- Utilisateur étendu -->
         <div class="mt-auto p-4 border-t border-gray-100">
           <div v-if="auth.user" class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-              <UserIcon class="w-4 h-4 text-gray-600" />
-            </div>
+            <button 
+              @click="openProfileModal"
+              class="w-8 h-8 rounded-full overflow-hidden bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition-colors"
+            >
+              <img 
+                v-if="avatarUrl" 
+                :src="avatarUrl" 
+                :alt="userStore.displayName"
+                class="w-full h-full object-cover"
+              >
+              <UserIcon v-else class="w-4 h-4 text-gray-600" />
+            </button>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900 truncate">
-                {{ auth.user.email }}
+                {{ userStore.displayName }}
               </p>
+              <button 
+                @click="openProfileModal"
+                class="text-xs text-gray-500 truncate hover:text-amber-600 transition-colors cursor-pointer"
+                title="Cliquez pour modifier votre profil"
+              >
+                {{ userStore.profile?.email }}
+              </button>
             </div>
             <NuxtLink to="/logout" class="text-gray-400 hover:text-gray-600">
               <PowerIcon class="w-4 h-4" />
@@ -207,11 +258,35 @@ const recentProjects = computed(() =>
     <main class="flex-1 flex flex-col overflow-auto bg-light text-color">
 
       <!-- Header -->
-
-      <header class="header bg-cta">
+      <header class="header bg-cta flex justify-between items-center">
         <h1 class="font-bold text-2xl text-left">
           <NuxtLink to="/">Kompagnon</NuxtLink>
         </h1>
+        
+        <!-- Avatar + nom en haut à droite -->
+        <div v-if="auth.user" class="flex items-center space-x-3">
+          <div class="text-right">
+            <p class="text-sm font-medium text-gray-900">
+              {{ userStore.displayName }}
+            </p>
+            <p class="text-xs text-gray-600">
+              {{ userStore.profile?.email }}
+            </p>
+          </div>
+          <button 
+            @click="openProfileModal"
+            class="w-10 h-10 rounded-full overflow-hidden bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition-colors"
+            :title="userStore.displayName"
+          >
+            <img 
+              v-if="avatarUrl" 
+              :src="avatarUrl" 
+              :alt="userStore.displayName"
+              class="w-full h-full object-cover"
+            >
+            <UserIcon v-else class="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
       </header>
 
       <!-- Contenu -->
@@ -220,6 +295,12 @@ const recentProjects = computed(() =>
       </div>
 
     </main>
+
+    <!-- Modal de profil -->
+    <ProfileModal 
+      :is-open="isProfileModalOpen" 
+      @close="closeProfileModal" 
+    />
 
   </div>
 </template>

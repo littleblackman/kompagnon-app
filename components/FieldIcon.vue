@@ -7,6 +7,8 @@ const props = defineProps<{
   text: string
   color?: string
   onSave: (newValue: string) => void
+  title?: string  // Nom du critère à afficher
+  placeholder?: string  // Texte d'aide
 }>()
 
 const open = ref(false)
@@ -43,16 +45,31 @@ function save() {
           class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
           @click.self="open = false"
       >
-        <div class="bg-white rounded-xl p-6 w-full max-w-md">
-          <h2 class="text-lg font-semibold mb-4">Modifier</h2>
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl mx-4">
+          <div class="flex items-center space-x-3 mb-6">
+            <component :is="icon" class="w-6 h-6" :class="color" />
+            <h2 class="text-xl font-semibold text-gray-800">{{ title || 'Modifier le contenu' }}</h2>
+          </div>
+          
           <textarea
               v-model="editedText"
-              class="w-full h-32 border border-gray-300 rounded p-2"
-              placeholder="Saisis ton texte ici..."
+              class="w-full h-40 border-2 border-gray-200 rounded-xl p-4 text-gray-700 placeholder-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all duration-200 resize-none"
+              :placeholder="placeholder || 'Écrivez votre contenu ici...'"
           />
-          <div class="flex justify-end mt-4 gap-2">
-            <button class="text-gray-500" @click="open = false">Annuler</button>
-            <button class="bg-pink-500 text-white px-4 py-2 rounded" @click="save">Enregistrer</button>
+          
+          <div class="flex justify-end mt-6 space-x-3">
+            <button 
+              class="px-6 py-2.5 text-gray-600 hover:text-gray-800 transition-colors duration-200 font-medium"
+              @click="open = false"
+            >
+              Annuler
+            </button>
+            <button 
+              class="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+              @click="save"
+            >
+              Enregistrer
+            </button>
           </div>
         </div>
       </div>

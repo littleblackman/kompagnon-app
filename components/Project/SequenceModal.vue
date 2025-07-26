@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import RichTextEditor from "~/components/RichTextEditor.vue";
 import { useProjectStore } from "~/store/project";
 const projectStore = useProjectStore();
@@ -23,22 +23,17 @@ const availableParts = computed(() => projectStore.parts);
 // Liste des séquences disponibles pour la partie sélectionnée
 const availableSequences = computed(() => {
   if (!selectedPartId.value) return [];
-  return projectStore.sequences.filter(s => s.part_id === selectedPartId.value);
+  const part = projectStore.parts.find(p => p.id === selectedPartId.value);
+  return part?.sequences || [];
 });
+
 
 // Mise à jour automatique des valeurs si en mode édition
 watch(() => props.sequence, (newVal) => {
   if (newVal) {
     currentSequence.value = { ...newVal };
     selectedPartId.value = newVal.part_id;
-    
-    // Trouver la séquence précédente pour l'emplacement
-    const index = availableSequences.value.findIndex(seq => seq.id === newVal.id);
-    if (index > 0) {
-      afterSequenceId.value = availableSequences.value[index - 1].id;
-    } else {
-      afterSequenceId.value = null;
-    }
+    afterSequenceId.value = null; // Pas de repositionnement en mode édition
   } else {
     currentSequence.value = { name: '', description: '' };
     selectedPartId.value = null;
@@ -51,7 +46,7 @@ watch(selectedPartId, () => {
   afterSequenceId.value = null;
 });
 
-const save = () => {
+const save = async () => {
   if (!selectedPartId.value) {
     alert("Veuillez sélectionner une partie");
     return;
@@ -67,10 +62,23 @@ const save = () => {
     part_id: selectedPartId.value
   };
 
-  emit('save', { 
-    sequence: sequenceToSave, 
-    afterSequenceId: afterSequenceId.value 
-  });
+  try {
+    if (currentSequence.value.id) {
+      // Modification d'une séquence existante → utiliser updateSequenceContent
+      await projectStore.updateSequenceContent(sequenceToSave);
+      emit('close');
+    } else {
+      // Nouvelle séquence → passer par l'événement save avec afterSequenceId
+      emit('save', { 
+        sequence: sequenceToSave, 
+        afterSequenceId: afterSequenceId.value 
+      });
+      return;
+    }
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde:', error);
+    alert('Erreur lors de la sauvegarde');
+  }
 };
 
 const deleteSequence = () => {
@@ -94,14 +102,24 @@ const cancelDelete = () => {
         {{ currentSequence.id ? "Modifier la séquence" : "Ajouter une séquence" }}
       </h3>
 
-      <!-- Select de la partie -->
-      <label class="block mb-2 font-semibold">Partie :</label>
-      <select v-model="selectedPartId" class="border rounded p-2 w-full mb-4">
+      <!-- Select partie caché (garde la logique) -->
+      <select v-model="selectedPartId" class="hidden">
         <option :value="null">Sélectionner une partie</option>
         <option v-for="part in availableParts" :key="part.id" :value="part.id">
           {{ part.name }}
         </option>
       </select>
+
+      <!-- Emplacement (seulement en création) -->
+      <div v-if="!currentSequence.id" class="mb-4">
+        <label class="block mb-2 font-semibold">Insérer après :</label>
+        <select v-model="afterSequenceId" class="border rounded p-2 w-full" :disabled="!selectedPartId">
+          <option :value="null">Début de la partie</option>
+          <option v-for="seq in availableSequences" :key="seq.id" :value="seq.id">
+            {{ seq.name }}
+          </option>
+        </select>
+      </div>
 
       <label class="block mb-2 font-semibold">Nom :</label>
       <input type="text" v-model="currentSequence.name" class="border rounded p-2 w-full mb-4">
@@ -109,14 +127,6 @@ const cancelDelete = () => {
       <label class="block mb-2 font-semibold">Description :</label>
       <RichTextEditor v-model="currentSequence.description" content-type="organizational" />
 
-      <!-- Select de l'emplacement -->
-      <label class="block mt-4 font-semibold">Emplacement après :</label>
-      <select v-model="afterSequenceId" class="border rounded p-2 w-full" :disabled="!selectedPartId">
-        <option :value="null">Début de la partie</option>
-        <option v-for="seq in availableSequences" :key="seq.id" :value="seq.id">
-          {{ seq.name }}
-        </option>
-      </select>
 
       <div class="flex justify-between mt-4">
         <div>

@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useAuthStore } from "~/store/auth";
 import { useAnalyticsStore } from "~/store/analytics";
-import { ChartBarIcon, FilmIcon, DocumentTextIcon, UserGroupIcon } from '@heroicons/vue/24/outline';
+import { ChartBarIcon, FilmIcon, DocumentTextIcon, UserGroupIcon, ClockIcon } from '@heroicons/vue/24/outline';
 
 const auth = useAuthStore();
 auth.requireAuth();
@@ -13,8 +13,38 @@ const analyticsStore = useAnalyticsStore();
 const stats = computed(() => analyticsStore.statistics);
 const isLoading = computed(() => analyticsStore.isLoading);
 
+// Dernier projet visité
+const lastVisitedProject = ref<{id: number, name: string, slug: string, timestamp: string} | null>(null);
+
+// Fonction pour formater la date relative
+function formatRelativeTime(timestamp: string): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return "à l'instant";
+  if (diffMins < 60) return `il y a ${diffMins} minute${diffMins > 1 ? 's' : ''}`;
+  if (diffHours < 24) return `il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`;
+  return `il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+}
+
 onMounted(async () => {
   await analyticsStore.refreshIfNeeded();
+  
+  // Récupérer le dernier projet visité depuis localStorage
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('lastVisitedProject');
+    if (stored) {
+      try {
+        lastVisitedProject.value = JSON.parse(stored);
+      } catch (e) {
+        console.error('Erreur parsing lastVisitedProject:', e);
+      }
+    }
+  }
 });
 </script>
 
@@ -34,6 +64,25 @@ onMounted(async () => {
     </div>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Dernier projet visité -->
+      <div v-if="lastVisitedProject" class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <ClockIcon class="w-5 h-5 text-amber-600" />
+            <div>
+              <p class="text-sm font-medium text-amber-900">Dernier projet consulté</p>
+              <p class="text-sm text-amber-700">{{ lastVisitedProject.name }} - {{ formatRelativeTime(lastVisitedProject.timestamp) }}</p>
+            </div>
+          </div>
+          <NuxtLink 
+            :to="`/projets/projet-${lastVisitedProject.slug}`"
+            class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-100 rounded-md hover:bg-amber-200 transition-colors"
+          >
+            Reprendre
+          </NuxtLink>
+        </div>
+      </div>
+
       <!-- Description -->
       <div class="bg-white rounded-lg shadow-sm border p-6 mb-8">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">Bienvenue sur Kompagnon</h2>

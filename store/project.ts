@@ -86,12 +86,21 @@ export const useProjectStore = defineStore('project', {
                 this.personnages = response.personnages || [];
                 
                 // Initialiser la table de référence des personnages
-                console.log('Loading project personnages:', response.personnages || []);
                 const personnageStore = usePersonnageStore();
                 personnageStore.personnages = response.personnages || [];
                 
                 // Développer toutes les parties par défaut
                 this.expandAllParts();
+                
+                // Sauvegarder le dernier projet visité
+                if (typeof window !== 'undefined' && response) {
+                    localStorage.setItem('lastVisitedProject', JSON.stringify({
+                        id: response.id,
+                        name: response.name,
+                        slug: response.slug,
+                        timestamp: new Date().toISOString()
+                    }));
+                }
             } catch (error) {
                 console.error("Erreur chargement projet :", error);
             }
@@ -310,7 +319,107 @@ export const useProjectStore = defineStore('project', {
             }
         },
 
-        // save sequence
+        // Mettre à jour le contenu d'une séquence (sans changer l'ordre)
+        async updateSequenceContent(sequence: Sequence): Promise<Sequence | null> {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                const result = await $fetch(`${config.public.apiBase}/sequence/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                    body: sequence,
+                });
+
+                const savedSequence = result.sequence;
+
+                // Mise à jour locale simple (SANS toucher aux scènes)
+                const part = this.project?.parts.find(p => p.id === sequence.part_id);
+                if (part && part.sequences) {
+                    const index = part.sequences.findIndex(s => s.id === savedSequence.id);
+                    if (index !== -1) {
+                        // Mettre à jour UNIQUEMENT les propriétés de la séquence, pas les scènes
+                        const existingSequence = part.sequences[index];
+                        existingSequence.name = savedSequence.name;
+                        existingSequence.description = savedSequence.description;
+                        existingSequence.intention = savedSequence.intention;
+                        existingSequence.aesthetic_idea = savedSequence.aesthetic_idea;
+                        existingSequence.information = savedSequence.information;
+                        existingSequence.status = savedSequence.status;
+                        // NE PAS toucher à existingSequence.scenes !
+                    }
+                }
+
+                return savedSequence;
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour de la séquence :", error);
+                return null;
+            }
+        },
+
+        // Réorganiser une séquence (change l'ordre)
+        async reorderSequence(sequenceId: number, partId: number, afterSequenceId?: number): Promise<boolean> {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                const sequence = { id: sequenceId, part_id: partId };
+                if (afterSequenceId) {
+                    (sequence as any).afterSequenceId = afterSequenceId;
+                }
+
+                await $fetch(`${config.public.apiBase}/sequence/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                    body: sequence,
+                });
+
+                // Recharger toute la partie depuis l'API pour garantir la cohérence
+                await this.reloadPart(partId);
+                
+                return true;
+            } catch (error) {
+                console.error("Erreur lors de la réorganisation de la séquence :", error);
+                return false;
+            }
+        },
+
+        // Méthode pour recharger une partie complète
+        async reloadPart(partId: number): Promise<void> {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                const result = await $fetch(`${config.public.apiBase}/part/${partId}`, {
+                    headers: {
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                });
+
+                // Mettre à jour la partie dans le projet local
+                if (this.project && this.project.parts) {
+                    const index = this.project.parts.findIndex(p => p.id === partId);
+                    if (index !== -1) {
+                        this.project.parts[index] = result.part;
+                    }
+                }
+
+                // Mettre à jour les données globales
+                this.sequences = this.parts.flatMap(part => part.sequences || []);
+                this.scenes = this.sequences.flatMap(seq => seq.scenes || []);
+                
+            } catch (error) {
+                console.error("Erreur lors du rechargement de la partie :", error);
+            }
+        },
+
+        // DEPRECATED: Ancienne méthode saveSequence - garder pour compatibilité
         async saveSequence(newSequence: Sequence, partId: number, afterSequenceId?: number): Promise<Sequence | null> {
             try {
                 const config = useRuntimeConfig();
@@ -495,6 +604,33 @@ export const useProjectStore = defineStore('project', {
 
             } catch (error) {
                 console.error("Erreur lors de la sauvegarde de l'ordre des scènes :", error);
+                throw error;
+            }
+        },
+
+        async saveSequenceOrder(sequences: Sequence[]) {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                // Préparer les données pour l'API (juste ID et position)
+                const sequencePositions = sequences.map(sequence => ({
+                    id: sequence.id,
+                    position: sequence.position
+                }));
+
+                // Appeler la nouvelle route /api/sequence/order
+                await $fetch(`${config.public.apiBase}/sequence/order`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                    body: { sequences: sequencePositions },
+                });
+
+            } catch (error) {
+                console.error("Erreur lors de la sauvegarde de l'ordre des séquences :", error);
                 throw error;
             }
         },
