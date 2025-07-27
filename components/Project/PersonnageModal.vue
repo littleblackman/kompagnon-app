@@ -16,18 +16,6 @@ const handleSave = () => {
   emit('save', currentPersonnage.value);
 };
 
-// Fonction pour créer un slug à partir du nom/prénom
-const createPersonnageSlug = (firstName, lastName) => {
-  const fullName = `${firstName || ''} ${lastName || ''}`.trim();
-  return fullName
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Supprimer les accents
-    .replace(/[^a-z0-9\s-]/g, '') // Garder seulement lettres, chiffres, espaces et tirets
-    .replace(/\s+/g, '-') // Remplacer espaces par tirets
-    .replace(/-+/g, '-') // Remplacer tirets multiples par un seul
-    .replace(/^-|-$/g, ''); // Supprimer tirets en début/fin
-};
 
 </script>
 
@@ -162,8 +150,8 @@ const createPersonnageSlug = (firstName, lastName) => {
           <span v-if="currentPersonnage.id" class="text-green-600">● Personnage existant</span>
           <span v-else class="text-blue-600">● Nouveau personnage</span>
           <NuxtLink 
-            v-if="currentPersonnage.id" 
-            :to="`/projets/detail-${createPersonnageSlug(currentPersonnage.firstName, currentPersonnage.lastName)}`"
+            v-if="currentPersonnage.id && currentPersonnage.slug" 
+            :to="`/projets/detail-${currentPersonnage.slug}`"
             class="ml-4 text-amber-600 hover:text-amber-800 underline text-sm transition-colors"
           >
             Détails

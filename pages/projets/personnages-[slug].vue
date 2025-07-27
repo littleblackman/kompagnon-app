@@ -7,6 +7,7 @@ import { onMounted, computed, ref } from "vue";
 import PersonnageModal from "@/components/Project/PersonnageModal.vue";
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
 import { PencilIcon, TrashIcon, UserPlusIcon, UserIcon } from '@heroicons/vue/24/solid';
+import { useImages } from '~/composables/useImages';
 
 const auth = useAuthStore();
 auth.requireAuth();
@@ -15,6 +16,9 @@ const projectStore = useProjectStore();
 const personnageStore = usePersonnageStore();
 const route = useRoute();
 const slug = route.params.slug as string;
+
+// Composable pour gérer les images
+const { getImageUrl, getImagesUrls } = useImages();
 
 // Charger le projet au montage
 onMounted(() => projectStore.fetchProject(slug));
@@ -67,40 +71,18 @@ const getPersonnageName = (personnage) => {
 
 // Fonction pour obtenir l'avatar du personnage
 const getPersonnageAvatar = (personnage) => {
-  if (!personnage || !personnage.images) return null;
+  if (!personnage) return null;
   
-  // Si les images sont une chaîne JSON, la parser
-  let images = personnage.images;
-  if (typeof images === 'string') {
-    try {
-      images = JSON.parse(images);
-    } catch {
-      return null;
-    }
+  // Si l'API retourne déjà un avatar
+  if (personnage.avatar) {
+    return getImageUrl(personnage.avatar);
   }
   
-  // Si c'est un tableau et qu'il a des éléments, prendre le premier
-  if (Array.isArray(images) && images.length > 0) {
-    const config = useRuntimeConfig();
-    const baseUrl = config.public.apiBase.replace('/api', '');
-    return `${baseUrl}/${images[0]}`;
-  }
-  
-  return null;
+  // Sinon on prend la première image
+  const images = getImagesUrls(personnage.images);
+  return images[0] || null;
 };
 
-// Fonction pour créer un slug à partir du nom/prénom
-const createPersonnageSlug = (firstName, lastName) => {
-  const fullName = `${firstName || ''} ${lastName || ''}`.trim();
-  return fullName
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Supprimer les accents
-    .replace(/[^a-z0-9\s-]/g, '') // Garder seulement lettres, chiffres, espaces et tirets
-    .replace(/\s+/g, '-') // Remplacer espaces par tirets
-    .replace(/-+/g, '-') // Remplacer tirets multiples par un seul
-    .replace(/^-|-$/g, ''); // Supprimer tirets en début/fin
-};
 
 // Personnages triés par niveau (1 = le plus élevé) puis alphabétique
 const sortedPersonnages = computed(() => {
@@ -189,7 +171,7 @@ const sortedPersonnages = computed(() => {
           </div>
           <div class="flex gap-2">
             <NuxtLink
-              :to="`/projets/detail-${createPersonnageSlug(personnage.firstName, personnage.lastName)}`"
+              :to="`/projets/detail-${personnage.slug}`"
               class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
               title="Voir les détails"
             >

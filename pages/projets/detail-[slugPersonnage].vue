@@ -3,9 +3,12 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { usePersonnageStore } from '~/store/personnage';
 import { useProjectStore } from '~/store/project';
+import { useAuthStore } from '~/store/auth';
 import RichTextEditor from '~/components/RichTextEditor.vue';
 import ImageUploader from '~/components/Project/ImageUploader.vue';
 import ProjectSubMenu from '~/components/Project/SubMenu.vue';
+import Lightbox from '~/components/Lightbox.vue';
+import { useImages } from '~/composables/useImages';
 
 definePageMeta({
   middleware: 'auth'
@@ -15,68 +18,72 @@ const route = useRoute();
 const router = useRouter();
 const personnageStore = usePersonnageStore();
 const projectStore = useProjectStore();
+const authStore = useAuthStore();
 
 const personnageSlug = route.params.slugPersonnage;
 const personnage = ref(null);
 const project = ref(null);
 const isEditing = ref(false);
 const editedPersonnage = ref({});
-const lightboxImage = ref(null);
+const lightboxImages = ref([]);
+const lightboxIndex = ref(0);
 const showLightbox = ref(false);
+const loading = ref(true);
+const error = ref(null);
+
+// Composable pour gérer les images
+const { getImageUrl, getImagesUrls } = useImages();
 
 // Fonction pour ouvrir la lightbox
-const openLightbox = (image) => {
-  lightboxImage.value = image;
+const openLightbox = (imageIndex) => {
+  lightboxImages.value = getImagesUrls(personnage.value?.images);
+  lightboxIndex.value = imageIndex;
   showLightbox.value = true;
 };
 
 // Fonction pour fermer la lightbox
 const closeLightbox = () => {
   showLightbox.value = false;
-  lightboxImage.value = null;
 };
 
-// Fonction pour créer un slug à partir du nom/prénom
-const createPersonnageSlug = (firstName, lastName) => {
-  const fullName = `${firstName || ''} ${lastName || ''}`.trim();
-  return fullName
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Supprimer les accents
-    .replace(/[^a-z0-9\s-]/g, '') // Garder seulement lettres, chiffres, espaces et tirets
-    .replace(/\s+/g, '-') // Remplacer espaces par tirets
-    .replace(/-+/g, '-') // Remplacer tirets multiples par un seul
-    .replace(/^-|-$/g, ''); // Supprimer tirets en début/fin
+// Fonction pour changer l'index de la lightbox
+const updateLightboxIndex = (newIndex) => {
+  lightboxIndex.value = newIndex;
 };
 
-// Fonction pour trouver un personnage par son slug
-const findPersonnageBySlug = (personnages, slug) => {
-  return personnages?.find(p => {
-    const personSlug = createPersonnageSlug(p.firstName, p.lastName);
-    return personSlug === slug;
-  });
-};
-
-onMounted(async () => {
-  // Utiliser le projet déjà en mémoire dans le store
-  project.value = projectStore.project;
-  
-  if (!project.value) {
-    // Si pas de projet en mémoire, rediriger vers la liste des projets
+// Fonction pour charger les détails du personnage depuis l'API
+const loadPersonnageDetails = async () => {
+  try {
+    loading.value = true;
+    error.value = null;
+    
+    const config = useRuntimeConfig();
+    
+    // Debug pour voir le slug
+    console.log('Loading personnage with slug:', personnageSlug);
+    
+    const response = await $fetch(`${config.public.apiBase}/personnage/${personnageSlug}/details`, {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    });
+    
+    console.log('API response:', response);
+    
+    personnage.value = response;
+    project.value = response.project;
+    editedPersonnage.value = { ...response };
+    
+  } catch (err) {
+    error.value = err;
+    console.error('Erreur lors du chargement du personnage:', err);
+    // Rediriger vers la liste des projets si erreur
     router.push('/projets/tous');
-    return;
+  } finally {
+    loading.value = false;
   }
-  
-  // Trouver le personnage par son slug
-  personnage.value = findPersonnageBySlug(projectStore.personnages, personnageSlug);
-  
-  if (!personnage.value) {
-    // Rediriger vers la page personnages du projet actuel
-    router.push(`/projets/personnages-${project.value.slug}`);
-    return;
-  }
-  
-  editedPersonnage.value = { ...personnage.value };
+};
+
+onMounted(() => {
+  loadPersonnageDetails();
 });
 
 const toggleEdit = () => {
@@ -89,10 +96,9 @@ const toggleEdit = () => {
 const handleSave = async () => {
   try {
     await personnageStore.savePersonnage(editedPersonnage.value, project.value.id);
-    personnage.value = { ...editedPersonnage.value };
     isEditing.value = false;
-    // Recharger le projet pour avoir les données à jour
-    await projectStore.fetchProject(project.value.slug);
+    // Recharger les détails du personnage
+    await loadPersonnageDetails();
   } catch (error) {
     console.error('Erreur lors de la sauvegarde:', error);
   }
@@ -130,55 +136,53 @@ const getLevelColor = (level) => {
 
 // Fonction pour obtenir l'avatar du personnage
 const getPersonnageAvatar = (personnage) => {
-  if (!personnage || !personnage.images) return null;
+  if (!personnage) return null;
   
-  // Si les images sont une chaîne JSON, la parser
-  let images = personnage.images;
-  if (typeof images === 'string') {
-    try {
-      images = JSON.parse(images);
-    } catch {
-      return null;
-    }
+  // Si l'API retourne déjà un avatar
+  if (personnage.avatar) {
+    return getImageUrl(personnage.avatar);
   }
   
-  // Si c'est un tableau et qu'il a des éléments, prendre le premier
-  if (Array.isArray(images) && images.length > 0) {
-    const config = useRuntimeConfig();
-    const baseUrl = config.public.apiBase.replace('/api', '');
-    return `${baseUrl}/${images[0]}`;
-  }
-  
-  return null;
+  // Sinon on prend la première image
+  const images = getImagesUrls(personnage.images);
+  return images[0] || null;
 };
 
-// Fonction pour obtenir toutes les images traitées
+// Fonction pour obtenir toutes les images du personnage
 const getPersonnageImages = (personnage) => {
-  if (!personnage || !personnage.images) return [];
-  
-  let images = personnage.images;
-  if (typeof images === 'string') {
-    try {
-      images = JSON.parse(images);
-    } catch {
-      return [];
-    }
-  }
-  
-  if (Array.isArray(images)) {
-    const config = useRuntimeConfig();
-    const baseUrl = config.public.apiBase.replace('/api', '');
-    return images.map(img => `${baseUrl}/${img}`);
-  }
-  
-  return [];
+  return getImagesUrls(personnage?.images);
 };
 </script>
 
 <template>
   <div>
-    <ProjectSubMenu :project-slug="project?.slug" />
-    <div class="bg-gray-50 p-4 sm:p-6 lg:p-8">
+    <ProjectSubMenu v-if="project" :project-slug="project.slug" />
+    
+    <!-- Loading state -->
+    <div v-if="loading" class="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div class="text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
+        <p class="text-gray-600">Chargement du personnage...</p>
+      </div>
+    </div>
+    
+    <!-- Error state -->
+    <div v-else-if="error" class="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div class="text-center">
+        <div class="text-red-500 text-4xl mb-4">⚠️</div>
+        <h2 class="text-xl font-bold text-gray-800 mb-2">Erreur de chargement</h2>
+        <p class="text-gray-600 mb-4">Impossible de charger les détails du personnage</p>
+        <button 
+          @click="loadPersonnageDetails" 
+          class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+        >
+          Réessayer
+        </button>
+      </div>
+    </div>
+    
+    <!-- Main content -->
+    <div v-else class="bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div class="max-w-7xl mx-auto">
       
       <!-- Header avec navigation -->
@@ -319,7 +323,7 @@ const getPersonnageImages = (personnage) => {
                 v-for="(image, index) in getPersonnageImages(personnage)" 
                 :key="index"
                 class="w-full aspect-square overflow-hidden rounded-lg border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer"
-                @click="openLightbox(image)"
+                @click="openLightbox(index)"
               >
                 <img 
                   :src="image" 
@@ -347,14 +351,14 @@ const getPersonnageImages = (personnage) => {
               <div class="flex justify-between items-center p-2 bg-indigo-50 rounded">
                 <span class="text-gray-700 text-sm">Séquences</span>
                 <span class="font-bold text-indigo-600">
-                  {{ personnage?.sequencePersonnages?.length || 0 }}
+                  {{ personnage?.stats?.sequenceCount || 0 }}
                 </span>
               </div>
               
               <div class="flex justify-between items-center p-2 bg-indigo-50 rounded">
                 <span class="text-gray-700 text-sm">Images</span>
                 <span class="font-bold text-indigo-600">
-                  {{ getPersonnageImages(personnage).length }}
+                  {{ personnage?.stats?.imageCount || 0 }}
                 </span>
               </div>
             </div>
@@ -364,25 +368,13 @@ const getPersonnageImages = (personnage) => {
         <!-- Colonne droite - Grande colonne -->
         <div class="lg:col-span-2 space-y-6">
           
-          <!-- Analyse rapide -->
-          <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              <span class="mr-2">🔍</span>
-              Analyse rapide
-            </h2>
-            <div 
-              class="p-4 bg-blue-50 rounded-lg border border-blue-200 min-h-[120px]"
-              v-html="personnage?.analysis || '<em class=\'text-gray-500\'>Aucune analyse disponible</em>'"
-            >
-            </div>
-          </div>
-
+      
           <!-- Histoire et Background -->
           <div class="bg-white rounded-lg shadow-lg border-l-4 border-green-500">
             <div class="p-6">
               <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
                 <span class="mr-2">📖</span>
-                Histoire & Background
+                Background
               </h2>
               
               <div v-if="!isEditing" class="bg-green-50 rounded-lg border border-green-200 p-4">
@@ -403,32 +395,35 @@ const getPersonnageImages = (personnage) => {
               </div>
             </div>
           </div>
+
+          <!-- Analyse rapide -->
+          <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+              <span class="mr-2">🔍</span>
+              Analyse rapide
+            </h2>
+            <div 
+              class="p-4 bg-blue-50 rounded-lg border border-blue-200 min-h-[120px]"
+              v-html="personnage?.analysis || '<em class=\'text-gray-500\'>Aucune analyse disponible</em>'"
+            >
+            </div>
+          </div>
+
+
         </div>
       </div>
     </div>
-    
-    <!-- Lightbox pour les images -->
-    <div 
-      v-if="showLightbox" 
-      class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-      @click="closeLightbox"
-    >
-      <div class="relative max-w-4xl max-h-full">
-        <img 
-          :src="lightboxImage" 
-          :alt="'Image de ' + personnage?.firstName + ' ' + personnage?.lastName"
-          class="max-w-full max-h-full object-contain rounded-lg"
-        />
-        <button 
-          @click="closeLightbox"
-          class="absolute top-4 right-4 text-white bg-black bg-opacity-50 hover:bg-opacity-75 rounded-full w-10 h-10 flex items-center justify-center text-xl transition-colors"
-        >
-          ×
-        </button>
-      </div>
     </div>
+    
+    <!-- Lightbox component -->
+    <Lightbox
+      :images="lightboxImages"
+      :current-index="lightboxIndex"
+      :show="showLightbox"
+      @close="closeLightbox"
+      @update:current-index="updateLightboxIndex"
+    />
   </div>
-</div>
 </template>
 
 <style scoped>
