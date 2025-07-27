@@ -4,39 +4,6 @@ import { useAuthStore } from '~/store/auth';
 import { usePersonnageStore } from '~/store/personnage';
 import type { Project, Part, Sequence, Scene, Personnage } from '~/types';
 
-interface Part {
-    id: number;
-    name: string;
-    description: string;
-    position: number;
-    sequences?: Sequence[];
-    afterPartId?: number;
-}
-
-interface Sequence {
-    id: number;
-    name: string;
-    description: string;
-    position: number;
-    scenes?: Scene[];
-    part_id?: number;
-    afterSequenceId?: number;
-}
-
-interface Scene {
-    id: number;
-    name: string;
-    description: string;
-    position: number;
-}
-
-interface Project {
-    id: number;
-    name: string;
-    description: string;
-    parts: Part[];
-}
-
 interface UpdatePartResponse {
     part: Part;
     positions: number[];
@@ -60,6 +27,11 @@ export const useProjectStore = defineStore('project', {
         filters: {
             search: '',
             status: 'all' as 'all' | 'completed' | 'in-progress'
+        },
+        // Statistiques de mots/caractères
+        stats: {
+            wordCount: 0,
+            charCount: 0
         }
     }),
 
@@ -91,6 +63,9 @@ export const useProjectStore = defineStore('project', {
                 
                 // Développer toutes les parties par défaut
                 this.expandAllParts();
+                
+                // Calculer les statistiques
+                this.calculateStats();
                 
                 // Sauvegarder le dernier projet visité
                 if (typeof window !== 'undefined' && response) {
@@ -574,6 +549,9 @@ export const useProjectStore = defineStore('project', {
                 // Trier les scènes globales par position
                 this.scenes.sort((a, b) => a.position - b.position);
 
+                // Recalculer les stats après sauvegarde
+                this.calculateStats();
+                
                 return savedScene;
             } catch (error) {
                 console.error("Erreur lors de la sauvegarde d'une scène :", error);
@@ -755,5 +733,68 @@ export const useProjectStore = defineStore('project', {
         },
 
         // Les méthodes de gestion des personnages ont été déplacées vers le store personnage
+
+        // Méthode pour calculer les statistiques de mots/caractères
+        calculateStats() {
+            if (!this.project) {
+                this.stats = { wordCount: 0, charCount: 0 };
+                return;
+            }
+
+            // Lire les préférences de localStorage
+            const getReadingPreferences = () => {
+                if (typeof window === 'undefined') return { showTitles: { h2: true, h3: true, h4: true } };
+                
+                const stored = localStorage.getItem('kompagnon-reading-preferences');
+                if (!stored) return { showTitles: { h2: true, h3: true, h4: true } };
+                
+                try {
+                    return JSON.parse(stored);
+                } catch {
+                    return { showTitles: { h2: true, h3: true, h4: true } };
+                }
+            };
+
+            const preferences = getReadingPreferences();
+            let totalContent = '';
+            
+            // Parcourir toutes les parties
+            for (const part of this.project.parts || []) {
+                // Ajouter le titre de partie si activé dans les préférences
+                if (preferences.showTitles?.h2 && part.name) {
+                    totalContent += part.name + ' ';
+                }
+                
+                // Parcourir toutes les séquences de la partie
+                for (const sequence of part.sequences || []) {
+                    // Ajouter le titre de séquence si activé dans les préférences
+                    if (preferences.showTitles?.h3 && sequence.name) {
+                        totalContent += sequence.name + ' ';
+                    }
+                    
+                    // Parcourir toutes les scènes de la séquence
+                    for (const scene of sequence.scenes || []) {
+                        // Ajouter le titre de scène si activé dans les préférences
+                        if (preferences.showTitles?.h4 && scene.name) {
+                            totalContent += scene.name + ' ';
+                        }
+                        
+                        if (scene.content) {
+                            // Nettoyer le HTML et ajouter le contenu
+                            const cleanContent = scene.content.replace(/<[^>]*>/g, '');
+                            totalContent += cleanContent + ' ';
+                        }
+                    }
+                }
+            }
+            
+            // Compter les mots (séparer par espaces, supprimer les vides)
+            const words = totalContent.trim() ? totalContent.trim().split(/\s+/).length : 0;
+            
+            // Compter les caractères (espaces compris)
+            const chars = totalContent.length;
+            
+            this.stats = { wordCount: words, charCount: chars };
+        },
     }
 });

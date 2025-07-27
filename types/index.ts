@@ -35,6 +35,7 @@ export interface Part {
   project_id: number
   sequences?: Sequence[]
   status_id?: number
+  afterPartId?: number
 }
 
 export interface Project {
@@ -60,4 +61,28 @@ export interface Personnage {
   strength?: string
   weakness?: string
   project_id: number
+}
+
+export interface NarrativeArc {
+  id: number
+  name: string
+  description?: string
+  steps: string[]
+  variants: string[]
+  tendency: 'positive' | 'negative' | 'ambiguous'
+}
+
+export interface DramaticFunction {
+  id: number
+  name: string
+  description?: string
+  characteristics: string[]
+  tendency: 'positive' | 'negative' | 'ambiguous'
+}
+
+export interface ActantialSchema {
+  role: string
+  description: string
+  tendency: 'positive' | 'negative' | 'ambiguous'
+  keywords: string[]
 } 

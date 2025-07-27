@@ -89,6 +89,19 @@ const getPersonnageAvatar = (personnage) => {
   return null;
 };
 
+// Fonction pour créer un slug à partir du nom/prénom
+const createPersonnageSlug = (firstName, lastName) => {
+  const fullName = `${firstName || ''} ${lastName || ''}`.trim();
+  return fullName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Supprimer les accents
+    .replace(/[^a-z0-9\s-]/g, '') // Garder seulement lettres, chiffres, espaces et tirets
+    .replace(/\s+/g, '-') // Remplacer espaces par tirets
+    .replace(/-+/g, '-') // Remplacer tirets multiples par un seul
+    .replace(/^-|-$/g, ''); // Supprimer tirets en début/fin
+};
+
 // Personnages triés par niveau (1 = le plus élevé) puis alphabétique
 const sortedPersonnages = computed(() => {
   return [...personnageStore.personnages].sort((a, b) => {
@@ -175,6 +188,16 @@ const sortedPersonnages = computed(() => {
             </div>
           </div>
           <div class="flex gap-2">
+            <NuxtLink
+              :to="`/projets/detail-${createPersonnageSlug(personnage.firstName, personnage.lastName)}`"
+              class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              title="Voir les détails"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+              </svg>
+            </NuxtLink>
             <button
               @click="openPersonnageModal(personnage)"
               class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

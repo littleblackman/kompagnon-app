@@ -1,7 +1,9 @@
 <template>
   <div class="bg-white shadow-sm border-b sticky top-0 z-10">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <nav class="flex justify-center space-x-8 py-4">
+      <nav class="flex justify-between items-center py-4">
+        <div></div>
+        <div class="flex justify-center space-x-8">
         <NuxtLink 
           :to="`/projets/projet-${projectSlug}`"
           class="nav-link"
@@ -37,6 +39,14 @@
           <CogIcon class="w-5 h-5" />
           <span>Paramètres</span>
         </NuxtLink>
+        </div>
+        
+        <!-- Compteur de mots/caractères -->
+        <div class="text-sm text-gray-600 font-mono">
+          <span>{{ projectStore.stats.wordCount.toLocaleString() }} mots</span>
+          <span class="mx-2">•</span>
+          <span>{{ projectStore.stats.charCount.toLocaleString() }} SEC</span>
+        </div>
         
       </nav>
     </div>
@@ -45,12 +55,15 @@
 
 <script setup lang="ts">
 import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon } from '@heroicons/vue/24/solid';
+import { useProjectStore } from '~/store/project';
 
 interface Props {
   projectSlug: string;
 }
 
 defineProps<Props>();
+
+const projectStore = useProjectStore();
 </script>
 
 <style scoped>
