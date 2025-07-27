@@ -114,6 +114,34 @@ const handleImagesUpdated = (images) => {
   }
 };
 
+// Fonction pour créer le schéma actantiel
+const createActantielSchema = async () => {
+  try {
+    console.log('Création du schéma actantiel pour:', personnage.value);
+    
+    const config = useRuntimeConfig();
+    
+    const response = await $fetch(`${config.public.apiBase}/personnage/${personnage.value.id}/analyse/actantiel-schema`, {
+      method: 'POST',
+      headers: { 
+        Authorization: `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: {
+        personnageId: personnage.value.id,
+        projectId: project.value.id
+      }
+    });
+    
+    console.log('Résultat du schéma actantiel:', response);
+    
+    // TODO: Afficher le résultat dans l'interface
+    
+  } catch (error) {
+    console.error('Erreur lors de la création du schéma actantiel:', error);
+  }
+};
+
 const getLevelLabel = (level) => {
   const levels = {
     1: 'Personnage principal',
@@ -237,6 +265,14 @@ const getPersonnageImages = (personnage) => {
               class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors"
             >
               Modifier
+            </button>
+            <button 
+              v-if="!isEditing"
+              @click="createActantielSchema"
+              class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <span>🎭</span>
+              Créer le schéma actantiel
             </button>
             <template v-else>
               <button 
