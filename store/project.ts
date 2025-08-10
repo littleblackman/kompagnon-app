@@ -51,8 +51,20 @@ export const useProjectStore = defineStore('project', {
                     headers: { Authorization: `Bearer ${authStore.token}` },
                 });
 
-                this.project = response;
-                this.parts = response.parts || [];
+                // Trier les parties par position et leurs sous-éléments
+                const sortedParts = (response.parts || []).sort((a, b) => a.position - b.position).map(part => ({
+                    ...part,
+                    sequences: (part.sequences || []).sort((a, b) => a.position - b.position).map(seq => ({
+                        ...seq,
+                        scenes: (seq.scenes || []).sort((a, b) => a.position - b.position)
+                    }))
+                }));
+                
+                this.project = {
+                    ...response,
+                    parts: sortedParts
+                };
+                this.parts = sortedParts;
                 this.sequences = this.parts.flatMap(part => part.sequences || []);
                 this.scenes = this.sequences.flatMap(seq => seq.scenes || []);
                 this.personnages = response.personnages || [];
