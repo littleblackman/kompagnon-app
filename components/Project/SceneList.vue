@@ -281,8 +281,7 @@ const vHtml = {
 /* Contenu imprimable (Scenes) */
 .printable-content {
   color: #111827 !important; /* gray-900 */
-  background-color: #FFFBEB; /* amber-50 */
-  border-left: 4px solid #F59E0B; /* amber-500 */
+  background-color: #FFFBEB; /* amber-50 - fond léger */
   padding-left: 1.2rem;
 }
 

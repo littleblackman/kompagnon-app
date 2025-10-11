@@ -374,42 +374,45 @@ export const usePersonnageStore = defineStore('personnage', {
             }
         },
 
-        // Note: deleteImage nécessitera probablement un endpoint API côté backend
         async deleteImage(personnageId: number, imageUrl: string): Promise<boolean> {
             try {
-                const personnage = this.personnages.find(p => p.id === personnageId);
-                if (!personnage || !personnage.images) return false;
+                const authStore = useAuthStore();
+                const config = useRuntimeConfig();
+                
+                // Appel API pour supprimer l'image côté serveur
+                await $fetch(`${config.public.apiBase}/personnage/${personnageId}/delete-image`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                    body: { imageUrl }
+                });
 
-                // S'assurer que personnage.images est un tableau
-                let imagesArray = personnage.images;
-                if (typeof imagesArray === 'string') {
-                    try {
-                        imagesArray = JSON.parse(imagesArray);
-                    } catch {
+                // Mettre à jour le state local après succès de l'API
+                const personnage = this.personnages.find(p => p.id === personnageId);
+                if (personnage && personnage.images) {
+                    // S'assurer que personnage.images est un tableau
+                    let imagesArray = personnage.images;
+                    if (typeof imagesArray === 'string') {
+                        try {
+                            imagesArray = JSON.parse(imagesArray);
+                        } catch {
+                            imagesArray = [];
+                        }
+                    }
+                    if (!Array.isArray(imagesArray)) {
                         imagesArray = [];
                     }
-                }
-                if (!Array.isArray(imagesArray)) {
-                    imagesArray = [];
-                }
 
-                // Supprimer l'image de la liste locale
-                personnage.images = imagesArray.filter(img => img !== imageUrl);
-                
-                // Si c'était l'avatar, prendre la première image restante
-                if (personnage.avatar === imageUrl) {
-                    personnage.avatar = personnage.images.length > 0 ? personnage.images[0] : undefined;
+                    // Supprimer l'image de la liste locale
+                    personnage.images = imagesArray.filter(img => img !== imageUrl);
+                    
+                    // Si c'était l'avatar, prendre la première image restante
+                    if (personnage.avatar === imageUrl) {
+                        personnage.avatar = personnage.images.length > 0 ? personnage.images[0] : undefined;
+                    }
                 }
-
-                // TODO: Ajouter l'appel API quand l'endpoint sera disponible
-                // await $fetch(`${config.public.apiBase}/personnage/${personnageId}/delete-image`, {
-                //     method: 'DELETE',
-                //     headers: {
-                //         'Content-Type': 'application/json',
-                //         Authorization: `Bearer ${authStore.token}`,
-                //     },
-                //     body: { imageUrl }
-                // });
 
                 return true;
             } catch (error) {

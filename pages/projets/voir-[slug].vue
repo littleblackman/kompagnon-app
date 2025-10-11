@@ -5,6 +5,7 @@ import { useProjectStore } from '~/store/project';
 import { onMounted, computed, ref, watch } from "vue";
 import { PencilIcon } from '@heroicons/vue/24/solid';
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
+import { toRoman } from '~/utils/roman';
 
 const auth = useAuthStore();
 auth.requireAuth();
@@ -55,33 +56,6 @@ const showPrintable = ref(preferences.showPrintable);
 const showTitles = ref(preferences.showTitles || { h2: true, h3: true, h4: true });
 const numberParts = ref(preferences.numberParts);
 
-// Fonction pour convertir en chiffres romains
-const toRoman = (num: number): string => {
-  const romanNumerals = [
-    { value: 1000, symbol: 'M' },
-    { value: 900, symbol: 'CM' },
-    { value: 500, symbol: 'D' },
-    { value: 400, symbol: 'CD' },
-    { value: 100, symbol: 'C' },
-    { value: 90, symbol: 'XC' },
-    { value: 50, symbol: 'L' },
-    { value: 40, symbol: 'XL' },
-    { value: 10, symbol: 'X' },
-    { value: 9, symbol: 'IX' },
-    { value: 5, symbol: 'V' },
-    { value: 4, symbol: 'IV' },
-    { value: 1, symbol: 'I' }
-  ];
-
-  let result = '';
-  for (const { value, symbol } of romanNumerals) {
-    while (num >= value) {
-      result += symbol;
-      num -= value;
-    }
-  }
-  return result;
-};
 
 // Fonction pour faire défiler vers un élément
 const scrollToElement = (elementId: string) => {

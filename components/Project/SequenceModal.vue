@@ -102,13 +102,16 @@ const cancelDelete = () => {
         {{ currentSequence.id ? "Modifier la séquence" : "Ajouter une séquence" }}
       </h3>
 
-      <!-- Select partie caché (garde la logique) -->
-      <select v-model="selectedPartId" class="hidden">
-        <option :value="null">Sélectionner une partie</option>
-        <option v-for="part in availableParts" :key="part.id" :value="part.id">
-          {{ part.name }}
-        </option>
-      </select>
+      <!-- Sélection de la partie -->
+      <div class="mb-4">
+        <label class="block mb-2 font-semibold">Partie associée :</label>
+        <select v-model="selectedPartId" class="border rounded p-2 w-full">
+          <option :value="null">Sélectionner une partie</option>
+          <option v-for="part in availableParts" :key="part.id" :value="part.id">
+            {{ part.name }}
+          </option>
+        </select>
+      </div>
 
       <!-- Emplacement (seulement en création) -->
       <div v-if="!currentSequence.id" class="mb-4">

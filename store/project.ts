@@ -625,6 +625,49 @@ export const useProjectStore = defineStore('project', {
             }
         },
 
+        async updateSequenceMetadata(sequenceId: number, metadata: { intention?: string, aesthetic_idea?: string, information?: string }): Promise<void> {
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                // Appeler la nouvelle route dédiée aux métadonnées
+                const result: any = await $fetch(`${config.public.apiBase}/sequence/${sequenceId}/metadata`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${authStore.token}`,
+                    },
+                    body: metadata,
+                });
+
+                // Mise à jour locale de la séquence
+                if (this.project && this.project.parts) {
+                    for (const part of this.project.parts) {
+                        if (part.sequences) {
+                            const sequenceIndex = part.sequences.findIndex(s => s.id === sequenceId);
+                            if (sequenceIndex !== -1) {
+                                // Mettre à jour uniquement les champs de métadonnées
+                                if (metadata.intention !== undefined) {
+                                    part.sequences[sequenceIndex].intention = metadata.intention;
+                                }
+                                if (metadata.aesthetic_idea !== undefined) {
+                                    part.sequences[sequenceIndex].aesthetic_idea = metadata.aesthetic_idea;
+                                }
+                                if (metadata.information !== undefined) {
+                                    part.sequences[sequenceIndex].information = metadata.information;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour des métadonnées de la séquence :", error);
+                throw error;
+            }
+        },
+
         async deleteScene(sceneId: number) {
             try {
                 const config = useRuntimeConfig();

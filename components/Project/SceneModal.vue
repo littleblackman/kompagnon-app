@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import RichTextEditor from "@/components/RichTextEditor.vue";
 import PersonnageDetectionModal from "@/components/Project/PersonnageDetectionModal.vue";
 import { useProjectStore } from "~/store/project";
@@ -44,6 +44,8 @@ const currentScene = ref<Scene | null>(null);
 const selectedSequenceId = ref<number | null>(null);
 const afterSceneId = ref<number | null>(null);
 const showDeleteConfirm = ref(false);
+const saveStatus = ref<'saved' | 'saving' | 'error' | 'unsaved'>('saved');
+let autoSaveInterval: NodeJS.Timeout | null = null;
 
 // Initialiser sceneData en premier
 const sceneData = ref({
@@ -238,8 +240,119 @@ const addSceneAfter = async () => {
   }
 };
 
+// Auto-save localStorage
+const saveToLocalStorage = () => {
+  if (currentScene.value?.id) {
+    const localKey = `scene_draft_${currentScene.value.id}`;
+    const draftData = {
+      name: currentScene.value.name,
+      description: currentScene.value.description,
+      content: currentScene.value.content,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(localKey, JSON.stringify(draftData));
+    console.log('💾 Sauvegarde locale effectuée');
+  }
+};
+
+const loadFromLocalStorage = () => {
+  if (currentScene.value?.id) {
+    const localKey = `scene_draft_${currentScene.value.id}`;
+    const saved = localStorage.getItem(localKey);
+    if (saved) {
+      try {
+        const draftData = JSON.parse(saved);
+        // Vérifier si le draft est plus récent (moins de 24h)
+        if (Date.now() - draftData.timestamp < 24 * 60 * 60 * 1000) {
+          currentScene.value.name = draftData.name;
+          currentScene.value.description = draftData.description;
+          currentScene.value.content = draftData.content;
+          saveStatus.value = 'unsaved';
+          console.log('🔄 Brouillon récupéré du localStorage');
+        }
+      } catch (e) {
+        console.error('Erreur lors du chargement du draft:', e);
+      }
+    }
+  }
+};
+
+const clearLocalStorage = () => {
+  if (currentScene.value?.id) {
+    const localKey = `scene_draft_${currentScene.value.id}`;
+    localStorage.removeItem(localKey);
+  }
+};
+
+// Auto-save backend avec debounce
+let saveTimeout: NodeJS.Timeout | null = null;
+const debouncedAutoSave = () => {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveStatus.value = 'unsaved';
+
+  saveTimeout = setTimeout(async () => {
+    if (currentScene.value?.id) {
+      try {
+        saveStatus.value = 'saving';
+        await autoSave();
+        saveStatus.value = 'saved';
+        clearLocalStorage(); // Effacer le draft après sauvegarde réussie
+      } catch (error) {
+        saveStatus.value = 'error';
+        console.error('Erreur auto-save:', error);
+      }
+    }
+  }, 3000); // Auto-save après 3 secondes d'inactivité
+};
+
+// Watcher pour déclencher l'auto-save et la sauvegarde locale
+watch(() => currentScene.value, () => {
+  if (currentScene.value) {
+    saveToLocalStorage(); // Sauvegarde locale immédiate
+    debouncedAutoSave(); // Auto-save backend avec debounce
+  }
+}, { deep: true });
+
+// Lifecycle hooks
+onMounted(() => {
+  loadFromLocalStorage(); // Charger le draft au montage
+
+  // Auto-save périodique toutes les 30 secondes
+  autoSaveInterval = setInterval(() => {
+    if (saveStatus.value === 'unsaved' && currentScene.value?.id) {
+      debouncedAutoSave();
+    }
+  }, 30000);
+
+  // Sauvegarder avant de quitter la page
+  const beforeUnload = (e: BeforeUnloadEvent) => {
+    if (saveStatus.value === 'unsaved') {
+      e.preventDefault();
+      e.returnValue = 'Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?';
+    }
+  };
+  window.addEventListener('beforeunload', beforeUnload);
+});
+
+onUnmounted(() => {
+  if (autoSaveInterval) {
+    clearInterval(autoSaveInterval);
+  }
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+  }
+});
+
 const closeModal = () => {
-  emit('close');
+  if (saveStatus.value === 'unsaved') {
+    if (confirm('Vous avez des modifications non sauvegardées. Voulez-vous vraiment fermer ?')) {
+      clearLocalStorage();
+      emit('close');
+    }
+  } else {
+    clearLocalStorage();
+    emit('close');
+  }
 };
 </script>
 
@@ -303,6 +416,22 @@ const closeModal = () => {
             <span v-if="nextScene" class="hidden sm:inline">{{ nextScene.name }}</span> →
           </button>
           
+          <!-- Indicateur de statut de sauvegarde -->
+          <div class="flex items-center space-x-2">
+            <span v-if="saveStatus === 'saved'" class="text-green-600 text-sm flex items-center">
+              ✅ Sauvé
+            </span>
+            <span v-else-if="saveStatus === 'saving'" class="text-blue-600 text-sm flex items-center">
+              ⏳ Sauvegarde...
+            </span>
+            <span v-else-if="saveStatus === 'unsaved'" class="text-orange-600 text-sm flex items-center">
+              💾 Non sauvé
+            </span>
+            <span v-else-if="saveStatus === 'error'" class="text-red-600 text-sm flex items-center">
+              ❌ Erreur
+            </span>
+          </div>
+
           <button @click="handleSave" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
             Enregistrer
           </button>

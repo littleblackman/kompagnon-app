@@ -40,12 +40,12 @@ watch(currentDescription, (newVal) => {
         quickbars_selection_toolbar: 'bold italic underline | quicklink',
         quickbars_insert_toolbar: false,
         contextmenu: 'link',
-        content_style: `body { 
-          font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; 
-          font-size: 16px; 
+        content_style: `body {
+          font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif;
+          font-size: 16px;
           color: #000000;
           ${props.contentType === 'organizational' ? 'color: #9CA3AF !important; font-style: italic;' : ''}
-          ${props.contentType === 'printable' ? 'color: #111827 !important; background-color: #FFFBEB; padding-left: 1.2rem!important; border-left: 4px solid #F59E0B;' : ''}
+          ${props.contentType === 'printable' ? 'color: #111827 !important;' : ''}
         }`,
         style_formats: [
           { title: 'Titres', items: [

@@ -6,6 +6,7 @@ import PartModal from "@/components/Project/PartModal.vue";
 import ActionButtons from "@/components/Project/ActionButtons.vue";
 import { useProjectStore } from "~/store/project";
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
+import { toRoman } from '~/utils/roman';
 
 // Récupérer le store
 const projectStore = useProjectStore();
@@ -40,7 +41,7 @@ const isPartExpanded = (partId: number) => {
   <div style="width: 100%;">
     <!-- Liste des parties -->
     <ul class="mt-6 space-y-4">
-      <li v-for="part in projectStore.project?.parts" :key="part.id" 
+      <li v-for="(part, index) in projectStore.project?.parts" :key="part.id" 
           class="bg-orange-50 rounded-lg p-4 hover:bg-orange-100 transition-colors">
         <div class="flex items-start gap-2">
           <button 
@@ -56,7 +57,7 @@ const isPartExpanded = (partId: number) => {
               class="font-bold text-2xl cursor-pointer hover:text-blue-600 transition-colors text-color-primary" 
               @click="openModal(part)"
             >
-              {{ part.name }}
+              {{ toRoman(index + 1) }}. {{ part.name }}
             </h2>
             <div 
               v-html="part.description || ''" 

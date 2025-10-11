@@ -6,7 +6,7 @@ import { usePersonnageStore } from '~/store/personnage';
 import { onMounted, computed, ref } from "vue";
 import PersonnageModal from "@/components/Project/PersonnageModal.vue";
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
-import { PencilIcon, TrashIcon, UserPlusIcon, UserIcon } from '@heroicons/vue/24/solid';
+import { PencilIcon, TrashIcon, UserPlusIcon, UserIcon, DocumentDuplicateIcon } from '@heroicons/vue/24/solid';
 import { useImages } from '~/composables/useImages';
 
 const auth = useAuthStore();
@@ -61,6 +61,24 @@ const deletePersonnage = async (personnageId) => {
       // Recharger le projet pour avoir les données à jour
       await projectStore.fetchProject(slug);
     }
+  }
+};
+
+// Dupliquer personnage
+const duplicatePersonnage = async (personnage) => {
+  if (!project.value) return;
+  
+  const duplicatedData = {
+    ...personnage,
+    id: null, // Nouvel ID sera généré
+    firstName: `${personnage.firstName} (copie)`,
+    projectId: project.value.id
+  };
+  
+  const savedPersonnage = await personnageStore.savePersonnage(duplicatedData, project.value.id);
+  if (savedPersonnage) {
+    // Recharger le projet pour avoir les données à jour
+    await projectStore.fetchProject(slug);
   }
 };
 
@@ -171,9 +189,11 @@ const sortedPersonnages = computed(() => {
           </div>
           <div class="flex gap-2">
             <NuxtLink
+              v-if="personnage.slug"
               :to="`/projets/detail-${personnage.slug}`"
               class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
               title="Voir les détails"
+              @click="console.log('Navigating to:', personnage.slug, personnage)"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -186,6 +206,13 @@ const sortedPersonnages = computed(() => {
               title="Modifier"
             >
               <PencilIcon class="w-4 h-4" />
+            </button>
+            <button
+              @click="duplicatePersonnage(personnage)"
+              class="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              title="Dupliquer"
+            >
+              <DocumentDuplicateIcon class="w-4 h-4" />
             </button>
             <button
               @click="deletePersonnage(personnage.id)"

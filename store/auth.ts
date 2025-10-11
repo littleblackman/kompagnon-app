@@ -3,7 +3,9 @@ import { defineStore } from 'pinia';
 export const useAuthStore = defineStore('auth', {
     state: () => ({
         token: process.client ? localStorage.getItem('token') : null,
-        user: null as object | null
+        user: null as object | null,
+        tokenRefreshInterval: null as NodeJS.Timeout | null,
+        lastActivity: Date.now()
     }),
 
     actions: {

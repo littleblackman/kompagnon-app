@@ -24,6 +24,7 @@ export interface Sequence {
   afterSequenceId?: number
   intention?: string
   aesthetic_idea?: string
+  information?: string
   sequencePersonnages?: SequencePersonnage[]
 }
 

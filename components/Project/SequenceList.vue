@@ -153,13 +153,16 @@ async function updateField(field: string, value: string, sequenceId: number) {
     const sequence = props.sequences.find(s => s.id === sequenceId);
     if (!sequence) return;
 
-
     // Mise à jour locale immédiate
     sequence[field] = value;
-    
 
-    // Sauvegarde via API
-    await projectStore.saveSequence(sequence, props.partId);
+    // Utiliser la nouvelle route pour ne sauvegarder que les métadonnées
+    const metadataToSave = {
+      [field]: value
+    };
+
+    // Sauvegarde via la nouvelle route dédiée
+    await projectStore.updateSequenceMetadata(sequenceId, metadataToSave);
   } catch (error) {
     console.error(`Erreur lors de la mise à jour du champ ${field}:`, error);
   }
