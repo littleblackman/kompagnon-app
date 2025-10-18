@@ -1,238 +1,211 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
-import { useAuthStore } from "~/store/auth";
-import { useAnalyticsStore } from "~/store/analytics";
-import { ChartBarIcon, FilmIcon, DocumentTextIcon, UserGroupIcon, ClockIcon } from '@heroicons/vue/24/outline';
+import { FilmIcon, SparklesIcon, ChartBarIcon, UserGroupIcon } from '@heroicons/vue/24/outline';
 
-const auth = useAuthStore();
-auth.requireAuth();
-
-const analyticsStore = useAnalyticsStore();
-
-// Statistiques réactives depuis le store
-const stats = computed(() => analyticsStore.statistics);
-const isLoading = computed(() => analyticsStore.isLoading);
-
-// Dernier projet visité
-const lastVisitedProject = ref<{id: number, name: string, slug: string, timestamp: string} | null>(null);
-
-// Fonction pour formater la date relative
-function formatRelativeTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  
-  if (diffMins < 1) return "à l'instant";
-  if (diffMins < 60) return `il y a ${diffMins} minute${diffMins > 1 ? 's' : ''}`;
-  if (diffHours < 24) return `il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`;
-  return `il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
-}
-
-onMounted(async () => {
-  await analyticsStore.refreshIfNeeded();
-  
-  // Récupérer le dernier projet visité depuis localStorage
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('lastVisitedProject');
-    if (stored) {
-      try {
-        lastVisitedProject.value = JSON.parse(stored);
-      } catch (e) {
-        console.error('Erreur parsing lastVisitedProject:', e);
-      }
-    }
-  }
+// Utiliser le layout minimaliste (sans menu latéral ni header)
+definePageMeta({
+  layout: 'home'
 });
+
+// Pas d'authentification requise pour cette page
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gradient-to-br from-amber-50 via-white to-amber-50">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900">Tableau de bord</h1>
-            <p class="mt-2 text-lg text-gray-600">Vue d'ensemble de vos projets et contenus</p>
-          </div>
-          <ChartBarIcon class="w-12 h-12 text-amber-500" />
-        </div>
-      </div>
-    </div>
-
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- Dernier projet visité -->
-      <div v-if="lastVisitedProject" class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8">
+    <header class="bg-white shadow-sm border-b">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <ClockIcon class="w-5 h-5 text-amber-600" />
-            <div>
-              <p class="text-sm font-medium text-amber-900">Dernier projet consulté</p>
-              <p class="text-sm text-amber-700">{{ lastVisitedProject.name }} - {{ formatRelativeTime(lastVisitedProject.timestamp) }}</p>
-            </div>
+            <img src="/logo-kpgn.png" alt="Logo Kompagnon" class="w-10 h-10" />
+            <h1 class="text-2xl font-bold text-gray-900">Kompagnon</h1>
           </div>
-          <NuxtLink 
-            :to="`/projets/projet-${lastVisitedProject.slug}`"
-            class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-100 rounded-md hover:bg-amber-200 transition-colors"
-          >
-            Reprendre
-          </NuxtLink>
-        </div>
-      </div>
-
-      <!-- Description -->
-      <div class="bg-white rounded-lg shadow-sm border p-6 mb-8">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Bienvenue sur Kompagnon</h2>
-        <div class="prose text-gray-700">
-          <p class="mb-4">
-            <strong>Kompagnon</strong> est votre assistant numérique pour la gestion de projets créatifs. 
-            Cette plateforme vous accompagne dans l'organisation et le développement de vos projets 
-            théâtraux, cinématographiques et artistiques.
-          </p>
-          <p class="mb-4">
-            Structurez votre travail créatif grâce à une hiérarchie intuitive : 
-            <span class="font-medium text-amber-600">Projets → Parties → Séquences → Scènes</span>, 
-            gérez vos personnages avec un système d'avatars et de niveaux, et suivez l'évolution 
-            de votre contenu en temps réel.
-          </p>
-          <p>
-            Le tableau de bord ci-dessous vous offre une vue globale de votre activité créative 
-            et vous permet de naviguer rapidement vers vos contenus les plus récents.
-          </p>
-        </div>
-      </div>
-
-      <!-- Statistiques -->
-      <div v-if="isLoading" class="text-center py-8">
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
-        <p class="mt-2 text-gray-600">Chargement des statistiques...</p>
-      </div>
-
-      <div v-else>
-        <!-- Cartes de statistiques -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <!-- Projets -->
-          <div class="bg-white rounded-lg shadow-sm border p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-600">Projets</p>
-                <p class="text-3xl font-bold text-gray-900">{{ stats.totalProjects }}</p>
-              </div>
-              <FilmIcon class="w-10 h-10 text-blue-500" />
-            </div>
-            <p class="mt-2 text-sm text-gray-500">Projets créés au total</p>
-          </div>
-
-          <!-- Parties -->
-          <div class="bg-white rounded-lg shadow-sm border p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-600">Parties</p>
-                <p class="text-3xl font-bold text-gray-900">{{ stats.totalParts }}</p>
-              </div>
-              <DocumentTextIcon class="w-10 h-10 text-green-500" />
-            </div>
-            <p class="mt-2 text-sm text-gray-500">Sections structurelles</p>
-          </div>
-
-          <!-- Séquences -->
-          <div class="bg-white rounded-lg shadow-sm border p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-600">Séquences</p>
-                <p class="text-3xl font-bold text-gray-900">{{ stats.totalSequences }}</p>
-              </div>
-              <ChartBarIcon class="w-10 h-10 text-purple-500" />
-            </div>
-            <p class="mt-2 text-sm text-gray-500">Unités narratives</p>
-          </div>
-
-          <!-- Scènes -->
-          <div class="bg-white rounded-lg shadow-sm border p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-600">Scènes</p>
-                <p class="text-3xl font-bold text-gray-900">{{ stats.totalScenes }}</p>
-              </div>
-              <UserGroupIcon class="w-10 h-10 text-amber-500" />
-            </div>
-            <p class="mt-2 text-sm text-gray-500">Unités d'action</p>
-          </div>
-
-          <!-- Personnages -->
-          <div class="bg-white rounded-lg shadow-sm border p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-600">Personnages</p>
-                <p class="text-3xl font-bold text-gray-900">{{ stats.totalPersonnages }}</p>
-              </div>
-              <UserGroupIcon class="w-10 h-10 text-rose-500" />
-            </div>
-            <p class="mt-2 text-sm text-gray-500">Créations de caractères</p>
-          </div>
-        </div>
-
-        <!-- Scènes récentes -->
-        <div class="bg-white rounded-lg shadow-sm border p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Scènes récentes</h3>
-          
-          <div v-if="stats.recentScenes.length === 0" class="text-center py-8">
-            <DocumentTextIcon class="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p class="text-gray-500">Aucune scène créée pour le moment</p>
-            <p class="text-sm text-gray-400 mt-1">Commencez par créer votre premier projet</p>
-          </div>
-
-          <div v-else class="space-y-4">
-            <div 
-              v-for="scene in stats.recentScenes" 
-              :key="scene.id"
-              class="border-l-4 border-amber-400 pl-4 py-2 hover:bg-gray-50 transition-colors"
+          <div class="flex items-center space-x-4">
+            <NuxtLink
+              to="/login"
+              class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
             >
-              <div class="flex items-center justify-between">
-                <div>
-                  <h4 class="font-medium text-gray-900">{{ scene.name }}</h4>
-                  <p class="text-sm text-gray-600">
-                    {{ scene.projectName }} → {{ scene.sequenceName }}
-                  </p>
-                  <div 
-                    v-if="scene.description" 
-                    class="text-sm text-gray-500 mt-1"
-                    v-html="scene.description.substring(0, 100) + (scene.description.length > 100 ? '...' : '')"
-                  ></div>
-                </div>
-                <div class="text-right">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                    Scène #{{ scene.position }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Actions rapides -->
-        <div class="mt-8 text-center">
-          <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <NuxtLink 
-              to="/projets/tous"
-              class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 transition-colors"
-            >
-              <FilmIcon class="w-5 h-5 mr-2" />
-              Voir tous les projets
+              Connexion
             </NuxtLink>
-            <NuxtLink 
-              to="/projets/creer"
-              class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            <NuxtLink
+              to="/login"
+              class="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-md hover:bg-amber-700 transition-colors"
             >
-              <DocumentTextIcon class="w-5 h-5 mr-2" />
-              Créer un projet
+              Commencer
             </NuxtLink>
           </div>
         </div>
       </div>
-    </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="py-20 px-4">
+      <div class="max-w-6xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <!-- Contenu texte -->
+          <div class="text-center lg:text-left">
+            <div class="inline-flex items-center justify-center p-2 bg-amber-100 rounded-full mb-6">
+              <SparklesIcon class="w-6 h-6 text-amber-600" />
+            </div>
+            <h2 class="text-5xl font-bold text-gray-900 mb-6">
+              Votre assistant créatif pour projets artistiques
+            </h2>
+            <p class="text-xl text-gray-600 mb-8">
+              Kompagnon vous accompagne dans l'organisation et le développement de vos projets
+              théâtraux, cinématographiques et artistiques. Structurez vos idées, gérez vos personnages
+              et donnez vie à vos créations.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <NuxtLink
+                to="/login"
+                class="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 shadow-lg hover:shadow-xl transition-all"
+              >
+                <FilmIcon class="w-6 h-6 mr-2" />
+                Démarrer maintenant
+              </NuxtLink>
+              <a
+                href="#features"
+                class="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-all"
+              >
+                En savoir plus
+              </a>
+            </div>
+          </div>
+
+          <!-- Photo du chien -->
+          <div class="flex justify-center lg:justify-end">
+            <div class="relative">
+              <div class="absolute inset-0 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl transform rotate-3"></div>
+              <img
+                src="/images/tana.jpg"
+                alt="Tana le Kompagnon idéal"
+                class="relative rounded-2xl shadow-2xl w-80 h-auto object-cover"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 px-4 bg-white">
+      <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-16">
+          <h3 class="text-3xl font-bold text-gray-900 mb-4">
+            Tout ce dont vous avez besoin pour créer
+          </h3>
+          <p class="text-lg text-gray-600">
+            Une plateforme complète pour organiser et développer vos projets créatifs
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <!-- Feature 1 -->
+          <div class="text-center p-6">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-xl mb-4">
+              <FilmIcon class="w-8 h-8 text-blue-600" />
+            </div>
+            <h4 class="text-xl font-semibold text-gray-900 mb-3">Structure hiérarchique</h4>
+            <p class="text-gray-600">
+              Organisez vos projets en parties, séquences et scènes pour une vision claire de votre création.
+            </p>
+          </div>
+
+          <!-- Feature 2 -->
+          <div class="text-center p-6">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-rose-100 rounded-xl mb-4">
+              <UserGroupIcon class="w-8 h-8 text-rose-600" />
+            </div>
+            <h4 class="text-xl font-semibold text-gray-900 mb-3">Gestion de personnages</h4>
+            <p class="text-gray-600">
+              Créez des fiches détaillées avec avatars, biographies et niveaux d'importance pour tous vos personnages.
+            </p>
+          </div>
+
+          <!-- Feature 3 -->
+          <div class="text-center p-6">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-xl mb-4">
+              <ChartBarIcon class="w-8 h-8 text-purple-600" />
+            </div>
+            <h4 class="text-xl font-semibold text-gray-900 mb-3">Analyse narrative</h4>
+            <p class="text-gray-600">
+              Schéma actantiel avec IA, détection automatique de personnages et analyse dramaturgique avancée.
+            </p>
+          </div>
+
+          <!-- Feature 4 -->
+          <div class="text-center p-6">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-amber-100 rounded-xl mb-4">
+              <SparklesIcon class="w-8 h-8 text-amber-600" />
+            </div>
+            <h4 class="text-xl font-semibold text-gray-900 mb-3">Éditeur riche</h4>
+            <p class="text-gray-600">
+              Rédigez vos contenus avec un éditeur de texte enrichi et des outils de mise en forme professionnels.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20 px-4">
+      <div class="max-w-4xl mx-auto text-center bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-12 shadow-2xl">
+        <h3 class="text-3xl font-bold text-white mb-4">
+          Prêt à donner vie à vos idées ?
+        </h3>
+        <p class="text-xl text-amber-50 mb-8">
+          Rejoignez Kompagnon et commencez à structurer vos projets créatifs dès aujourd'hui.
+        </p>
+        <NuxtLink
+          to="/login"
+          class="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-amber-600 bg-white rounded-lg hover:bg-gray-50 shadow-lg hover:shadow-xl transition-all"
+        >
+          Commencer gratuitement
+        </NuxtLink>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12 px-4">
+      <div class="max-w-7xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div>
+            <div class="flex items-center space-x-2 mb-4">
+              <img src="/logo-kpgn.png" alt="Logo Kompagnon" class="w-8 h-8" />
+              <span class="text-xl font-bold">Kompagnon</span>
+            </div>
+            <p class="text-gray-400">
+              Votre assistant numérique pour la gestion de projets créatifs.
+            </p>
+          </div>
+          <div>
+            <h5 class="font-semibold mb-4">Navigation</h5>
+            <ul class="space-y-2 text-gray-400">
+              <li>
+                <NuxtLink to="/login" class="hover:text-white transition-colors">
+                  Connexion
+                </NuxtLink>
+              </li>
+              <li>
+                <NuxtLink to="/contact" class="hover:text-white transition-colors">
+                  Contact
+                </NuxtLink>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h5 class="font-semibold mb-4">Fonctionnalités</h5>
+            <ul class="space-y-2 text-gray-400">
+              <li>Gestion de projets</li>
+              <li>Personnages & avatars</li>
+              <li>Analyse narrative IA</li>
+              <li>Mode lecture avancé</li>
+            </ul>
+          </div>
+        </div>
+        <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+          <p>&copy; 2025 Kompagnon. Tous droits réservés.</p>
+        </div>
+      </div>
+    </footer>
   </div>
 </template>
