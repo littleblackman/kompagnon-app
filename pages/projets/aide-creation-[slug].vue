@@ -70,63 +70,75 @@
           </div>
         </div>
 
-        <!-- Étape 3: Événements narratifs disponibles -->
+        <!-- Étape 3: Événements narratifs + Structures (2 colonnes) -->
         <div v-if="selectedSubgenre && events.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div class="flex items-center mb-4">
+          <div class="flex items-center mb-6">
             <div class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold mr-3">
               3
             </div>
             <div>
-              <h2 class="text-xl font-semibold text-gray-900">Événements narratifs disponibles</h2>
-              <p class="text-sm text-gray-500">{{ events.length }} événements types pour ce genre</p>
+              <h2 class="text-xl font-semibold text-gray-900">Événements narratifs</h2>
+              <p class="text-sm text-gray-500">Choisissez une structure pour organiser les événements</p>
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div
-              v-for="event in events"
-              :key="event.id"
-              class="p-3 border border-gray-200 rounded-lg bg-gray-50"
-            >
-              <div class="font-medium text-gray-900 text-sm mb-1">
-                {{ event.name }}
-                <span v-if="event.position" class="text-xs text-amber-600 ml-2">
-                  #{{ event.position }}
-                </span>
-                <span v-if="event.isOptional" class="text-xs text-gray-500 ml-1">(optionnel)</span>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Colonne gauche : Events (2/3 de la largeur) -->
+            <div class="lg:col-span-2">
+              <div class="mb-3 flex items-center justify-between">
+                <h3 class="font-medium text-gray-700">
+                  {{ events.length }} événement(s)
+                  <span v-if="selectedNarrativeStructure" class="text-sm text-gray-500">
+                    • Structure : {{ selectedNarrativeStructure.name }}
+                  </span>
+                </h3>
               </div>
-              <div class="text-xs text-gray-600">{{ event.description }}</div>
-              <div v-if="event.eventType" class="text-xs text-blue-600 mt-1">
-                {{ event.eventType.name }}
+
+              <div class="space-y-2">
+                <div
+                  v-for="(event, index) in events"
+                  :key="event.id"
+                  class="p-4 rounded-lg border-2 transition-all"
+                  :class="event.isOptional ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'"
+                >
+                  <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-8 h-8 bg-amber-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                      {{ event.position || (index + 1) }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 mb-1">
+                        <div class="font-medium text-gray-900">{{ event.name }}</div>
+                        <span v-if="event.isOptional" class="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">
+                          optionnel
+                        </span>
+                      </div>
+                      <div class="text-sm text-gray-600 mb-2">{{ event.description }}</div>
+                      <div v-if="event.eventType" class="text-xs text-amber-600 font-medium">
+                        📌 {{ event.eventType.name }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Étape 4: Structure narrative -->
-        <div v-if="selectedSubgenre" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div class="flex items-center mb-4">
-            <div class="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold mr-3">
-              4
+            <!-- Colonne droite : Structures narratives (1/3 de la largeur) -->
+            <div class="lg:col-span-1">
+              <h3 class="font-medium text-gray-700 mb-3">Structures narratives</h3>
+              <div class="space-y-3">
+                <button
+                  v-for="structure in narrativeStructures"
+                  :key="structure.id"
+                  @click="selectNarrativeStructure(structure)"
+                  class="w-full p-4 border-2 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-all text-left"
+                  :class="selectedNarrativeStructure?.id === structure.id ? 'border-amber-500 bg-amber-50' : 'border-gray-200'"
+                >
+                  <div class="font-medium text-gray-900 mb-1">{{ structure.name }}</div>
+                  <div class="text-xs text-gray-500">{{ structure.description }}</div>
+                  <div class="text-xs text-amber-600 mt-2 font-medium">{{ structure.totalBeats }} points pivots</div>
+                </button>
+              </div>
             </div>
-            <div>
-              <h2 class="text-xl font-semibold text-gray-900">Structure narrative préférée ?</h2>
-              <p class="text-sm text-gray-500">Détermine le rythme et réorganise les événements</p>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              v-for="structure in narrativeStructures"
-              :key="structure.id"
-              @click="selectNarrativeStructure(structure)"
-              class="p-4 border-2 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-all text-left"
-              :class="selectedNarrativeStructure?.id === structure.id ? 'border-amber-500 bg-amber-50' : 'border-gray-200'"
-            >
-              <div class="font-medium text-gray-900">{{ structure.name }}</div>
-              <div class="text-xs text-gray-500 mt-1">{{ structure.description }}</div>
-              <div class="text-xs text-gray-400 mt-2">{{ structure.totalBeats }} points pivots</div>
-            </button>
           </div>
         </div>
 
@@ -180,7 +192,6 @@ const projectSlug = computed(() => route.params.slug as string)
 
 // États
 const isGenerating = ref(false)
-const isLoading = ref(false)
 const selectedGenre = ref<any>(null)
 const selectedSubgenre = ref<any>(null)
 const selectedNarrativeStructure = ref<any>(null)
@@ -219,43 +230,59 @@ const selectGenre = (genre: any) => {
   dramaticFunctions.value = []
 }
 
-const selectSubgenre = async (subgenre: any) => {
+const selectSubgenre = (subgenre: any) => {
   selectedSubgenre.value = subgenre
   selectedNarrativeStructure.value = null
 
-  try {
-    isLoading.value = true
+  // Récupérer les event IDs pour ce subgenre depuis le mapping
+  const eventIds = metadataStore.subgenreEvents[subgenre.id] || []
 
-    // Appels API pour données dynamiques (structures recommandées, dramatic functions, events)
-    const [subgenreDetails, eventsData] = await Promise.all([
-      $fetch(`/api/subgenre/${subgenre.id}`),
-      $fetch(`/api/event/subgenre/${subgenre.id}`)
-    ])
+  // Filtrer les events depuis le store (sans ordre particulier pour l'instant)
+  events.value = metadataStore.events.filter(event => eventIds.includes(event.id))
 
-    narrativeStructures.value = (subgenreDetails as any).narrativeStructures
-    dramaticFunctions.value = (subgenreDetails as any).dramaticFunctions
-    events.value = (eventsData as any).events
-  } catch (error) {
-    console.error('Erreur lors du chargement des données du subgenre:', error)
-  } finally {
-    isLoading.value = false
-  }
+  // Charger les structures narratives disponibles
+  narrativeStructures.value = metadataStore.narrativeStructures
+
+  console.log(`📋 Subgenre "${subgenre.name}" sélectionné`)
+  console.log(`📊 ${events.value.length} events trouvés`)
+  console.log(`🏗️ ${narrativeStructures.value.length} structures narratives disponibles`)
 }
 
-const selectNarrativeStructure = async (structure: any) => {
+const selectNarrativeStructure = (structure: any) => {
   selectedNarrativeStructure.value = structure
 
-  try {
-    isLoading.value = true
+  console.log('\n=== DÉBUT SÉLECTION STRUCTURE ===')
+  console.log('Structure sélectionnée:', structure.name, '(ID:', structure.id, ')')
 
-    // Réorganiser les events selon la structure narrative choisie
-    const structureData = await $fetch(`/api/event/structure/${structure.id}?subgenreId=${selectedSubgenre.value?.id}`) as any
-    events.value = structureData.events
-  } catch (error) {
-    console.error('Erreur lors du chargement des events de la structure:', error)
-  } finally {
-    isLoading.value = false
-  }
+  // Récupérer le mapping des events pour cette structure (déjà triés par position)
+  const structureMapping = metadataStore.structureEvents[structure.id] || []
+  console.log('📋 Mapping de la structure:', structureMapping.length, 'events')
+
+  // Créer la liste des events en parcourant le mapping de la structure
+  const structureEvents = structureMapping
+    .map(mapping => {
+      // Trouver l'event complet dans le store
+      const event = metadataStore.events.find(e => e.id === mapping.eventId)
+      if (!event) {
+        console.log(`  ❌ Event ${mapping.eventId} non trouvé dans le store`)
+        return null
+      }
+
+      const fullEvent = {
+        ...event,
+        position: mapping.position,
+        isOptional: mapping.isOptional
+      }
+      console.log(`  ✅ Event ${event.id} "${event.name}": position ${mapping.position}, optional: ${mapping.isOptional}`)
+      return fullEvent
+    })
+    .filter(e => e !== null) // Enlever les events non trouvés
+
+  events.value = structureEvents
+
+  console.log('📋 Events affichés:', events.value.length)
+  console.log('Ordre final:', events.value.map(e => `${e.position}. ${e.name}${e.isOptional ? ' (opt)' : ''}`))
+  console.log('=== FIN SÉLECTION STRUCTURE ===\n')
 }
 
 const generateStructure = async () => {

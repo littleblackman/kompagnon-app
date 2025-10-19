@@ -3,6 +3,12 @@ import { ref } from 'vue';
 import { useAuthStore } from '~/store/auth';
 import type { NarrativeArc, DramaticFunction, ActantialSchema } from '~/types';
 
+interface StructureEventMapping {
+    eventId: number;
+    position: number;
+    isOptional: boolean;
+}
+
 interface MetadataResponse {
     criterias: Criteria[];
     status: Status[];
@@ -14,6 +20,8 @@ interface MetadataResponse {
     subgenres: Subgenre[];
     events: Event[];
     narrativeStructures: NarrativeStructure[];
+    subgenreEvents: Record<number, number[]>; // subgenreId => eventIds[]
+    structureEvents: Record<number, StructureEventMapping[]>; // structureId => [{eventId, position, isOptional}]
 }
 
 interface Criteria {
@@ -79,6 +87,8 @@ export const useMetadataStore = defineStore('metadata', () => {
     const subgenres = ref<Subgenre[]>([]);
     const events = ref<Event[]>([]);
     const narrativeStructures = ref<NarrativeStructure[]>([]);
+    const subgenreEvents = ref<Record<number, number[]>>({});
+    const structureEvents = ref<Record<number, StructureEventMapping[]>>({});
 
     const loaded = ref(false);
 
@@ -100,6 +110,8 @@ export const useMetadataStore = defineStore('metadata', () => {
             subgenres.value = response.subgenres || [];
             events.value = response.events || [];
             narrativeStructures.value = response.narrativeStructures || [];
+            subgenreEvents.value = response.subgenreEvents || {};
+            structureEvents.value = response.structureEvents || {};
 
             loaded.value = true;
         } catch (error) {
@@ -119,6 +131,8 @@ export const useMetadataStore = defineStore('metadata', () => {
         subgenres,
         events,
         narrativeStructures,
+        subgenreEvents,
+        structureEvents,
         loaded,
         fetchMetadata
     };
