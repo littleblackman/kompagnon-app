@@ -1,12 +1,21 @@
 <script lang="ts" setup>
 import { FilmIcon, SparklesIcon, ChartBarIcon, UserGroupIcon } from '@heroicons/vue/24/outline';
+import { useAuthStore } from '~/store/auth';
+import { onMounted } from 'vue';
 
 // Utiliser le layout minimaliste (sans menu latéral ni header)
 definePageMeta({
   layout: 'home'
 });
 
-// Pas d'authentification requise pour cette page
+// Rediriger vers dashboard si déjà connecté
+const authStore = useAuthStore();
+
+onMounted(() => {
+  if (authStore.token) {
+    navigateTo('/dashboard');
+  }
+});
 </script>
 
 <template>

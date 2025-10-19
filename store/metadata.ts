@@ -10,6 +10,10 @@ interface MetadataResponse {
     narrativeArcs: NarrativeArc[];
     dramaticFunctions: DramaticFunction[];
     actantialSchema: ActantialSchema[];
+    genres: Genre[];
+    subgenres: Subgenre[];
+    events: Event[];
+    narrativeStructures: NarrativeStructure[];
 }
 
 interface Criteria {
@@ -30,6 +34,37 @@ interface Type {
     description: string;
 }
 
+interface Genre {
+    id: number;
+    name: string;
+    description: string;
+    subgenres: Subgenre[];
+}
+
+interface Subgenre {
+    id: number;
+    name: string;
+    description: string;
+}
+
+interface Event {
+    id: number;
+    name: string;
+    description: string;
+    eventType?: {
+        id: number;
+        name: string;
+        description?: string;
+    };
+}
+
+interface NarrativeStructure {
+    id: number;
+    name: string;
+    description: string;
+    totalBeats: number;
+}
+
 
 export const useMetadataStore = defineStore('metadata', () => {
     const authStore = useAuthStore();
@@ -40,13 +75,17 @@ export const useMetadataStore = defineStore('metadata', () => {
     const narrativeArcs = ref<NarrativeArc[]>([]);
     const dramaticFunctions = ref<DramaticFunction[]>([]);
     const actantialSchema = ref<ActantialSchema[]>([]);
+    const genres = ref<Genre[]>([]);
+    const subgenres = ref<Subgenre[]>([]);
+    const events = ref<Event[]>([]);
+    const narrativeStructures = ref<NarrativeStructure[]>([]);
 
     const loaded = ref(false);
 
     async function fetchMetadata() {
         try {
             const config = useRuntimeConfig();
-            
+
             const response: MetadataResponse = await $fetch(`${config.public.apiBase}/metadata`, {
                 headers: { Authorization: `Bearer ${authStore.token}` },
             });
@@ -57,6 +96,10 @@ export const useMetadataStore = defineStore('metadata', () => {
             narrativeArcs.value = response.narrativeArcs || [];
             dramaticFunctions.value = response.dramaticFunctions || [];
             actantialSchema.value = response.actantialSchema || [];
+            genres.value = response.genres || [];
+            subgenres.value = response.subgenres || [];
+            events.value = response.events || [];
+            narrativeStructures.value = response.narrativeStructures || [];
 
             loaded.value = true;
         } catch (error) {
@@ -72,6 +115,10 @@ export const useMetadataStore = defineStore('metadata', () => {
         narrativeArcs,
         dramaticFunctions,
         actantialSchema,
+        genres,
+        subgenres,
+        events,
+        narrativeStructures,
         loaded,
         fetchMetadata
     };

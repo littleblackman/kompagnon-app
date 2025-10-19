@@ -9,6 +9,28 @@ export const useAuthStore = defineStore('auth', {
     }),
 
     actions: {
+        async register(email: string, password: string) {
+            try {
+                const config = useRuntimeConfig();
+                const response = await fetch(`${config.public.apiBase}/register`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                })
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Registration failed')
+                }
+
+                // Auto-login après inscription
+                await this.login(email, password)
+            } catch (error) {
+                console.error('Erreur d\'inscription:', error)
+                throw error
+            }
+        },
+
         async login(email: string, password: string) {
             try {
                 const config = useRuntimeConfig();
@@ -27,7 +49,7 @@ export const useAuthStore = defineStore('auth', {
                 localStorage.setItem('token', data.token)
 
                 await this.fetchUser()
-                
+
                 // Charger les metadata après connexion
                 const { useMetadataStore } = await import('~/store/metadata');
                 const metadataStore = useMetadataStore();
