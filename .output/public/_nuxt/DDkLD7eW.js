@@ -1,0 +1,1 @@
+import{z as o}from"./Cnx3c5PK.js";const l=()=>{const s=o().public.apiBase.replace("/api",""),e=r=>r?r.startsWith("http://")||r.startsWith("https://")?r:`${s}/${r.replace(/^\//,"")}`:null;return{getImageUrl:e,getImagesUrls:r=>{if(!r)return[];let t=r;if(typeof r=="string")try{t=JSON.parse(r)}catch{return[]}return Array.isArray(t)?t.map(n=>e(n)).filter(Boolean):[]}}};export{l as u};
