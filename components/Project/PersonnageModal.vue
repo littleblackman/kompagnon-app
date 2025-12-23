@@ -1,18 +1,53 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
+import { useMetadataStore } from '~/store/metadata';
 
 const props = defineProps({
   personnage: Object
 });
 const emit = defineEmits(['close', 'save']);
 
+const metadataStore = useMetadataStore();
 const currentPersonnage = ref({ ...props.personnage });
+const selectedDramaticFunctions = ref([]);
+
+// Charger les metadata au montage si nécessaire
+onMounted(() => {
+  if (!metadataStore.loaded) {
+    metadataStore.fetchMetadata();
+  }
+
+  // Initialiser les dramatic functions sélectionnées
+  if (props.personnage?.personnageDramaticFunctions) {
+    selectedDramaticFunctions.value = props.personnage.personnageDramaticFunctions.map(pdf => pdf.dramaticFunction.id);
+  }
+});
+
+const dramaticFunctions = computed(() => metadataStore.dramaticFunctions);
 
 watch(() => props.personnage, (newVal) => {
   currentPersonnage.value = { ...newVal };
+
+  // Mettre à jour les dramatic functions sélectionnées
+  if (newVal?.personnageDramaticFunctions) {
+    selectedDramaticFunctions.value = newVal.personnageDramaticFunctions.map(pdf => pdf.dramaticFunction.id);
+  } else {
+    selectedDramaticFunctions.value = [];
+  }
 }, { deep: true });
 
+const toggleDramaticFunction = (functionId) => {
+  const index = selectedDramaticFunctions.value.indexOf(functionId);
+  if (index > -1) {
+    selectedDramaticFunctions.value.splice(index, 1);
+  } else {
+    selectedDramaticFunctions.value.push(functionId);
+  }
+};
+
 const handleSave = () => {
+  // Ajouter les dramatic functions sélectionnées avant de sauvegarder
+  currentPersonnage.value.dramaticFunctionIds = selectedDramaticFunctions.value;
   emit('save', currentPersonnage.value);
 };
 
@@ -114,7 +149,7 @@ const handleSave = () => {
             <h4 class="text-lg font-semibold mb-4 text-gray-800 border-b border-orange-300 pb-2">
               Forces & Faiblesses
             </h4>
-            
+
             <div class="space-y-4">
               <div>
                 <label class="block font-semibold text-gray-700 mb-2" for="strength">
@@ -127,7 +162,7 @@ const handleSave = () => {
                   placeholder="Quelles sont les forces de ce personnage ?"
                 ></textarea>
               </div>
-              
+
               <div>
                 <label class="block font-semibold text-gray-700 mb-2" for="weakness">
                   ⚠️ Faiblesses
@@ -139,6 +174,45 @@ const handleSave = () => {
                   placeholder="Quelles sont les faiblesses de ce personnage ?"
                 ></textarea>
               </div>
+            </div>
+          </div>
+
+          <!-- Fonctions dramatiques -->
+          <div class="bg-purple-50 p-6 rounded-lg">
+            <h4 class="text-lg font-semibold mb-4 text-gray-800 border-b border-purple-300 pb-2">
+              🎭 Fonctions dramatiques
+            </h4>
+            <p class="text-sm text-gray-600 mb-4">
+              Sélectionnez une ou plusieurs fonctions dramatiques pour ce personnage
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button
+                v-for="df in dramaticFunctions"
+                :key="df.id"
+                type="button"
+                @click="toggleDramaticFunction(df.id)"
+                class="p-3 rounded-lg border-2 text-left transition-all"
+                :class="selectedDramaticFunctions.includes(df.id)
+                  ? 'border-purple-500 bg-purple-100 shadow-md'
+                  : 'border-gray-300 bg-white hover:border-purple-300'"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex-1">
+                    <div class="font-semibold text-gray-900">{{ df.name }}</div>
+                    <div class="text-xs text-gray-600 mt-1 line-clamp-2">{{ df.description }}</div>
+                  </div>
+                  <div v-if="selectedDramaticFunctions.includes(df.id)" class="ml-2 text-purple-600 text-xl">
+                    ✓
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div v-if="selectedDramaticFunctions.length > 0" class="mt-4 p-3 bg-purple-100 border-l-4 border-purple-500 rounded-r-lg">
+              <p class="text-sm font-medium text-purple-900">
+                {{ selectedDramaticFunctions.length }} fonction(s) sélectionnée(s)
+              </p>
             </div>
           </div>
         </div>

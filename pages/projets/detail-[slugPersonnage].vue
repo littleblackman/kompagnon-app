@@ -248,11 +248,27 @@ const getPersonnageImages = (personnage) => {
               </h1>
               <div class="flex items-center space-x-3 mt-2">
                 <span v-if="personnage?.age" class="text-gray-600">{{ personnage.age }} ans</span>
-                <span 
-                  v-if="personnage?.level" 
+                <span
+                  v-if="personnage?.level"
                   :class="`px-3 py-1 rounded-full text-xs font-medium ${getLevelColor(personnage.level)}`"
                 >
                   {{ getLevelLabel(personnage.level) }}
+                </span>
+              </div>
+
+              <!-- Fonctions dramatiques -->
+              <div
+                v-if="personnage?.personnageDramaticFunctions && personnage.personnageDramaticFunctions.length > 0"
+                class="flex flex-wrap gap-2 mt-3"
+              >
+                <span
+                  v-for="pdf in personnage.personnageDramaticFunctions"
+                  :key="pdf.dramaticFunction.id"
+                  :title="`${pdf.dramaticFunction.description || ''}\n\nCaractéristiques:\n${Array.isArray(pdf.dramaticFunction.characteristics) ? pdf.dramaticFunction.characteristics.join('\n• ') : pdf.dramaticFunction.characteristics || ''}\n\nTendance: ${pdf.dramaticFunction.tendency || 'N/A'}`"
+                  class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded-full bg-purple-600 text-white hover:bg-purple-700 shadow-sm transition-all cursor-help"
+                >
+                  <span class="text-base">🎭</span>
+                  {{ pdf.dramaticFunction.name }}
                 </span>
               </div>
             </div>

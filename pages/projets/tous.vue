@@ -22,50 +22,40 @@ const projects = computed(() => data.value || [])
 </script>
 
 <template>
-  <div class="flex" style="height: 60vh;">
+  <div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Liste des projets</h1>
+        <p class="text-gray-600">Gérez et organisez tous vos projets créatifs</p>
+      </div>
 
+      <!-- Bouton Créer un projet -->
+      <div class="mb-8">
+        <NuxtLink
+          to="/projets/creer"
+          class="create-project-btn"
+        >
+          <PlusIcon class="w-5 h-5" />
+          <span>Créer un nouveau projet</span>
+        </NuxtLink>
+      </div>
 
-      <div class="w-1/2 flex flex-col items-center p-6">
-
-        <h1 class="text-2xl font-bold mb-4">Liste des projets</h1>
-        
-        <!-- Bouton Créer un projet -->
-        <div class="mb-6">
-          <NuxtLink 
-            to="/projets/creer"
-            class="create-project-btn"
-          >
-            <PlusIcon class="w-5 h-5" />
-            <span>Créer un nouveau projet</span>
+      <div v-if="projects" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div v-for="project in projects" :key="project.id" class="project-card">
+          <NuxtLink :to="{ path:`/projets/projet-${project.slug }`}" class="block h-full">
+            <div class="card-content">
+              <h2 class="project-title">{{ project.name }}</h2>
+              <p class="project-type">{{ project.type.name }}</p>
+              <div class="project-description" v-html="project.description.slice(0, 200)+'...'"></div>
+            </div>
           </NuxtLink>
         </div>
-        
-        <div v-if="projects" class="grid gap-6 max-w-4xl">
-          <div v-for="project in projects" :key="project.id" class="project-card">
-            <NuxtLink :to="{ path:`/projets/projet-${project.slug }`}" class="block h-full">
-              <div class="card-content">
-                <h2 class="project-title">{{ project.name }}</h2>
-                <p class="project-type">{{ project.type.name }}</p>
-                <div class="project-description" v-html="project.description.slice(0, 200)+'...'"></div>
-              </div>
-            </NuxtLink>
-          </div>
-        </div>
-        <p v-else>Chargement...</p>
-
       </div>
-
-
-      <!-- Colonne image -->
-      <div class="w-1/2 h-screen overflow-hidden" style="height: 92vh;">
-        <img src="/images/tana.jpg"
-             class="w-full h-full object-cover"
-             alt="Tana le Kompagnon idéal">
+      <div v-else class="text-center py-12">
+        <p class="text-gray-500">Chargement...</p>
       </div>
-
-
+    </div>
   </div>
-
 </template>
 
 <style scoped>

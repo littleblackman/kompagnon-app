@@ -185,6 +185,22 @@ const sortedPersonnages = computed(() => {
                 {{ getPersonnageName(personnage) }}
               </h3>
               <p v-if="personnage.age" class="text-sm text-gray-500">{{ personnage.age }} ans</p>
+
+              <!-- Fonctions dramatiques -->
+              <div
+                v-if="personnage.personnageDramaticFunctions && personnage.personnageDramaticFunctions.length > 0"
+                class="flex flex-wrap gap-2 mt-2"
+              >
+                <span
+                  v-for="pdf in personnage.personnageDramaticFunctions"
+                  :key="pdf.dramaticFunction.id"
+                  :title="`${pdf.dramaticFunction.description || ''}\n\nCaractéristiques:\n${Array.isArray(pdf.dramaticFunction.characteristics) ? pdf.dramaticFunction.characteristics.join('\n• ') : pdf.dramaticFunction.characteristics || ''}\n\nTendance: ${pdf.dramaticFunction.tendency || 'N/A'}`"
+                  class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded-full bg-purple-600 text-white hover:bg-purple-700 shadow-sm transition-all cursor-help"
+                >
+                  <span class="text-base">🎭</span>
+                  {{ pdf.dramaticFunction.name }}
+                </span>
+              </div>
             </div>
           </div>
           <div class="flex gap-2">

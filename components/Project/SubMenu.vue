@@ -2,7 +2,15 @@
   <div class="bg-white shadow-sm border-b sticky top-0 z-10">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <nav class="flex justify-between items-center py-4">
-        <div></div>
+        <div>
+          <NuxtLink
+            to="/projets/tous"
+            class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeftIcon class="w-5 h-5" />
+            <span class="text-sm font-medium">Retour aux projets</span>
+          </NuxtLink>
+        </div>
         <div class="flex justify-center space-x-8">
         <NuxtLink 
           :to="`/projets/projet-${projectSlug}`"
@@ -54,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon } from '@heroicons/vue/24/solid';
+import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon, ArrowLeftIcon } from '@heroicons/vue/24/solid';
 import { useProjectStore } from '~/store/project';
 
 interface Props {

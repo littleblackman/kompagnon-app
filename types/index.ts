@@ -48,10 +48,18 @@ export interface Project {
   personnages?: Personnage[]
 }
 
+export interface PersonnageDramaticFunction {
+  id: number
+  dramaticFunction: DramaticFunction
+  weight: number
+  comment?: string
+}
+
 export interface Personnage {
   id: number
   firstName: string
   lastName: string
+  slug?: string
   background?: string
   age?: number
   origin?: string
@@ -62,6 +70,7 @@ export interface Personnage {
   strength?: string
   weakness?: string
   project_id: number
+  personnageDramaticFunctions?: PersonnageDramaticFunction[]
 }
 
 export interface NarrativeArc {

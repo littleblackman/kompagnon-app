@@ -36,6 +36,7 @@ const selectedNarrativeStructure = ref<any>(null)
 const narrativeStructures = ref<any[]>([])
 const dramaticFunctions = ref<any[]>([])
 const events = ref<any[]>([])
+const selectedCharacters = ref<any[]>([])
 
 // Charger les métadonnées
 onMounted(async () => {
@@ -73,6 +74,7 @@ const selectGenre = (genre: any) => {
   events.value = []
   narrativeStructures.value = []
   dramaticFunctions.value = []
+  selectedCharacters.value = []
 }
 
 // Sélection de subgenre
@@ -81,6 +83,7 @@ const selectSubgenre = async (subgenre: any) => {
   selectedNarrativeStructure.value = null
   events.value = []
   narrativeStructures.value = []
+  selectedCharacters.value = []
 
   try {
     const data: any = await $fetch(`${config.public.apiBase}/subgenre/${subgenre.id}`, {
@@ -100,6 +103,32 @@ const selectNarrativeStructure = (structure: any) => {
   events.value = structure.events || []
 }
 
+// Gestion des personnages
+const toggleCharacterForFunction = (dramaticFunction: any, characterName: string) => {
+  const existingIndex = selectedCharacters.value.findIndex(
+    char => char.dramaticFunctionId === dramaticFunction.id
+  )
+  
+  if (existingIndex >= 0) {
+    // Mettre à jour le personnage existant
+    selectedCharacters.value[existingIndex].name = characterName
+  } else {
+    // Ajouter un nouveau personnage
+    selectedCharacters.value.push({
+      dramaticFunctionId: dramaticFunction.id,
+      dramaticFunctionName: dramaticFunction.name,
+      name: characterName
+    })
+  }
+}
+
+const getCharacterForFunction = (dramaticFunctionId: number) => {
+  const character = selectedCharacters.value.find(
+    char => char.dramaticFunctionId === dramaticFunctionId
+  )
+  return character?.name || ''
+}
+
 // Soumission du formulaire
 const submitForm = async () => {
   if (!formData.value.name || !formData.value.type_id) {
@@ -111,11 +140,23 @@ const submitForm = async () => {
   errorMessage.value = ''
 
   try {
-    const result: any = await projectStore.createProject({
+    const projectData: any = {
       name: formData.value.name,
       description: formData.value.description,
       type_id: formData.value.type_id as number
-    })
+    }
+
+    // Ajouter les données de structure narrative si elles existent
+    if (selectedNarrativeStructure.value) {
+      projectData.narrative_structure_id = selectedNarrativeStructure.value.id
+    }
+
+    // Ajouter les personnages si ils existent
+    if (selectedCharacters.value.length > 0) {
+      projectData.characters = selectedCharacters.value
+    }
+
+    const result: any = await projectStore.createProject(projectData)
 
     if (result?.slug) {
       router.push(`/projets/projet-${result.slug}`)
@@ -339,11 +380,76 @@ const submitForm = async () => {
             </div>
           </div>
 
-          <!-- Étape 4: Événements narratifs -->
+          <!-- Étape 4: Personnages selon les fonctions dramatiques -->
+          <div v-if="selectedSubgenre && dramaticFunctions.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-4">
+              <div class="w-10 h-10 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold mr-3">
+                4
+              </div>
+              <div>
+                <h3 class="text-xl font-semibold text-gray-900">Personnages principaux</h3>
+                <p class="text-sm text-gray-500">
+                  Définissez vos personnages selon les fonctions dramatiques de {{ selectedSubgenre.name }}
+                </p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div
+                v-for="dramaticFunction in dramaticFunctions"
+                :key="dramaticFunction.id"
+                class="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-300 transition-all"
+              >
+                <div class="mb-3">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="font-medium text-gray-900">{{ dramaticFunction.name }}</span>
+                    <span v-if="!dramaticFunction.isEssential" class="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
+                      optionnel
+                    </span>
+                    <span v-else class="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
+                      essentiel
+                    </span>
+                  </div>
+                  <div class="text-xs text-gray-500 mb-3">{{ dramaticFunction.description }}</div>
+                </div>
+                
+                <div class="relative">
+                  <input
+                    :value="getCharacterForFunction(dramaticFunction.id)"
+                    @input="(e) => toggleCharacterForFunction(dramaticFunction, (e.target as HTMLInputElement).value)"
+                    type="text"
+                    :placeholder="`Nom de votre ${dramaticFunction.name.toLowerCase()}`"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                  <div v-if="getCharacterForFunction(dramaticFunction.id)" class="absolute right-2 top-2 text-purple-500">
+                    ✓
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Résumé des personnages -->
+            <div v-if="selectedCharacters.length > 0" class="mt-6 p-4 bg-purple-50 border-l-4 border-purple-500 rounded-r-lg">
+              <h4 class="font-medium text-gray-900 mb-2">🎭 Vos personnages :</h4>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="character in selectedCharacters"
+                  :key="character.dramaticFunctionId"
+                  class="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full"
+                >
+                  <strong>{{ character.name }}</strong>
+                  <span class="text-purple-600">→</span>
+                  <em>{{ character.dramaticFunctionName }}</em>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Étape 5: Événements narratifs -->
           <div v-if="selectedNarrativeStructure && events.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div class="flex items-center mb-4">
               <div class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold mr-3">
-                4
+                5
               </div>
               <div>
                 <h3 class="text-xl font-semibold text-gray-900">Événements narratifs</h3>
@@ -395,9 +501,12 @@ const submitForm = async () => {
             <div class="text-2xl">ℹ️</div>
             <div>
               <h3 class="font-semibold text-gray-900 mb-2">À propos de la génération automatique</h3>
-              <p class="text-sm text-gray-700">
-                Nous allons créer automatiquement les <strong>parties</strong> et <strong>séquences</strong> de votre récit basées sur la structure narrative <strong>{{ selectedNarrativeStructure.name }}</strong> que vous avez sélectionnée.
+              <p class="text-sm text-gray-700 mb-3">
+                Nous allons créer automatiquement les <strong>parties</strong> de votre récit basées sur la structure narrative <strong>{{ selectedNarrativeStructure.name }}</strong> que vous avez sélectionnée.
                 Chaque événement narratif deviendra une séquence que vous pourrez ensuite développer et personnaliser.
+              </p>
+              <p v-if="selectedCharacters.length > 0" class="text-sm text-gray-700">
+                Les <strong>{{ selectedCharacters.length }} personnage(s)</strong> que vous avez définis seront également créés avec leurs fonctions dramatiques respectives.
               </p>
             </div>
           </div>
@@ -411,7 +520,10 @@ const submitForm = async () => {
             :disabled="isLoading"
             class="px-12 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-lg font-bold rounded-lg hover:from-amber-600 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
           >
-            {{ isLoading ? '⏳ Création en cours...' : '✨ Créer le projet avec cette structure' }}
+            {{ isLoading ? '⏳ Création en cours...' : 
+               selectedCharacters.length > 0 ? 
+               `✨ Créer le projet avec ${selectedCharacters.length} personnage(s)` : 
+               '✨ Créer le projet avec cette structure' }}
           </button>
         </div>
       </div>
