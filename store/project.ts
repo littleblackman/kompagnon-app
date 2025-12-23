@@ -48,7 +48,7 @@ export const useProjectStore = defineStore('project', {
                 const config = useRuntimeConfig();
                 const authStore = useAuthStore();
                 const response: Project = await $fetch(`${config.public.apiBase}/project/${slug}`, {
-                    headers: { Authorization: `Bearer ${authStore.token}` },
+                    headers: { 'X-AUTH-TOKEN': authStore.token! },
                 });
 
                 // Trier les parties par position et leurs sous-éléments
@@ -204,7 +204,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`
+                        'X-AUTH-TOKEN': authStore.token!
                     }
                 });
 
@@ -232,7 +232,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`
+                        'X-AUTH-TOKEN': authStore.token!
                     },
                     body: criteriaData,
                 });
@@ -263,7 +263,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`
+                        'X-AUTH-TOKEN': authStore.token!
                     },
                     body: newPart,
                 });
@@ -316,7 +316,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: sequence,
                 });
@@ -362,7 +362,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: sequence,
                 });
@@ -385,7 +385,7 @@ export const useProjectStore = defineStore('project', {
 
                 const result = await $fetch(`${config.public.apiBase}/part/${partId}`, {
                     headers: {
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                 });
 
@@ -422,7 +422,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: newSequence,
                 });
@@ -472,7 +472,7 @@ export const useProjectStore = defineStore('project', {
                 await $fetch(`${config.public.apiBase}/sequence/delete/${sequenceId}`, {
                     method: 'DELETE',
                     headers: {
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                 });
 
@@ -515,7 +515,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: newScene,
                 });
@@ -587,7 +587,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: { scenes: scenePositions },
                 });
@@ -614,7 +614,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: { sequences: sequencePositions },
                 });
@@ -635,7 +635,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: metadata,
                 });
@@ -676,7 +676,7 @@ export const useProjectStore = defineStore('project', {
                 await $fetch(`${config.public.apiBase}/scene/delete/${sceneId}`, {
                     method: 'DELETE',
                     headers: {
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                 });
 
@@ -718,7 +718,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`
+                        'X-AUTH-TOKEN': authStore.token!
                     },
                     body: projectData
                 });
@@ -739,7 +739,7 @@ export const useProjectStore = defineStore('project', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`
+                        'X-AUTH-TOKEN': authStore.token!
                     },
                     body: projectData
                 });
@@ -766,7 +766,7 @@ export const useProjectStore = defineStore('project', {
                 await $fetch(`${config.public.apiBase}/project/delete/${projectId}`, {
                     method: 'DELETE',
                     headers: {
-                        Authorization: `Bearer ${authStore.token}`
+                        'X-AUTH-TOKEN': authStore.token!
                     }
                 });
 

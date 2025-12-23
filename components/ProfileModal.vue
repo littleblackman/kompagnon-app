@@ -121,23 +121,35 @@
         </div>
 
         <!-- Footer -->
-        <div class="px-6 py-4 border-t border-gray-200 flex gap-3 justify-end">
-          <button
-            @click="closeModal"
-            :disabled="isSaving"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+        <div class="px-6 py-4 border-t border-gray-200 flex gap-3 justify-between">
+          <!-- Bouton déconnexion à gauche -->
+          <NuxtLink
+            to="/logout"
+            class="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer"
           >
-            Annuler
-          </button>
-          <button
-            @click="saveProfile"
-            :disabled="isSaving"
-            class="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            <CheckIcon v-if="!isSaving" class="w-4 h-4" />
-            <div v-else class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            {{ isSaving ? 'Sauvegarde...' : 'Sauvegarder' }}
-          </button>
+            <PowerIcon class="w-4 h-4" />
+            Déconnexion
+          </NuxtLink>
+
+          <!-- Boutons d'action à droite -->
+          <div class="flex gap-3">
+            <button
+              @click="closeModal"
+              :disabled="isSaving"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              @click="saveProfile"
+              :disabled="isSaving"
+              class="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              <CheckIcon v-if="!isSaving" class="w-4 h-4" />
+              <div v-else class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              {{ isSaving ? 'Sauvegarde...' : 'Sauvegarder' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -147,7 +159,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useUserStore } from '~/store/user';
-import { UserIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/vue/24/solid';
+import { UserIcon, PencilIcon, CheckIcon, XMarkIcon, PowerIcon } from '@heroicons/vue/24/solid';
 
 interface Props {
   isOpen: boolean;

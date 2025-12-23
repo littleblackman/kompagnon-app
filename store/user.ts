@@ -42,7 +42,7 @@ export const useUserStore = defineStore('user', {
 
         const response = await $fetch<{ user: User }>(`${config.public.apiBase}/user/profile`, {
           headers: {
-            Authorization: `Bearer ${authStore.token}`
+            'X-AUTH-TOKEN': authStore.token!
           }
         });
 
@@ -69,7 +69,7 @@ export const useUserStore = defineStore('user', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${authStore.token}`
+            'X-AUTH-TOKEN': authStore.token!
           },
           body: data
         });
@@ -114,7 +114,7 @@ export const useUserStore = defineStore('user', {
         const response = await $fetch<{ message: string; avatar: string; user: User }>(`${config.public.apiBase}/user/upload-avatar`, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${authStore.token}`
+            'X-AUTH-TOKEN': authStore.token!
           },
           body: formData
         });

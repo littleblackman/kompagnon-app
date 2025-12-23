@@ -113,7 +113,7 @@
 
         <!-- Étape 4: Événements narratifs de la structure sélectionnée -->
         <div v-if="selectedNarrativeStructure && events.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div class="flex items-center mb-6">
+          <div class="flex items-center mb-4">
             <div class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold mr-3">
               4
             </div>
@@ -126,6 +126,13 @@
             </div>
           </div>
 
+          <!-- Description de la structure -->
+          <div v-if="selectedNarrativeStructure.description" class="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+            <p class="text-sm text-gray-700 leading-relaxed">
+              {{ selectedNarrativeStructure.description }}
+            </p>
+          </div>
+
           <div class="space-y-2">
             <div
               v-for="(event, index) in events"
@@ -135,7 +142,7 @@
             >
               <div class="flex items-start gap-3">
                 <div class="flex-shrink-0 w-8 h-8 bg-amber-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                  {{ event.position || (index + 1) }}
+                  {{ index + 1 }}
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 mb-1">
@@ -253,7 +260,7 @@ const selectSubgenre = async (subgenre: any) => {
   try {
     // Charger les données du subgenre depuis l'API avec authentification
     const data: any = await $fetch(`${config.public.apiBase}/subgenre/${subgenre.id}`, {
-      headers: { Authorization: `Bearer ${authStore.token}` }
+      headers: { 'X-AUTH-TOKEN': authStore.token || '' }
     })
 
     // Stocker les structures narratives (déjà triées par % décroissant côté API)

@@ -31,15 +31,6 @@
           <span>Personnages</span>
         </NuxtLink>
 
-        <NuxtLink
-          :to="`/projets/aide-creation-${projectSlug}`"
-          class="nav-link"
-          :class="{ 'active': $route.path.includes('aide-creation-') }"
-        >
-          <LightBulbIcon class="w-5 h-5" />
-          <span>Aide à la création</span>
-        </NuxtLink>
-
          <NuxtLink
           :to="`/projets/modifier-${projectSlug}`"
           class="nav-link"
@@ -63,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon, LightBulbIcon } from '@heroicons/vue/24/solid';
+import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon } from '@heroicons/vue/24/solid';
 import { useProjectStore } from '~/store/project';
 
 interface Props {

@@ -97,7 +97,7 @@ export const useMetadataStore = defineStore('metadata', () => {
             const config = useRuntimeConfig();
 
             const response: MetadataResponse = await $fetch(`${config.public.apiBase}/metadata`, {
-                headers: { Authorization: `Bearer ${authStore.token}` },
+                headers: { 'X-AUTH-TOKEN': authStore.token! },
             });
 
             criterias.value = response.criterias || [];

@@ -157,7 +157,7 @@ export const useAnalyticsStore = defineStore('analytics', {
         
         // D'abord récupérer la liste des projets
         const projectsList = await $fetch<Project[]>(`${config.public.apiBase}/projects`, {
-          headers: { Authorization: `Bearer ${authStore.token}` }
+          headers: { 'X-AUTH-TOKEN': authStore.token! }
         });
 
         // Ensuite charger chaque projet avec sa hiérarchie complète
@@ -165,7 +165,7 @@ export const useAnalyticsStore = defineStore('analytics', {
           projectsList.map(async (project: Project) => {
             try {
               const fullProject = await $fetch<ProjectWithData>(`${config.public.apiBase}/project/${project.slug}`, {
-                headers: { Authorization: `Bearer ${authStore.token}` }
+                headers: { 'X-AUTH-TOKEN': authStore.token! }
               });
               return fullProject;
             } catch (error) {

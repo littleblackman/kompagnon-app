@@ -70,8 +70,9 @@ export const useAuthStore = defineStore('auth', {
                 const response = await fetch(`${config.public.apiBase}/users/me`, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${this.token}`
-                    }
+                        'X-AUTH-TOKEN': this.token
+                    },
+                    body: null
                 })
 
                 if (!response.ok) {

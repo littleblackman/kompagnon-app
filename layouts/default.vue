@@ -120,15 +120,15 @@ const avatarUrl = computed(() => {
 
         <!-- Utilisateur en bas -->
         <div class="sidebar-user">
-          <button 
-            v-if="auth.user" 
+          <button
+            v-if="auth.user"
             @click="openProfileModal"
-            class="w-8 h-8 rounded-full overflow-hidden bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition-colors" 
+            class="w-8 h-8 rounded-full overflow-hidden bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition-colors"
             :title="userStore.displayName"
           >
-            <img 
-              v-if="avatarUrl" 
-              :src="avatarUrl" 
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
               :alt="userStore.displayName"
               class="w-full h-full object-cover"
             >
@@ -222,13 +222,13 @@ const avatarUrl = computed(() => {
         <!-- Utilisateur étendu -->
         <div class="mt-auto p-4 border-t border-gray-100">
           <div v-if="auth.user" class="flex items-center space-x-3">
-            <button 
+            <button
               @click="openProfileModal"
               class="w-8 h-8 rounded-full overflow-hidden bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition-colors"
             >
-              <img 
-                v-if="avatarUrl" 
-                :src="avatarUrl" 
+              <img
+                v-if="avatarUrl"
+                :src="avatarUrl"
                 :alt="userStore.displayName"
                 class="w-full h-full object-cover"
               >
@@ -238,7 +238,7 @@ const avatarUrl = computed(() => {
               <p class="text-sm font-medium text-gray-900 truncate">
                 {{ userStore.displayName }}
               </p>
-              <button 
+              <button
                 @click="openProfileModal"
                 class="text-xs text-gray-500 truncate hover:text-amber-600 transition-colors cursor-pointer"
                 title="Cliquez pour modifier votre profil"

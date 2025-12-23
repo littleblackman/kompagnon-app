@@ -63,7 +63,7 @@ const loadPersonnageDetails = async () => {
     console.log('Loading personnage with slug:', personnageSlug);
     
     const response = await $fetch(`${config.public.apiBase}/personnage/${personnageSlug}/details`, {
-      headers: { Authorization: `Bearer ${authStore.token}` },
+      headers: { 'X-AUTH-TOKEN': authStore.token || '' },
     });
     
     console.log('API response:', response);
@@ -123,8 +123,8 @@ const createActantielSchema = async () => {
     
     const response = await $fetch(`${config.public.apiBase}/personnage/${personnage.value.id}/analyse/actantiel-schema`, {
       method: 'POST',
-      headers: { 
-        Authorization: `Bearer ${authStore.token}`,
+      headers: {
+        'X-AUTH-TOKEN': authStore.token || '',
         'Content-Type': 'application/json'
       },
       body: {

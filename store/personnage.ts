@@ -201,7 +201,7 @@ export const usePersonnageStore = defineStore('personnage', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: {
                         sequenceId,
@@ -231,7 +231,7 @@ export const usePersonnageStore = defineStore('personnage', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`
+                        'X-AUTH-TOKEN': authStore.token!
                     },
                     body: dataToSend
                 });
@@ -259,7 +259,7 @@ export const usePersonnageStore = defineStore('personnage', {
                 await $fetch(`${config.public.apiBase}/personnage/delete/${personnageId}`, {
                     method: 'DELETE',
                     headers: {
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                 });
 
@@ -281,7 +281,7 @@ export const usePersonnageStore = defineStore('personnage', {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     }
                 });
 
@@ -306,7 +306,7 @@ export const usePersonnageStore = defineStore('personnage', {
                 const response = await $fetch(`${config.public.apiBase}/personnage/${personnageId}/upload-images`, {
                     method: 'POST',
                     headers: {
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: formData
                 }) as { images: string[] };
@@ -352,7 +352,7 @@ export const usePersonnageStore = defineStore('personnage', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: { images: orderedImages }
                 });
@@ -384,7 +384,7 @@ export const usePersonnageStore = defineStore('personnage', {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${authStore.token}`,
+                        'X-AUTH-TOKEN': authStore.token!,
                     },
                     body: { imageUrl }
                 });

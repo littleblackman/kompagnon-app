@@ -14,7 +14,7 @@ auth.requireAuth();
 const { data, pending, error } = useFetch(`${config.public.apiBase}/projects`, {
   key: 'projects',
   headers: {
-    Authorization: `Bearer ${auth.token}`
+    'X-AUTH-TOKEN': auth.token || ''
   }
 })
 
