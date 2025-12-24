@@ -39,6 +39,15 @@
           <span>Personnages</span>
         </NuxtLink>
 
+        <NuxtLink
+          :to="`/projets/reference-${projectSlug}`"
+          class="nav-link"
+          :class="{ 'active': $route.path.includes('reference-') }"
+        >
+          <BookOpenIcon class="w-5 h-5" />
+          <span>Référence</span>
+        </NuxtLink>
+
          <NuxtLink
           :to="`/projets/modifier-${projectSlug}`"
           class="nav-link"
@@ -62,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon, ArrowLeftIcon } from '@heroicons/vue/24/solid';
+import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon, ArrowLeftIcon, BookOpenIcon } from '@heroicons/vue/24/solid';
 import { useProjectStore } from '~/store/project';
 
 interface Props {

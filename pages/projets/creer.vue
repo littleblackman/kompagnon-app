@@ -147,13 +147,35 @@ const submitForm = async () => {
     }
 
     // Ajouter les données de structure narrative si elles existent
+    if (selectedGenre.value) {
+      projectData.genre_id = selectedGenre.value.id
+    }
+
+    if (selectedSubgenre.value) {
+      projectData.subgenre_id = selectedSubgenre.value.id
+    }
+
     if (selectedNarrativeStructure.value) {
       projectData.narrative_structure_id = selectedNarrativeStructure.value.id
+
+      // Ajouter les events pour créer les parties
+      if (events.value.length > 0) {
+        projectData.events = events.value.map((event, index) => ({
+          id: event.id,
+          name: event.name,
+          description: event.description,
+          position: index + 1,
+          isOptional: event.isOptional || false
+        }))
+      }
     }
 
     // Ajouter les personnages si ils existent
     if (selectedCharacters.value.length > 0) {
-      projectData.characters = selectedCharacters.value
+      projectData.characters = selectedCharacters.value.map(char => ({
+        name: char.name,
+        dramaticFunctionId: char.dramaticFunctionId
+      }))
     }
 
     const result: any = await projectStore.createProject(projectData)

@@ -730,12 +730,20 @@ export const useProjectStore = defineStore('project', {
             }
         },
 
-        async updateProject(projectData: { id: number; name: string; description: string; type_id: number }) {
+        async updateProject(projectData: {
+            id: number;
+            name: string;
+            description: string;
+            type_id: number;
+            genre_id?: number;
+            subgenre_id?: number;
+            narrative_structure_id?: number;
+        }) {
             try {
                 const config = useRuntimeConfig();
                 const authStore = useAuthStore();
 
-                const result = await $fetch(`${config.public.apiBase}/project/update`, {
+                const result: any = await $fetch(`${config.public.apiBase}/project/update`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

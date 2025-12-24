@@ -44,8 +44,17 @@ export interface Project {
   name: string
   description: string
   slug?: string
+  type?: {
+    id: number
+    name: string
+  }
   parts: Part[]
   personnages?: Personnage[]
+  referenceNarrativeComponents?: {
+    genre_id?: number
+    subgenre_id?: number
+    narrative_structure_id?: number
+  }
 }
 
 export interface PersonnageDramaticFunction {
