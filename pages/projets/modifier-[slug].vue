@@ -20,6 +20,8 @@ const metadataStore = useMetadataStore()
 const route = useRoute()
 const router = useRouter()
 const slug = route.params.slug as string
+const config = useRuntimeConfig()
+const authStore = useAuthStore()
 
 // Charger le projet et les métadonnées au montage
 onMounted(async () => {
@@ -38,6 +40,11 @@ onMounted(async () => {
       subgenre_id: project.value.referenceNarrativeComponents?.subgenre_id || null,
       narrative_structure_id: project.value.referenceNarrativeComponents?.narrative_structure_id || null
     }
+
+    // Charger les structures narratives si un sous-genre est déjà sélectionné
+    if (formData.value.subgenre_id) {
+      await loadNarrativeStructures(formData.value.subgenre_id)
+    }
   }
 })
 
@@ -49,10 +56,22 @@ const subgenres = computed(() => {
   const genre = metadataStore.genres.find(g => g.id === formData.value.genre_id)
   return genre?.subgenres || []
 })
-const narrativeStructures = computed(() => {
-  // Afficher toutes les structures narratives disponibles
-  return metadataStore.narrativeStructures
-})
+
+// État pour les structures narratives chargées depuis l'API
+const narrativeStructures = ref<any[]>([])
+
+// Charger les structures narratives quand le sous-genre change
+const loadNarrativeStructures = async (subgenreId: number) => {
+  try {
+    const data: any = await $fetch(`${config.public.apiBase}/subgenre/${subgenreId}`, {
+      headers: { 'X-AUTH-TOKEN': authStore.token || '' }
+    })
+    narrativeStructures.value = data.narrativeStructures || []
+  } catch (error) {
+    console.error('Erreur lors du chargement des structures narratives:', error)
+    narrativeStructures.value = []
+  }
+}
 
 // Données du formulaire
 const formData = ref({
@@ -74,11 +93,17 @@ const deleteConfirmText = ref('')
 const onGenreChange = () => {
   formData.value.subgenre_id = null
   formData.value.narrative_structure_id = null
+  narrativeStructures.value = []
 }
 
 // Gestion du changement de sous-genre
-const onSubgenreChange = () => {
+const onSubgenreChange = async () => {
   formData.value.narrative_structure_id = null
+  if (formData.value.subgenre_id) {
+    await loadNarrativeStructures(formData.value.subgenre_id)
+  } else {
+    narrativeStructures.value = []
+  }
 }
 
 // Soumission du formulaire

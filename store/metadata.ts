@@ -19,6 +19,8 @@ interface MetadataResponse {
     genres: Genre[];
     subgenres: Subgenre[];
     events: Event[];
+    eventTypes: EventType[];
+    narrativeParts: NarrativePart[];
     narrativeStructures: NarrativeStructure[];
     subgenreEvents: Record<number, number[]>; // subgenreId => eventIds[]
     structureEvents: Record<number, StructureEventMapping[]>; // structureId => [{eventId, position, isOptional}]
@@ -55,15 +57,27 @@ interface Subgenre {
     description: string;
 }
 
+interface NarrativePart {
+    id: number;
+    name: string;
+    code: string;
+    description?: string;
+}
+
+interface EventType {
+    id: number;
+    name: string;
+    code: string;
+    description?: string;
+    narrativePart?: NarrativePart;
+}
+
 interface Event {
     id: number;
     name: string;
     description: string;
-    eventType?: {
-        id: number;
-        name: string;
-        description?: string;
-    };
+    eventType?: EventType;
+    isOptional?: boolean;
 }
 
 interface NarrativeStructure {
@@ -71,6 +85,8 @@ interface NarrativeStructure {
     name: string;
     description: string;
     totalBeats: number;
+    narrativePartOrder?: Record<string, string[]>; // {"Acte 1": ["SETUP", "DISRUPTION"], ...}
+    narrativePartCodes?: string[]; // ["SETUP", "DISRUPTION", "ESCALATION", ...]
 }
 
 
@@ -86,6 +102,8 @@ export const useMetadataStore = defineStore('metadata', () => {
     const genres = ref<Genre[]>([]);
     const subgenres = ref<Subgenre[]>([]);
     const events = ref<Event[]>([]);
+    const eventTypes = ref<EventType[]>([]);
+    const narrativeParts = ref<NarrativePart[]>([]);
     const narrativeStructures = ref<NarrativeStructure[]>([]);
     const subgenreEvents = ref<Record<number, number[]>>({});
     const structureEvents = ref<Record<number, StructureEventMapping[]>>({});
@@ -109,6 +127,8 @@ export const useMetadataStore = defineStore('metadata', () => {
             genres.value = response.genres || [];
             subgenres.value = response.subgenres || [];
             events.value = response.events || [];
+            eventTypes.value = response.eventTypes || [];
+            narrativeParts.value = response.narrativeParts || [];
             narrativeStructures.value = response.narrativeStructures || [];
             subgenreEvents.value = response.subgenreEvents || {};
             structureEvents.value = response.structureEvents || {};
@@ -130,6 +150,8 @@ export const useMetadataStore = defineStore('metadata', () => {
         genres,
         subgenres,
         events,
+        eventTypes,
+        narrativeParts,
         narrativeStructures,
         subgenreEvents,
         structureEvents,

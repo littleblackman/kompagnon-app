@@ -14,7 +14,7 @@ useHead({
 import { useAuthStore } from '~/store/auth'
 import { useAnalyticsStore } from '~/store/analytics'
 import { useUserStore } from '~/store/user'
-import { HomeIcon, UserIcon, PowerIcon, FolderIcon, PlusIcon, Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid'
+import { HomeIcon, UserIcon, PowerIcon, FolderIcon, PlusIcon, Bars3Icon, XMarkIcon, Cog6ToothIcon } from '@heroicons/vue/24/solid'
 import { onMounted, computed, ref } from 'vue'
 import ProfileModal from '~/components/ProfileModal.vue'
 
@@ -177,14 +177,24 @@ const avatarUrl = computed(() => {
             <span>Tous les projets</span>
           </NuxtLink>
 
-          <NuxtLink 
-            to="/projets/creer" 
+          <NuxtLink
+            to="/projets/creer"
             class="nav-item"
             :class="{ 'nav-item-active': $route.path === '/projets/creer' }"
             @click="isMenuOpen = false"
           >
             <PlusIcon class="w-5 h-5" />
             <span>Nouveau projet</span>
+          </NuxtLink>
+
+          <NuxtLink
+            to="/admin"
+            class="nav-item"
+            :class="{ 'nav-item-active': $route.path.startsWith('/admin') }"
+            @click="isMenuOpen = false"
+          >
+            <Cog6ToothIcon class="w-5 h-5" />
+            <span>Administration</span>
           </NuxtLink>
         </nav>
 
@@ -221,19 +231,7 @@ const avatarUrl = computed(() => {
 
         <!-- Utilisateur étendu -->
         <div class="mt-auto p-4 border-t border-gray-100">
-          <div v-if="auth.user" class="flex items-center space-x-3">
-            <button
-              @click="openProfileModal"
-              class="w-8 h-8 rounded-full overflow-hidden bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition-colors"
-            >
-              <img
-                v-if="avatarUrl"
-                :src="avatarUrl"
-                :alt="userStore.displayName"
-                class="w-full h-full object-cover"
-              >
-              <UserIcon v-else class="w-4 h-4 text-gray-600" />
-            </button>
+          <div v-if="auth.user" class="flex items-center justify-between">
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900 truncate">
                 {{ userStore.displayName }}
@@ -246,8 +244,8 @@ const avatarUrl = computed(() => {
                 {{ userStore.profile?.email }}
               </button>
             </div>
-            <NuxtLink to="/logout" class="text-gray-400 hover:text-gray-600">
-              <PowerIcon class="w-4 h-4" />
+            <NuxtLink to="/logout" class="text-gray-400 hover:text-gray-600" title="Déconnexion">
+              <PowerIcon class="w-5 h-5" />
             </NuxtLink>
           </div>
         </div>
