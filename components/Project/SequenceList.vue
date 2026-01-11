@@ -157,13 +157,8 @@ async function updateField(field: string, value: string, sequenceId: number) {
     // Mise à jour locale immédiate
     sequence[field] = value;
 
-    // Utiliser la nouvelle route pour ne sauvegarder que les métadonnées
-    const metadataToSave = {
-      [field]: value
-    };
-
-    // Sauvegarde via la nouvelle route dédiée
-    await projectStore.updateSequenceMetadata(sequenceId, metadataToSave);
+    // Utiliser la même méthode que le modal (POST /api/sequence/update)
+    await projectStore.updateSequenceContent(sequence);
   } catch (error) {
     console.error(`Erreur lors de la mise à jour du champ ${field}:`, error);
   }
@@ -302,12 +297,13 @@ const updateRating = async (ratingData) => {
 
     <li v-for="sequence in sortedSequences" :key="sequence.id" class="pl-6 pr-3 pt-6 pb-6">
 
-      <div class="flex items-center justify-between mb-2">
-        <h3 :id="`sequence-${sequence.id}`" class="font-bold text-black text-xl">
-          {{ sequence.name }}
-        </h3>
-        
-        <div class="flex items-center space-x-2">
+      <div class="mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 :id="`sequence-${sequence.id}`" class="font-bold text-black text-xl">
+            {{ sequence.name }}
+          </h3>
+
+          <div class="flex items-center space-x-2">
           <!-- Boutons d'action -->
           <div class="flex items-center space-x-1">
             <!-- Bouton Éditer -->
@@ -338,44 +334,48 @@ const updateRating = async (ratingData) => {
               <ArrowDownIcon class="h-4 w-4" />
             </button>
           </div>
-          
-          <!-- Boutons d'édition des métadonnées -->
-          <div class="flex items-center space-x-2">
-          <div class="flex items-center space-x-1 text-xs text-gray-500">
-            <span>Intention</span>
-            <FieldIcon
-                :icon="LightBulbIcon"
-                :text="sequence.intention ?? ''"
-                color="text-amber-500"
-                title="Intention"
-                placeholder="Indiquez les émotions et sensations que doit ressentir votre public durant cette séquence..."
-                :onSave="(val) => updateField('intention', val, sequence.id)"
+        </div>
+        </div>
+
+        <!-- Inputs inline pour Intention, Esthétique et Info - Style Pill -->
+        <div class="space-y-2 mb-4">
+          <!-- Intention -->
+          <div class="flex items-center gap-2 bg-amber-50 rounded-full px-3 py-2.5 border border-amber-200 transition-all hover:bg-amber-100 focus-within:ring-2 focus-within:ring-amber-400 focus-within:bg-white">
+            <LightBulbIcon class="w-4 h-4 text-amber-600 flex-shrink-0" title="Intention" />
+            <input
+              type="text"
+              :value="sequence.intention ?? ''"
+              @blur="(e) => updateField('intention', e.target.value, sequence.id)"
+              @keyup.enter="(e) => e.target.blur()"
+              placeholder="Intention : Émotions et sensations..."
+              class="flex-1 bg-transparent text-sm text-gray-800 placeholder-amber-400 focus:outline-none"
             />
           </div>
-          
-          <div class="flex items-center space-x-1 text-xs text-gray-500">
-            <span>Esthétique</span>
-            <FieldIcon
-                :icon="EyeIcon"
-                :text="sequence.aesthetic_idea ?? ''"
-                color="text-purple-500"
-                title="Idée esthétique"
-                placeholder="Décrivez l'approche artistique et visuelle que vous souhaitez mettre en œuvre pour cette séquence..."
-                :onSave="(val) => updateField('aesthetic_idea', val, sequence.id)"
+
+          <!-- Esthétique -->
+          <div class="flex items-center gap-2 bg-purple-50 rounded-full px-3 py-2.5 border border-purple-200 transition-all hover:bg-purple-100 focus-within:ring-2 focus-within:ring-purple-400 focus-within:bg-white">
+            <EyeIcon class="w-4 h-4 text-purple-600 flex-shrink-0" title="Esthétique" />
+            <input
+              type="text"
+              :value="sequence.aesthetic_idea ?? ''"
+              @blur="(e) => updateField('aesthetic_idea', e.target.value, sequence.id)"
+              @keyup.enter="(e) => e.target.blur()"
+              placeholder="Esthétique : Approche artistique..."
+              class="flex-1 bg-transparent text-sm text-gray-800 placeholder-purple-400 focus:outline-none"
             />
           </div>
-          
-          <div class="flex items-center space-x-1 text-xs text-gray-500">
-            <span>Info</span>
-            <FieldIcon
-                :icon="InformationCircleIcon"
-                :text="sequence.information ?? ''"
-                color="text-blue-500"
-                title="Information"
-                placeholder="Précisez les informations narratives essentielles qui justifient cette séquence..."
-                :onSave="(val) => updateField('information', val, sequence.id)"
+
+          <!-- Info -->
+          <div class="flex items-center gap-2 bg-blue-50 rounded-full px-3 py-2.5 border border-blue-200 transition-all hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-400 focus-within:bg-white">
+            <InformationCircleIcon class="w-4 h-4 text-blue-600 flex-shrink-0" title="Information" />
+            <input
+              type="text"
+              :value="sequence.information ?? ''"
+              @blur="(e) => updateField('information', e.target.value, sequence.id)"
+              @keyup.enter="(e) => e.target.blur()"
+              placeholder="Information : Éléments narratifs clés..."
+              class="flex-1 bg-transparent text-sm text-gray-800 placeholder-blue-400 focus:outline-none"
             />
-          </div>
           </div>
         </div>
       </div>
