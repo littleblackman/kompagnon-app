@@ -337,101 +337,110 @@ const updateRating = async (ratingData) => {
         </div>
         </div>
 
-        <!-- Inputs inline pour Intention, Esthétique et Info - Style Pill -->
-        <div class="space-y-2 mb-4">
-          <!-- Intention -->
-          <div class="flex items-center gap-2 bg-amber-50 rounded-full px-3 py-2.5 border border-amber-200 transition-all hover:bg-amber-100 focus-within:ring-2 focus-within:ring-amber-400 focus-within:bg-white">
-            <LightBulbIcon class="w-4 h-4 text-amber-600 flex-shrink-0" title="Intention" />
-            <input
-              type="text"
-              :value="sequence.intention ?? ''"
-              @blur="(e) => updateField('intention', e.target.value, sequence.id)"
-              @keyup.enter="(e) => e.target.blur()"
-              placeholder="Intention : Émotions et sensations..."
-              class="flex-1 bg-transparent text-sm text-gray-800 placeholder-amber-400 focus:outline-none"
-            />
-          </div>
-
-          <!-- Esthétique -->
-          <div class="flex items-center gap-2 bg-purple-50 rounded-full px-3 py-2.5 border border-purple-200 transition-all hover:bg-purple-100 focus-within:ring-2 focus-within:ring-purple-400 focus-within:bg-white">
-            <EyeIcon class="w-4 h-4 text-purple-600 flex-shrink-0" title="Esthétique" />
-            <input
-              type="text"
-              :value="sequence.aesthetic_idea ?? ''"
-              @blur="(e) => updateField('aesthetic_idea', e.target.value, sequence.id)"
-              @keyup.enter="(e) => e.target.blur()"
-              placeholder="Esthétique : Approche artistique..."
-              class="flex-1 bg-transparent text-sm text-gray-800 placeholder-purple-400 focus:outline-none"
-            />
-          </div>
-
-          <!-- Info -->
-          <div class="flex items-center gap-2 bg-blue-50 rounded-full px-3 py-2.5 border border-blue-200 transition-all hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-400 focus-within:bg-white">
-            <InformationCircleIcon class="w-4 h-4 text-blue-600 flex-shrink-0" title="Information" />
-            <input
-              type="text"
-              :value="sequence.information ?? ''"
-              @blur="(e) => updateField('information', e.target.value, sequence.id)"
-              @keyup.enter="(e) => e.target.blur()"
-              placeholder="Information : Éléments narratifs clés..."
-              class="flex-1 bg-transparent text-sm text-gray-800 placeholder-blue-400 focus:outline-none"
-            />
-          </div>
-        </div>
       </div>
       <div class="flex">
         <div class="text-justify w-3/4 mr-3">
-          <div class="bg-secondary flex justify-between">
-            <i>Personnages :
+          <!-- Personnages - Style moderne avec badges -->
+          <div class="bg-gradient-to-r from-slate-50 to-gray-50 rounded-lg px-4 py-3 border border-gray-200 mb-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Personnages</span>
+              <div class="flex items-center gap-2">
+                <button
+                  @click="updatePersonnage(null, sequence.id)"
+                  class="flex items-center gap-1 px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded-full transition-colors"
+                  title="Ajouter un personnage"
+                >
+                  <span class="font-bold">+</span>
+                  <span>Ajouter</span>
+                </button>
+                <button
+                  @click="showPersonnageConfig = true"
+                  class="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs rounded-full transition-colors"
+                  title="Configurer la détection automatique"
+                >
+                  ⚙️
+                </button>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
               <template v-if="sequence.sequencePersonnages && sequence.sequencePersonnages.length">
-                  <span
-                      v-for="(sp, index) in sequence.sequencePersonnages"
-                      :key="sp.id"
-                      class="inline-flex items-center mr-1"
-                  >
-                    <span 
-                      class="text-blue-600 hover:underline cursor-pointer mr-1"
-                      @click="updatePersonnage(sp.personnage, sequence.id)"
-                    >
-                      {{ getPersonnageName(sp.personnage) }}
-                    </span>
-                    <button
-                      @click="removePersonnageFromSequence(sp.id, sequence.id)"
-                      class="text-red-500 hover:text-red-700 text-xs ml-1 cursor-pointer"
-                      title="Retirer de cette séquence"
-                    >
-                      ×
-                    </button>
-                    <span v-if="index < sequence.sequencePersonnages.length - 1" class="mr-1">, </span>
+                <span
+                  v-for="sp in sequence.sequencePersonnages"
+                  :key="sp.id"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 rounded-full text-sm text-gray-700 hover:border-blue-400 hover:shadow-sm transition-all cursor-pointer group"
+                  @click="updatePersonnage(sp.personnage, sequence.id)"
+                >
+                  <span class="text-blue-600 font-medium group-hover:text-blue-700">
+                    {{ getPersonnageName(sp.personnage) }}
                   </span>
+                  <button
+                    @click.stop="removePersonnageFromSequence(sp.id, sequence.id)"
+                    class="ml-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full w-4 h-4 flex items-center justify-center transition-colors"
+                    title="Retirer de cette séquence"
+                  >
+                    <span class="text-xs leading-none">×</span>
+                  </button>
+                </span>
               </template>
-              <span v-else>Aucun personnage</span>
-            </i>
-            <div class="flex items-center space-x-1">
-              <div class="font-bold cursor-pointer" @click="updatePersonnage(null, sequence.id)">+</div>
-              <button 
-                @click="showPersonnageConfig = true"
-                class="text-xs text-gray-500 hover:text-gray-700 cursor-pointer"
-                title="Configurer la détection automatique"
-              >
-                ⚙️
-              </button>
+              <span v-else class="text-sm text-gray-400 italic">Aucun personnage assigné</span>
             </div>
           </div>
+
+          <!-- Inputs inline pour Intention, Esthétique et Info - Style Pill -->
+          <div class="space-y-2 my-3">
+            <!-- Intention -->
+            <div class="flex items-center gap-2 bg-amber-50 rounded-full px-3 py-2.5 border border-amber-200 transition-all hover:bg-amber-100 focus-within:ring-2 focus-within:ring-amber-400 focus-within:bg-white">
+              <LightBulbIcon class="w-4 h-4 text-amber-600 flex-shrink-0" title="Intention" />
+              <input
+                type="text"
+                :value="sequence.intention ?? ''"
+                @blur="(e) => updateField('intention', e.target.value, sequence.id)"
+                @keyup.enter="(e) => e.target.blur()"
+                placeholder="Intention : Émotions et sensations..."
+                class="flex-1 bg-transparent text-sm text-gray-800 placeholder-amber-400 focus:outline-none"
+              />
+            </div>
+
+            <!-- Esthétique -->
+            <div class="flex items-center gap-2 bg-purple-50 rounded-full px-3 py-2.5 border border-purple-200 transition-all hover:bg-purple-100 focus-within:ring-2 focus-within:ring-purple-400 focus-within:bg-white">
+              <EyeIcon class="w-4 h-4 text-purple-600 flex-shrink-0" title="Esthétique" />
+              <input
+                type="text"
+                :value="sequence.aesthetic_idea ?? ''"
+                @blur="(e) => updateField('aesthetic_idea', e.target.value, sequence.id)"
+                @keyup.enter="(e) => e.target.blur()"
+                placeholder="Esthétique : Approche artistique..."
+                class="flex-1 bg-transparent text-sm text-gray-800 placeholder-purple-400 focus:outline-none"
+              />
+            </div>
+
+            <!-- Info -->
+            <div class="flex items-center gap-2 bg-blue-50 rounded-full px-3 py-2.5 border border-blue-200 transition-all hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-400 focus-within:bg-white">
+              <InformationCircleIcon class="w-4 h-4 text-blue-600 flex-shrink-0" title="Information" />
+              <input
+                type="text"
+                :value="sequence.information ?? ''"
+                @blur="(e) => updateField('information', e.target.value, sequence.id)"
+                @keyup.enter="(e) => e.target.blur()"
+                placeholder="Information : Éléments narratifs clés..."
+                class="flex-1 bg-transparent text-sm text-gray-800 placeholder-blue-400 focus:outline-none"
+              />
+            </div>
+          </div>
+
           <div v-html="sequence.description" class="text-gray-500 organizational-text"></div>
-          
-          <SceneList 
-            :scenes="sequence.scenes" 
+
+          <SceneList
+            :scenes="sequence.scenes"
             :projectId="projectId"
             :sequenceId="sequence.id"
           />
         </div>
 
-        <div>
-
+        <div class="w-1/4">
           <!-- Critères - Seront analysés automatiquement par l'IA -->
-          <div v-for="criteria in metadataStore.criterias" :key="criteria.id">
-            {{ criteria.name }}
+          <div v-for="criteria in metadataStore.criterias" :key="criteria.id" class="mb-3">
+            <div class="text-sm font-semibold text-gray-700 mb-1">{{ criteria.name }}</div>
             <RatingStars
                 :rating="getCriteriaRating(sequence, criteria.id)"
                 :sequenceId="sequence.id"
@@ -439,7 +448,6 @@ const updateRating = async (ratingData) => {
                 @rate="updateRating"
             />
           </div>
-
         </div>
       </div>
     </li>
