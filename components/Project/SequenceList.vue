@@ -16,6 +16,7 @@ import { ArrowUpIcon, ArrowDownIcon, PencilIcon } from '@heroicons/vue/24/outlin
 import { useProjectStore } from "~/store/project";
 import { useMetadataStore } from "~/store/metadata";
 import { usePersonnageStore } from "~/store/personnage";
+import { useAuthStore } from "~/store/auth";
 
 const projectStore = useProjectStore();
 const metadataStore = useMetadataStore();
@@ -242,9 +243,32 @@ const getCriteriaRating = (sequence, criteriaId) => {
   return sequenceCriteria?.rating || 0;
 };
 
-// Fonction vide pour éviter les erreurs (les clics sont désactivés dans RatingStars)
-const updateRating = () => {
-  // Désactivé - sera géré par l'IA automatiquement
+// Fonction pour mettre à jour le rating d'un critère
+const updateRating = async (ratingData) => {
+  const config = useRuntimeConfig();
+  const authStore = useAuthStore();
+
+  try {
+    await $fetch(`${config.public.apiBase}/criteria/update`, {
+      method: 'POST',
+      headers: {
+        'X-AUTH-TOKEN': authStore.token || '',
+        'Content-Type': 'application/json'
+      },
+      body: {
+        sequenceId: ratingData.sequenceId,
+        criteriaId: ratingData.criteriaId,
+        value: ratingData.value
+      }
+    });
+
+    // Recharger le projet pour avoir les données à jour
+    if (projectStore.project?.slug) {
+      await projectStore.fetchProject(projectStore.project.slug);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du rating:', error);
+  }
 };
 
 
