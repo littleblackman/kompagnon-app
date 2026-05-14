@@ -1,16 +1,4 @@
 <script setup>
-useHead({
-  title: 'Kompagnon App - Écrivez vos projets',
-  meta: [
-    { name: 'description', content: 'Application Kompagnon pour gérer efficacement vos projets d’écriture' },
-    { charset: 'utf-8' },
-    { name: 'viewport', content: 'width=device-width, initial-scale=1' }
-  ],
-  link: [
-    { rel: 'icon', type: 'image/png', href: '/logo-kpgn.png' }
-  ]
-})
-
 import { useAuthStore } from '~/store/auth'
 import { useAnalyticsStore } from '~/store/analytics'
 import { useUserStore } from '~/store/user'
@@ -22,40 +10,50 @@ const auth = useAuthStore()
 const analyticsStore = useAnalyticsStore()
 const userStore = useUserStore()
 
-// État du menu (ouvert/fermé)
 const isMenuOpen = ref(false)
-// État de la modal profil
 const isProfileModalOpen = ref(false)
+const isDev = ref(true)
 
-// Toggle du menu
+const devFavicon = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232563EB'/><text x='16' y='23' font-family='system-ui,sans-serif' font-size='19' font-weight='bold' text-anchor='middle' fill='white'>K</text></svg>"
+
+useHead(computed(() => ({
+  title: isDev.value ? '[DEV] Kompagnon' : 'Kompagnon App - Écrivez vos projets',
+  meta: [
+    { name: 'description', content: "Application Kompagnon pour gérer efficacement vos projets d'écriture" },
+    { charset: 'utf-8' },
+    { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+  ],
+  link: [
+    { rel: 'icon', type: isDev.value ? 'image/svg+xml' : 'image/png', href: isDev.value ? devFavicon : '/logo-kpgn.png' }
+  ]
+})))
+
 const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value
 }
 
-// Ouvrir/fermer modal profil
 const openProfileModal = () => {
   isProfileModalOpen.value = true
-  isMenuOpen.value = false // Fermer le menu latéral
+  isMenuOpen.value = false
 }
 
 const closeProfileModal = () => {
   isProfileModalOpen.value = false
 }
 
-// Charger les projets et le profil pour le menu
 onMounted(async () => {
+  isDev.value = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+
   if (auth.token) {
     await analyticsStore.refreshIfNeeded()
     await userStore.fetchProfile()
   }
 })
 
-// Limiter à 3 projets récents dans le menu
-const recentProjects = computed(() => 
+const recentProjects = computed(() =>
   analyticsStore.projectStatistics.slice(0, 3)
 )
 
-// Construire l'URL complète de l'avatar
 const avatarUrl = computed(() => {
   if (!userStore.profile?.avatar) return null;
   const config = useRuntimeConfig();
@@ -72,7 +70,7 @@ const avatarUrl = computed(() => {
       <!-- Sidebar fermé (icônes seulement) -->
       <div class="sidebar-collapsed">
         <!-- Bouton toggle -->
-        <button 
+        <button
           @click="toggleMenu"
           class="sidebar-toggle"
           :title="isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'"
@@ -83,15 +81,15 @@ const avatarUrl = computed(() => {
 
         <!-- Logo compact -->
         <div class="sidebar-logo">
-          <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center" :style="isDev ? 'background:#2563EB' : 'background:linear-gradient(135deg,#fbbf24,#d97706)'">
             <span class="text-white font-bold text-lg">K</span>
           </div>
         </div>
 
         <!-- Navigation icônes -->
         <nav class="sidebar-nav">
-          <NuxtLink 
-            to="/" 
+          <NuxtLink
+            to="/"
             class="sidebar-icon"
             :class="{ 'sidebar-icon-active': $route.path === '/' }"
             title="Tableau de bord"
@@ -99,8 +97,8 @@ const avatarUrl = computed(() => {
             <HomeIcon class="w-5 h-5" />
           </NuxtLink>
 
-          <NuxtLink 
-            to="/projets/tous" 
+          <NuxtLink
+            to="/projets/tous"
             class="sidebar-icon"
             :class="{ 'sidebar-icon-active': $route.path === '/projets/tous' }"
             title="Tous les projets"
@@ -108,8 +106,8 @@ const avatarUrl = computed(() => {
             <FolderIcon class="w-5 h-5" />
           </NuxtLink>
 
-          <NuxtLink 
-            to="/projets/creer" 
+          <NuxtLink
+            to="/projets/creer"
             class="sidebar-icon"
             :class="{ 'sidebar-icon-active': $route.path === '/projets/creer' }"
             title="Nouveau projet"
@@ -142,23 +140,25 @@ const avatarUrl = computed(() => {
 
       <!-- Sidebar étendu (avec texte) -->
       <div v-if="isMenuOpen" class="sidebar-expanded-content">
-        <!-- Header -->
+        <!-- Header sidebar -->
         <div class="p-6 border-b border-gray-100">
           <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center" :style="isDev ? 'background:#2563EB' : 'background:linear-gradient(135deg,#fbbf24,#d97706)'">
               <span class="text-white font-bold text-lg">K</span>
             </div>
             <div>
               <h2 class="text-lg font-semibold text-gray-900">Kompagnon</h2>
-              <p class="text-sm text-gray-500">Assistant créatif</p>
+              <p class="text-sm" :style="isDev ? 'color:#2563EB;font-weight:600' : 'color:#6b7280'">
+                {{ isDev ? 'localhost' : 'Assistant créatif' }}
+              </p>
             </div>
           </div>
         </div>
 
         <!-- Navigation avec texte -->
         <nav class="p-4 space-y-2">
-          <NuxtLink 
-            to="/" 
+          <NuxtLink
+            to="/"
             class="nav-item"
             :class="{ 'nav-item-active': $route.path === '/' }"
             @click="isMenuOpen = false"
@@ -167,8 +167,8 @@ const avatarUrl = computed(() => {
             <span>Tableau de bord</span>
           </NuxtLink>
 
-          <NuxtLink 
-            to="/projets/tous" 
+          <NuxtLink
+            to="/projets/tous"
             class="nav-item"
             :class="{ 'nav-item-active': $route.path === '/projets/tous' }"
             @click="isMenuOpen = false"
@@ -256,29 +256,30 @@ const avatarUrl = computed(() => {
     <main class="flex-1 flex flex-col overflow-auto bg-light text-color">
 
       <!-- Header -->
-      <header class="header bg-cta flex justify-between items-center">
-        <h1 class="font-bold text-2xl text-left">
-          <NuxtLink to="/">Kompagnon</NuxtLink>
+      <header class="header bg-cta flex justify-between items-center" :style="isDev ? 'background:#2563EB' : ''">
+        <h1 class="font-bold text-2xl text-left flex items-center gap-3">
+          <NuxtLink to="/" :style="isDev ? 'color:white' : ''">Kompagnon</NuxtLink>
+          <span v-if="isDev" style="font-size:0.7rem;font-weight:700;background:#1e40af;color:#dbeafe;padding:2px 8px;border-radius:999px;letter-spacing:0.05em;text-transform:uppercase">localhost</span>
         </h1>
-        
+
         <!-- Avatar + nom en haut à droite -->
         <div v-if="auth.user" class="flex items-center space-x-3">
           <div class="text-right">
-            <p class="text-sm font-medium text-gray-900">
+            <p class="text-sm font-medium" :style="isDev ? 'color:white' : 'color:#111827'">
               {{ userStore.displayName }}
             </p>
-            <p class="text-xs text-gray-600">
+            <p class="text-xs" :style="isDev ? 'color:#bfdbfe' : 'color:#4b5563'">
               {{ userStore.profile?.email }}
             </p>
           </div>
-          <button 
+          <button
             @click="openProfileModal"
             class="w-10 h-10 rounded-full overflow-hidden bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition-colors"
             :title="userStore.displayName"
           >
-            <img 
-              v-if="avatarUrl" 
-              :src="avatarUrl" 
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
               :alt="userStore.displayName"
               class="w-full h-full object-cover"
             >
@@ -295,9 +296,9 @@ const avatarUrl = computed(() => {
     </main>
 
     <!-- Modal de profil -->
-    <ProfileModal 
-      :is-open="isProfileModalOpen" 
-      @close="closeProfileModal" 
+    <ProfileModal
+      :is-open="isProfileModalOpen"
+      @close="closeProfileModal"
     />
 
   </div>
