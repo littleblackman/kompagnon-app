@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import RichTextEditor from "@/components/RichTextEditor.vue";
-import PersonnageDetectionModal from "@/components/Project/PersonnageDetectionModal.vue";
 import { useProjectStore } from "~/store/project";
 import { usePersonnageStore } from "~/store/personnage";
 import { PropType } from 'vue';
@@ -146,19 +145,11 @@ const handleSave = async () => {
   try {
     const savedScene = await projectStore.saveScene(sceneData.value, props.sequenceId);
     if (savedScene) {
+      // Mettre à jour l'id local (crucial pour les nouvelles scènes)
+      sceneData.value.id = savedScene.id;
+      if (currentScene.value) currentScene.value.id = savedScene.id;
+      saveStatus.value = 'saved';
       emit('save', savedScene);
-      
-      // Détecter les personnages dans le contenu après sauvegarde
-      if (currentScene.value?.content) {
-        console.log('Détection personnages pour:', currentScene.value.content.substring(0, 100));
-        console.log('Personnages disponibles:', personnageStore.personnages.length);
-        await personnageStore.detectAndSuggestCharacters(currentScene.value.content, props.sequenceId);
-      }
-      
-      // Ne fermer que si pas de modal de détection
-      if (!personnageStore.showDetectionModal) {
-        emit('close');
-      }
     }
   } catch (error) {
     console.error('Erreur lors de la sauvegarde de la scène:', error);
@@ -180,20 +171,10 @@ const handleDelete = async () => {
 const autoSave = async () => {
   if (currentScene.value && sceneData.value.id) {
     try {
-      // Synchroniser UNIQUEMENT le contenu avec la position actuelle (sans la changer)
       sceneData.value.name = currentScene.value.name;
       sceneData.value.description = currentScene.value.description;
       sceneData.value.content = currentScene.value.content;
-      // position reste inchangée
-      
-      // Sauvegarde SANS afterSceneId pour ne PAS changer la position
       await projectStore.saveScene(sceneData.value, props.sequenceId);
-      
-      // Détecter les personnages après auto-save
-      if (currentScene.value?.content) {
-        console.log('Auto-save détection pour:', currentScene.value.content.substring(0, 100));
-        await personnageStore.detectAndSuggestCharacters(currentScene.value.content, props.sequenceId);
-      }
     } catch (error) {
       console.error('Erreur lors de l\'auto-save:', error);
     }
@@ -313,18 +294,29 @@ watch(() => currentScene.value, () => {
   }
 }, { deep: true });
 
+const handleKeydown = (e: KeyboardEvent) => {
+  // Alt+ArrowLeft → scène précédente
+  if (e.altKey && e.key === 'ArrowLeft') {
+    e.preventDefault();
+    goToPreviousScene();
+  }
+  // Alt+ArrowRight → scène suivante
+  if (e.altKey && e.key === 'ArrowRight') {
+    e.preventDefault();
+    goToNextScene();
+  }
+};
+
 // Lifecycle hooks
 onMounted(() => {
-  loadFromLocalStorage(); // Charger le draft au montage
+  loadFromLocalStorage();
 
-  // Auto-save périodique toutes les 30 secondes
   autoSaveInterval = setInterval(() => {
     if (saveStatus.value === 'unsaved' && currentScene.value?.id) {
       debouncedAutoSave();
     }
   }, 30000);
 
-  // Sauvegarder avant de quitter la page
   const beforeUnload = (e: BeforeUnloadEvent) => {
     if (saveStatus.value === 'unsaved') {
       e.preventDefault();
@@ -332,6 +324,7 @@ onMounted(() => {
     }
   };
   window.addEventListener('beforeunload', beforeUnload);
+  window.addEventListener('keydown', handleKeydown);
 });
 
 onUnmounted(() => {
@@ -341,26 +334,30 @@ onUnmounted(() => {
   if (saveTimeout) {
     clearTimeout(saveTimeout);
   }
+  window.removeEventListener('keydown', handleKeydown);
 });
 
-const closeModal = () => {
+const closeModal = async () => {
   if (saveStatus.value === 'unsaved') {
-    if (confirm('Vous avez des modifications non sauvegardées. Voulez-vous vraiment fermer ?')) {
-      clearLocalStorage();
-      emit('close');
+    if (!confirm('Vous avez des modifications non sauvegardées. Voulez-vous vraiment fermer ?')) {
+      return;
     }
-  } else {
-    clearLocalStorage();
-    emit('close');
   }
+  clearLocalStorage();
+  // Déclencher la détection à la fermeture de la modale
+  if (currentScene.value?.content) {
+    await personnageStore.detectAndSuggestCharacters(
+      currentScene.value.content,
+      props.sequenceId,
+      currentScene.value.id || undefined
+    );
+  }
+  emit('close');
 };
 </script>
 
 <template>
   <div>
-  <!-- Modal de détection de personnages -->
-  <PersonnageDetectionModal />
-  
   <div v-if="currentScene" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white rounded-lg w-[90%] max-w-7xl h-[95vh] flex flex-col">
       <!-- Header -->

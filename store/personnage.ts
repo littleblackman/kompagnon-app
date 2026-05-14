@@ -19,13 +19,14 @@ export const usePersonnageStore = defineStore('personnage', {
     state: () => ({
         personnages: [] as Personnage[],
         detectionConfig: {
-            maxDistance: 3,
-            minLength: 3,
-            minConfidence: 0.6  // Confiance minimum 60%
+            maxDistance: 1,
+            minLength: 4,
+            minConfidence: 0.8
         } as CharacterDetectionConfig,
         detectedCharacters: [] as DetectedCharacter[],
         showDetectionModal: false,
-        currentSequenceId: null as number | null
+        currentSequenceId: null as number | null,
+        currentSceneId: null as number | null
     }),
 
     getters: {
@@ -77,31 +78,19 @@ export const usePersonnageStore = defineStore('personnage', {
 
         // Analyser le contenu pour détecter les personnages
         analyzeContent(content: string): DetectedCharacter[] {
-            console.log('analyzeContent called with content length:', content.length);
-            console.log('Available personnages from store:', this.personnages.map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName })));
-            
-            if (!content || this.personnages.length === 0) {
-                console.log('No content or no personnages available');
-                return [];
-            }
+            if (!content || this.personnages.length === 0) return [];
 
-            // Convertir en minuscules et nettoyer le HTML
             const cleanContent = content.toLowerCase()
-                .replace(/<[^>]*>/g, ' ') // Supprimer les balises HTML
-                .replace(/[^\w\s]/g, ' ') // Supprimer la ponctuation
-                .replace(/\s+/g, ' ')     // Normaliser les espaces
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/[^\w\s]/g, ' ')
+                .replace(/\s+/g, ' ')
                 .trim();
 
-            console.log('Clean content:', cleanContent.substring(0, 200));
-
-            // Extraire les mots uniques de longueur suffisante
             const words = [...new Set(
-                cleanContent.split(' ').filter(word => 
+                cleanContent.split(' ').filter(word =>
                     word.length >= this.detectionConfig.minLength
                 )
             )];
-
-            console.log('Words to analyze:', words);
 
             const detected: DetectedCharacter[] = [];
 
@@ -113,52 +102,33 @@ export const usePersonnageStore = defineStore('personnage', {
                     
                     console.log(`Comparing word "${word}" with ${firstName}/${lastName}`);
                     
-                    // Vérifier correspondance avec prénom
                     if (firstName && this.isMatch(word, firstName)) {
                         const distance = this.levenshteinDistance(word, firstName);
                         const confidence = 1 - (distance / Math.max(word.length, firstName.length));
-                        
-                        console.log(`Match found: ${word} -> ${firstName} (distance: ${distance}, confidence: ${confidence})`);
-                        
-                        detected.push({
-                            name: word,
-                            personnage,
-                            isExisting: true,
-                            confidence
-                        });
+                        detected.push({ name: word, personnage, isExisting: true, confidence });
                     }
-                    
-                    // Vérifier correspondance avec nom de famille
+
                     if (lastName && this.isMatch(word, lastName)) {
                         const distance = this.levenshteinDistance(word, lastName);
                         const confidence = 1 - (distance / Math.max(word.length, lastName.length));
-                        
-                        console.log(`Match found: ${word} -> ${lastName} (distance: ${distance}, confidence: ${confidence})`);
-                        
-                        detected.push({
-                            name: word,
-                            personnage,
-                            isExisting: true,
-                            confidence
-                        });
+                        detected.push({ name: word, personnage, isExisting: true, confidence });
                     }
                 }
             }
 
-            console.log('All detected before filtering:', detected);
 
-            // Supprimer les doublons, filtrer par confiance et trier
-            const uniqueDetected = detected
-                .filter(item => item.confidence >= this.detectionConfig.minConfidence) // Filtrer par confiance
-                .filter((item, index, self) => 
-                    index === self.findIndex(t => 
-                        t.personnage?.id === item.personnage?.id && t.name === item.name
-                    )
-                )
-                .sort((a, b) => b.confidence - a.confidence);
+            // Filtrer par confiance, dédupliquer par personnage (meilleur match uniquement), trier
+            const byPersonnage = new Map<number, DetectedCharacter>();
+            for (const item of detected) {
+                if (item.confidence < this.detectionConfig.minConfidence) continue;
+                const id = item.personnage?.id ?? -1;
+                const existing = byPersonnage.get(id);
+                if (!existing || item.confidence > existing.confidence) {
+                    byPersonnage.set(id, item);
+                }
+            }
 
-            console.log('Final unique detected:', uniqueDetected);
-            return uniqueDetected;
+            return [...byPersonnage.values()].sort((a, b) => b.confidence - a.confidence);
         },
 
         // Vérifier si deux mots correspondent selon les critères
@@ -168,19 +138,20 @@ export const usePersonnageStore = defineStore('personnage', {
         },
 
         // Analyser et proposer l'ajout de personnages
-        async detectAndSuggestCharacters(content: string, sequenceId: number) {
-            console.log('detectAndSuggestCharacters called with:', { content: content.substring(0, 100), sequenceId, personnagesCount: this.personnages.length });
-            
-            const detected = this.analyzeContent(content);
-            console.log('Detected characters:', detected);
-            
+        async detectAndSuggestCharacters(content: string, sequenceId: number, sceneId?: number) {
+            const ignoredKey = sceneId ? `kpgn_ignored_scene_${sceneId}` : null;
+            const ignoredIds: number[] = ignoredKey
+                ? JSON.parse(localStorage.getItem(ignoredKey) || '[]')
+                : [];
+
+            const detected = this.analyzeContent(content)
+                .filter(d => !ignoredIds.includes(d.personnage?.id ?? -1));
+
             if (detected.length > 0) {
                 this.detectedCharacters = detected;
                 this.currentSequenceId = sequenceId;
+                this.currentSceneId = sceneId ?? null;
                 this.showDetectionModal = true;
-                console.log('Modal should be shown now');
-            } else {
-                console.log('No characters detected');
             }
         },
 
@@ -189,6 +160,23 @@ export const usePersonnageStore = defineStore('personnage', {
             this.showDetectionModal = false;
             this.detectedCharacters = [];
             this.currentSequenceId = null;
+            this.currentSceneId = null;
+        },
+
+        // Ignorer ce personnage pour cette scène uniquement
+        ignorePersonnageAlways(personnageId: number) {
+            if (this.currentSceneId) {
+                const key = `kpgn_ignored_scene_${this.currentSceneId}`;
+                const current: number[] = JSON.parse(localStorage.getItem(key) || '[]');
+                if (!current.includes(personnageId)) {
+                    current.push(personnageId);
+                    localStorage.setItem(key, JSON.stringify(current));
+                }
+            }
+            this.detectedCharacters = this.detectedCharacters.filter(d => d.personnage?.id !== personnageId);
+            if (this.detectedCharacters.length === 0) {
+                this.closeDetectionModal();
+            }
         },
 
         // Ajouter un personnage à une séquence

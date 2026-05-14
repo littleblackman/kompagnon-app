@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue';
 import SceneModal from '~/components/Project/SceneModal.vue';
+import PersonnageDetectionModal from '~/components/Project/PersonnageDetectionModal.vue';
 import { useProjectStore } from "~/store/project";
 import { PropType } from 'vue';
 import { TrashIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, DocumentDuplicateIcon, PencilIcon } from '@heroicons/vue/24/outline';
@@ -76,7 +77,6 @@ const openSceneModal = (scene = null) => {
 const handleSaveScene = async (scene) => {
   try {
     await projectStore.saveScene(scene, props.sequenceId, afterSceneId.value);
-    sceneModalOpen.value = false;
   } catch (error) {
     console.error("Erreur lors de la sauvegarde :", error);
   }
@@ -173,6 +173,8 @@ const vHtml = {
 
 <template>
   <div>
+    <PersonnageDetectionModal />
+
     <SceneModal
       v-if="sceneModalOpen"
       :scene="currentScene"
