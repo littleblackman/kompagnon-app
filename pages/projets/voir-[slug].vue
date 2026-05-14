@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '~/store/auth';
 import { useProjectStore } from '~/store/project';
+import { useUserStore } from '~/store/user';
 import { onMounted, computed, ref, watch, nextTick } from "vue";
 import { PencilIcon } from '@heroicons/vue/24/solid';
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
@@ -11,6 +12,7 @@ const auth = useAuthStore();
 auth.requireAuth();
 
 const projectStore = useProjectStore();
+const userStore   = useUserStore();
 const route = useRoute();
 const slug = route.params.slug as string;
 
@@ -64,12 +66,20 @@ function htmlToParas(html: string): string[] {
 }
 
 type Block =
+  | { kind: 'cover'; title: string; author: string }
   | { kind: 'title'; cls: 'bp-part' | 'bp-seq' | 'bp-scene'; text: string }
   | { kind: 'para';  html: string }
 
 const allBlocks = computed((): Block[] => {
   if (!projectStore.parts) return [];
   const blocks: Block[] = [];
+
+  // Page de garde
+  blocks.push({
+    kind: 'cover',
+    title:  projectStore.project?.name ?? '',
+    author: userStore.displayName ?? '',
+  });
 
   for (const part of projectStore.parts) {
     if (showTitles.value.h2)
@@ -103,7 +113,7 @@ const BLOCK_STYLES: Record<string, string> = {
   'para':     'display:block;margin:0 0 0.6em 0;text-align:justify;font-family:Georgia,serif;font-size:16px;line-height:1.75',
 };
 
-function makeBlockEl(block: Block): HTMLElement {
+function makeBlockEl(block: Exclude<Block, { kind: 'cover' }>): HTMLElement {
   const el = document.createElement('div');
   if (block.kind === 'title') {
     el.style.cssText = BLOCK_STYLES[block.cls];
@@ -128,7 +138,7 @@ function paginate() {
     return;
   }
   const fmt = currentFormat.value;
-  const pageNumberZone = 56; // espace réservé au numéro de page
+  const pageNumberZone = 56;
   const contentW = fmt.widthPx  - fmt.padH * 2;
   const contentH = fmt.heightPx - fmt.padV - Math.round(fmt.padV * 0.75) - pageNumberZone;
 
@@ -140,31 +150,42 @@ function paginate() {
   const pages: Block[][] = [];
   let currentPage: Block[] = [];
 
+  const flushPage = () => {
+    if (currentPage.length > 0) { pages.push(currentPage); currentPage = []; box.innerHTML = ''; }
+  };
+
   for (const block of allBlocks.value) {
+    // Cover → page seule, jamais mesurée
+    if (block.kind === 'cover') {
+      flushPage();
+      pages.push([block]);
+      continue;
+    }
+
+    // Partie → toujours nouvelle page
+    if (block.kind === 'title' && block.cls === 'bp-part') {
+      flushPage();
+      const el = makeBlockEl(block);
+      box.appendChild(el);
+      currentPage.push(block);
+      continue;
+    }
+
+    // Bloc normal : mesure de débordement
     const el = makeBlockEl(block);
     box.appendChild(el);
 
     if (box.scrollHeight > box.clientHeight) {
-      // Ce bloc cause un débordement → on le retire et on clôt la page courante
       box.removeChild(el);
-
-      if (currentPage.length > 0) {
-        pages.push(currentPage);
-        currentPage = [];
-        box.innerHTML = '';
-      }
-
-      // On place ce bloc en tête de la nouvelle page
+      flushPage();
       box.appendChild(el);
       currentPage.push(block);
-
-      // Si même seul il déborde (bloc trop long), on l'accepte quand même
     } else {
       currentPage.push(block);
     }
   }
 
-  if (currentPage.length > 0) pages.push(currentPage);
+  flushPage();
   box.innerHTML = '';
   bookPages.value = pages;
 }
@@ -195,6 +216,127 @@ watch([showOrganizational, showPrintable, showTitles, numberParts, viewMode, pag
   });
   updateStats();
 }, { deep: true });
+
+// ── Helpers ───────────────────────────────────────────────────────────
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Export PDF — fenêtre propre, auto-print ───────────────────────────
+async function exportPdf() {
+  if (viewMode.value !== 'book') {
+    viewMode.value = 'book';
+    await nextTick();
+    await new Promise(r => setTimeout(r, 600));
+  }
+
+  const fmt = currentFormat.value;
+  const name = escapeHtml(project.value?.name ?? 'Export');
+
+  const pagesHtml = bookPages.value.map((page) => {
+    const isCover = page[0]?.kind === 'cover';
+    const isPart  = page[0]?.kind === 'title' && (page[0] as any).cls === 'bp-part';
+    const inner   = page.map(block => {
+      if (block.kind === 'cover')
+        return `<div class="cover-title">${escapeHtml(block.title)}</div>`
+             + `<div class="cover-author">${escapeHtml(block.author)}</div>`;
+      if (block.kind === 'title')
+        return `<div class="${block.cls}">${escapeHtml(block.text)}</div>`;
+      return `<div class="bp-para">${block.html}</div>`;
+    }).join('');
+    const cls = ['page', isCover && 'page-cover', isPart && 'page-part'].filter(Boolean).join(' ');
+    return `<div class="${cls}">${inner}<div class="pnum"></div></div>`;
+  }).join('');
+
+  const win = window.open('', '_blank');
+  if (!win) return;
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${name}</title>
+<style>
+@page{size:${pageFormat.value} portrait;margin:0}
+*{box-sizing:border-box}
+body{background:#555;margin:0;padding:32px;font-family:Georgia,serif}
+.page{background:#fff;width:${fmt.widthPx}px;min-height:${fmt.heightPx}px;
+  padding:${fmt.padV}px ${fmt.padH}px ${Math.round(fmt.padV*.75)}px;
+  margin:0 auto 40px;font-size:16px;line-height:1.75;display:flex;flex-direction:column}
+.page-cover{justify-content:center;align-items:center}
+.cover-title{font-size:2.4em;font-weight:bold;text-align:center;margin-bottom:.8em}
+.cover-author{font-size:1.15em;font-style:italic;text-align:center;color:#555}
+.bp-part{font-size:1.6em;font-weight:bold;text-align:center;text-transform:uppercase;
+  letter-spacing:.25em;padding-bottom:.5em;border-bottom:2px solid #222;margin-bottom:1.5em}
+.bp-seq{font-size:1.05em;font-weight:bold;font-style:italic;text-align:center;margin:1em 0 .5em}
+.bp-scene{font-size:.9em;font-style:italic;text-align:center;color:#666;margin:.8em 0 .4em}
+.bp-para{flex:1}.bp-para p{margin:0 0 .5em;text-align:justify}
+.pnum{text-align:center;font-size:13px;color:#999;letter-spacing:.15em;margin-top:auto;padding-top:20px}
+@media print{
+  body{background:#fff;padding:0}
+  .page{margin:0;page-break-after:always;width:100%!important;min-height:100vh!important}
+  .page:last-child{page-break-after:auto}
+}
+</style></head><body>${pagesHtml}
+<script>window.onload=()=>window.print()<\/script></body></html>`);
+  win.document.close();
+}
+
+// ── Export DOC (HTML Word-compatible) ────────────────────────────────
+function downloadDoc() {
+  const title = project.value?.name ?? 'Document';
+  let body = '';
+
+  for (const block of allBlocks.value) {
+    if (block.kind === 'cover') {
+      body += `<div style="height:40%;display:flex;flex-direction:column;justify-content:center;align-items:center">
+        <h1 style="text-align:center;font-size:32pt;margin:0 0 20pt">${escapeHtml(block.title)}</h1>
+        ${block.author ? `<p style="text-align:center;font-size:14pt;font-style:italic">${escapeHtml(block.author)}</p>` : ''}
+      </div>`;
+    } else if (block.kind === 'title') {
+      if (block.cls === 'bp-part') {
+        body += `<h1 style="page-break-before:always;text-align:center;font-size:22pt;font-weight:bold;
+          text-transform:uppercase;letter-spacing:3pt;padding-bottom:6pt;
+          border-bottom:2pt solid #222;margin:0 0 18pt">${escapeHtml(block.text)}</h1>`;
+      } else if (block.cls === 'bp-seq') {
+        body += `<h2 style="text-align:center;font-size:16pt;font-style:italic;margin:14pt 0 6pt">${escapeHtml(block.text)}</h2>`;
+      } else {
+        body += `<h3 style="text-align:center;font-size:13pt;font-style:italic;color:#555;margin:10pt 0 4pt">${escapeHtml(block.text)}</h3>`;
+      }
+    } else {
+      // HTML natif TinyMCE — formatage préservé intégralement
+      body += block.html;
+    }
+  }
+
+  const html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<meta name="ProgId" content="Word.Document">
+<title>${escapeHtml(title)}</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View>
+<w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->
+<style>
+  @page WordSection1 { size:21cm 29.7cm; margin:2.54cm; }
+  div.WordSection1 { page:WordSection1; }
+  body { font-family:"Times New Roman",serif; font-size:12pt; line-height:1.5; color:#000; }
+  p { margin:0 0 6pt; text-align:justify; }
+  h1,h2,h3 { font-family:"Times New Roman",serif; }
+</style>
+</head>
+<body>
+<div class="WordSection1">
+${body}
+</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${title}.doc`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 </script>
 
 <template>
@@ -318,6 +460,24 @@ watch([showOrganizational, showPrintable, showTitles, numberParts, viewMode, pag
                   {{ bookPages.length }} page{{ bookPages.length > 1 ? 's' : '' }}
                 </span>
               </template>
+
+              <!-- Exports -->
+              <div class="flex items-center gap-2 ml-auto">
+                <button
+                  @click="exportPdf"
+                  class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
+                  title="Exporter en PDF (impression)"
+                >
+                  🖨 PDF
+                </button>
+                <button
+                  @click="downloadDoc"
+                  class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                  title="Exporter en Word / Google Docs (.doc)"
+                >
+                  📝 Word
+                </button>
+              </div>
             </div>
           </div>
 
@@ -351,12 +511,23 @@ watch([showOrganizational, showPrintable, showTitles, numberParts, viewMode, pag
             <div
               v-for="(page, pageIndex) in bookPages"
               :key="pageIndex"
-              class="book-page"
+              :class="[
+                'book-page',
+                page[0]?.kind === 'cover'                              && 'book-page--cover',
+                page[0]?.kind === 'title' && page[0]?.cls === 'bp-part' && 'book-page--part',
+              ]"
               :style="`width:${currentFormat.widthPx}px; min-height:${currentFormat.heightPx}px; padding:${currentFormat.padV}px ${currentFormat.padH}px ${Math.round(currentFormat.padV * 0.75)}px`"
             >
               <div class="book-page-content">
                 <template v-for="(block, i) in page" :key="i">
-                  <div v-if="block.kind === 'title'" :class="block.cls">{{ block.text }}</div>
+                  <!-- Page de garde -->
+                  <template v-if="block.kind === 'cover'">
+                    <div class="bp-cover-title">{{ block.title }}</div>
+                    <div class="bp-cover-author">{{ block.author }}</div>
+                  </template>
+                  <!-- Titres -->
+                  <div v-else-if="block.kind === 'title'" :class="block.cls">{{ block.text }}</div>
+                  <!-- Contenu HTML -->
                   <div v-else v-html="block.html" class="bp-para"></div>
                 </template>
               </div>
@@ -446,14 +617,50 @@ watch([showOrganizational, showPrintable, showTitles, numberParts, viewMode, pag
   letter-spacing: 0.05em;
 }
 
-/* Paragraphes riches (bold, italic, etc. préservés) */
-:deep(.bp-para) {
-  margin: 0 0 0.6em 0;
-  text-align: justify;
+/* Paragraphes riches */
+:deep(.bp-para) { margin: 0 0 0.6em 0; text-align: justify; }
+:deep(.bp-para p) { margin: 0; text-align: justify; }
+
+/* ── Page de garde ── */
+.book-page--cover {
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
-:deep(.bp-para p) {
-  margin: 0;
-  text-align: justify;
+.book-page--cover .book-page-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  text-align: center;
+}
+.bp-cover-title {
+  font-family: 'Georgia', serif;
+  font-size: 2.4em;
+  font-weight: bold;
+  line-height: 1.2;
+  color: #111;
+  margin-bottom: 1.2em;
+  text-align: center;
+}
+.bp-cover-author {
+  font-family: 'Georgia', serif;
+  font-size: 1.15em;
+  font-style: italic;
+  color: #555;
+  text-align: center;
+}
+
+/* ── Page de partie (style2) ── */
+.book-page--part .bp-part {
+  font-size: 1.6em;
+  margin-top: 0;
+  padding-bottom: 0.6em;
+  border-bottom: 2px solid #222;
+  margin-bottom: 1.8em;
+  letter-spacing: 0.25em;
 }
 
 .book-page-number {
@@ -463,5 +670,42 @@ watch([showOrganizational, showPrintable, showTitles, numberParts, viewMode, pag
   margin-top: 32px;
   letter-spacing: 0.15em;
   font-family: 'Georgia', serif;
+}
+</style>
+
+<!-- CSS print global (non-scopé pour atteindre le layout parent) -->
+<style>
+@media print {
+  @page { size: A4 portrait; margin: 0; }
+
+  /* Cache tout le chrome de l'appli */
+  aside, header, nav,
+  .sidebar-container, .header,
+  [class*="submenu"], [class*="SubMenu"] { display: none !important; }
+
+  main { padding: 0 !important; overflow: visible !important; }
+
+  .book-reader {
+    background: transparent !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  /* Chaque page → saut imprimante, taille A4 forcée */
+  .book-page {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    page-break-after: always;
+    break-after: page;
+  }
+  .book-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .book-page-number { color: #6b7280; }
 }
 </style>
