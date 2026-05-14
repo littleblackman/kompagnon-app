@@ -252,19 +252,38 @@ const avatarUrl = computed(() => {
       </div>
     </aside>
 
+    <!-- Backdrop tablette/mobile -->
+    <div
+      v-if="isMenuOpen"
+      class="lg:hidden fixed inset-0 z-[99]"
+      style="background:rgba(0,0,0,0.45)"
+      @click="isMenuOpen = false"
+    />
+
     <!-- Main -->
     <main class="flex-1 flex flex-col overflow-auto bg-light text-color">
 
       <!-- Header -->
       <header class="header bg-cta flex justify-between items-center" :style="isDev ? 'background:#2563EB' : ''">
-        <h1 class="font-bold text-2xl text-left flex items-center gap-3">
-          <NuxtLink to="/" :style="isDev ? 'color:white' : ''">Kompagnon</NuxtLink>
-          <span v-if="isDev" style="font-size:0.7rem;font-weight:700;background:#1e40af;color:#dbeafe;padding:2px 8px;border-radius:999px;letter-spacing:0.05em;text-transform:uppercase">localhost</span>
-        </h1>
+        <div class="flex items-center gap-3">
+          <!-- Hamburger tablette/mobile -->
+          <button
+            @click="toggleMenu"
+            class="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg transition-colors"
+            :style="isDev ? 'color:white' : 'color:#374151'"
+          >
+            <Bars3Icon v-if="!isMenuOpen" class="w-5 h-5" />
+            <XMarkIcon v-else class="w-5 h-5" />
+          </button>
+          <h1 class="font-bold text-2xl flex items-center gap-2">
+            <NuxtLink to="/" :style="isDev ? 'color:white' : ''">Kompagnon</NuxtLink>
+            <span v-if="isDev" style="font-size:0.7rem;font-weight:700;background:#1e40af;color:#dbeafe;padding:2px 8px;border-radius:999px;letter-spacing:0.05em;text-transform:uppercase">localhost</span>
+          </h1>
+        </div>
 
         <!-- Avatar + nom en haut à droite -->
-        <div v-if="auth.user" class="flex items-center space-x-3">
-          <div class="text-right">
+        <div v-if="auth.user" class="flex items-center space-x-2">
+          <div class="text-right hidden sm:block">
             <p class="text-sm font-medium" :style="isDev ? 'color:white' : 'color:#111827'">
               {{ userStore.displayName }}
             </p>

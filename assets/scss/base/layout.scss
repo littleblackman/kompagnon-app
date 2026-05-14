@@ -228,3 +228,33 @@
     transform: translateX(0);
   }
 }
+/* ── Tablette portrait + mobile (< 1024px) ───────────────────────── */
+@media (max-width: 1023px) {
+  /* Sidebar : overlay hors-écran par défaut */
+  .sidebar-container {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100% !important;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  /* Ouvert → glisse depuis la gauche */
+  .sidebar-container.sidebar-expanded {
+    transform: translateX(0) !important;
+  }
+
+  /* Barre d'icônes masquée (inutile en overlay) */
+  .sidebar-collapsed {
+    display: none !important;
+  }
+
+  /* Panneau étendu : largeur fixe, position normale dans le conteneur */
+  .sidebar-expanded-content {
+    position: relative !important;
+    left: 0 !important;
+    width: 300px;
+  }
+}

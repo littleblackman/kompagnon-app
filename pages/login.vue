@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-screen overflow-hidden">
     <!-- Colonne formulaire -->
-    <div class="w-1/2 flex flex-col items-center justify-center">
+    <div class="w-full lg:w-1/2 flex flex-col items-center justify-center px-6">
 
       <h2 class="text-2xl font-bold text-center mb-4">Connexion</h2>
       <form @submit.prevent="login">
@@ -41,8 +41,8 @@
 
     </div>
 
-    <!-- Colonne image -->
-    <div class="w-1/2 h-screen overflow-hidden">
+    <!-- Colonne image (masquée sur tablette/mobile) -->
+    <div class="hidden lg:block lg:w-1/2 h-screen overflow-hidden">
       <img src="/images/tana.jpg"
            class="w-full h-full object-cover"
            alt="Tana le Kompagnon idéal">

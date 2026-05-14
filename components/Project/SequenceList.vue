@@ -12,6 +12,7 @@ import {
   InformationCircleIcon 
 } from '@heroicons/vue/24/solid'
 import { ArrowUpIcon, ArrowDownIcon, PencilIcon } from '@heroicons/vue/24/outline'
+import { StarIcon } from '@heroicons/vue/24/solid'
 
 import { useProjectStore } from "~/store/project";
 import { useMetadataStore } from "~/store/metadata";
@@ -43,6 +44,7 @@ const currentSequence = ref(null);
 const personnageModalOpen = ref(false);
 const selectedPersonnage = ref(null);
 const showPersonnageConfig = ref(false);
+const criteriaModalSequenceId = ref<number | null>(null);
 
 
 /**** SEQUENCES & SAVE PART ****/
@@ -304,42 +306,51 @@ const updateRating = async (ratingData) => {
           </h3>
 
           <div class="flex items-center space-x-2">
-          <!-- Boutons d'action -->
-          <div class="flex items-center space-x-1">
-            <!-- Bouton Éditer -->
-            <button 
-              class="p-1 rounded text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-              @click="openSequenceModal(sequence)"
-              title="Éditer la séquence"
+            <!-- Bouton critères (étoile) -->
+            <button
+              class="relative p-1 rounded text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50"
+              @click="criteriaModalSequenceId = sequence.id"
+              title="Intensité dramatique"
             >
-              <PencilIcon class="h-4 w-4" />
+              <StarIcon class="h-5 w-5" />
+              <span
+                v-if="metadataStore.criterias?.some(c => getCriteriaRating(sequence, c.id))"
+                class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-yellow-500"
+              ></span>
             </button>
-            
-            <!-- Boutons de réorganisation -->
-            <button 
-              :disabled="sortedSequences.findIndex(s => s.id === sequence.id) === 0"
-              :class="['p-1 rounded', sortedSequences.findIndex(s => s.id === sequence.id) === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50']"
-              @click="handleMoveSequence(sequence, 'up')"
-              title="Déplacer vers le haut"
-            >
-              <ArrowUpIcon class="h-4 w-4" />
-            </button>
-            
-            <button 
-              :disabled="sortedSequences.findIndex(s => s.id === sequence.id) === sortedSequences.length - 1"
-              :class="['p-1 rounded', sortedSequences.findIndex(s => s.id === sequence.id) === sortedSequences.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50']"
-              @click="handleMoveSequence(sequence, 'down')"
-              title="Déplacer vers le bas"
-            >
-              <ArrowDownIcon class="h-4 w-4" />
-            </button>
+
+            <!-- Boutons d'action -->
+            <div class="flex items-center space-x-1">
+              <button
+                class="p-1 rounded text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                @click="openSequenceModal(sequence)"
+                title="Éditer la séquence"
+              >
+                <PencilIcon class="h-4 w-4" />
+              </button>
+              <button
+                :disabled="sortedSequences.findIndex(s => s.id === sequence.id) === 0"
+                :class="['p-1 rounded', sortedSequences.findIndex(s => s.id === sequence.id) === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50']"
+                @click="handleMoveSequence(sequence, 'up')"
+                title="Déplacer vers le haut"
+              >
+                <ArrowUpIcon class="h-4 w-4" />
+              </button>
+              <button
+                :disabled="sortedSequences.findIndex(s => s.id === sequence.id) === sortedSequences.length - 1"
+                :class="['p-1 rounded', sortedSequences.findIndex(s => s.id === sequence.id) === sortedSequences.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50']"
+                @click="handleMoveSequence(sequence, 'down')"
+                title="Déplacer vers le bas"
+              >
+                <ArrowDownIcon class="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
-        </div>
-
       </div>
-      <div class="flex">
-        <div class="text-justify w-3/4 mr-3">
+
+      <!-- Contenu séquence (pleine largeur) -->
+      <div class="w-full">
           <!-- Personnages - Style moderne avec badges -->
           <div class="bg-gradient-to-r from-slate-50 to-gray-50 rounded-lg px-4 py-3 border border-gray-200 mb-3">
             <div class="flex items-center justify-between mb-2">
@@ -435,17 +446,30 @@ const updateRating = async (ratingData) => {
             :projectId="projectId"
             :sequenceId="sequence.id"
           />
-        </div>
+      </div>
 
-        <div class="w-1/4">
-          <!-- Critères - Seront analysés automatiquement par l'IA -->
-          <div v-for="criteria in metadataStore.criterias" :key="criteria.id" class="mb-3">
-            <div class="text-sm font-semibold text-gray-700 mb-1">{{ criteria.name }}</div>
+      <!-- Modale critères -->
+      <div
+        v-if="criteriaModalSequenceId === sequence.id"
+        class="fixed inset-0 z-50 flex items-center justify-center"
+        style="background:rgba(0,0,0,0.4)"
+        @click.self="criteriaModalSequenceId = null"
+      >
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-80 max-w-full mx-4">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800 flex items-center gap-2">
+              <StarIcon class="w-5 h-5 text-yellow-400" />
+              Intensité dramatique
+            </h3>
+            <button @click="criteriaModalSequenceId = null" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          </div>
+          <div v-for="criteria in metadataStore.criterias" :key="criteria.id" class="mb-4">
+            <div class="text-sm font-semibold text-gray-700 mb-2">{{ criteria.name }}</div>
             <RatingStars
-                :rating="getCriteriaRating(sequence, criteria.id)"
-                :sequenceId="sequence.id"
-                :criteriaId="criteria.id"
-                @rate="updateRating"
+              :rating="getCriteriaRating(sequence, criteria.id)"
+              :sequenceId="sequence.id"
+              :criteriaId="criteria.id"
+              @rate="updateRating"
             />
           </div>
         </div>

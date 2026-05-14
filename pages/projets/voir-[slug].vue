@@ -46,6 +46,7 @@ const showTitles = ref(preferences.showTitles || { h2: true, h3: true, h4: true 
 const numberParts = ref(preferences.numberParts);
 const viewMode = ref<'scroll' | 'book'>(preferences.viewMode || 'scroll');
 const pageFormat = ref<'A3' | 'A4' | 'A5'>(preferences.pageFormat || 'A4');
+const tocOpen = ref(false);
 
 // px à 96dpi, marges en px
 const PAGE_FORMATS = {
@@ -349,10 +350,48 @@ ${body}
     <div ref="measureRef" style="position:fixed;top:-9999px;left:-9999px;visibility:hidden;pointer-events:none;overflow:hidden;font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.75;box-sizing:border-box;"></div>
 
     <ProjectSubMenu :project-slug="slug" />
+
+    <!-- Backdrop TOC mobile/tablette -->
+    <div v-if="tocOpen" class="lg:hidden fixed inset-0 z-40" style="background:rgba(0,0,0,0.4)" @click="tocOpen = false" />
+
+    <!-- Drawer TOC mobile/tablette -->
+    <aside
+      v-if="tocOpen"
+      class="lg:hidden fixed left-0 top-0 h-full w-72 z-50 overflow-y-auto border-r border-gray-200 bg-blue-50 shadow-xl"
+    >
+      <div class="flex items-center justify-between p-4 border-b border-blue-100">
+        <span class="font-bold text-blue-800">📋 Plan du projet</span>
+        <button @click="tocOpen = false" class="text-gray-500 hover:text-gray-700 text-xl leading-none">&times;</button>
+      </div>
+      <div class="p-4 space-y-3 text-sm">
+        <div v-for="(part, partIndex) in parts" :key="part.id">
+          <button v-if="showTitles.h2" @click="scrollToElement(`part-${part.id}`); tocOpen = false"
+            class="w-full text-left font-semibold text-blue-700 flex items-center gap-2 mb-2 hover:bg-blue-100 p-2 rounded">
+            📖 <span v-if="numberParts">{{ toRoman(partIndex + 1) }}. </span>{{ part.name }}
+          </button>
+          <div v-if="part.sequences" class="ml-4 space-y-1">
+            <div v-for="sequence in part.sequences" :key="sequence.id">
+              <button v-if="showTitles.h3" @click="scrollToElement(`sequence-${sequence.id}`); tocOpen = false"
+                class="w-full text-left text-amber-700 font-medium flex items-center gap-2 hover:bg-amber-100 p-1.5 rounded">
+                🎯 {{ sequence.name }}
+              </button>
+              <div v-if="showTitles.h4 && sequence.scenes" class="ml-4 space-y-1">
+                <button v-for="scene in sequence.scenes" :key="scene.id"
+                  @click="scrollToElement(`scene-${scene.id}`); tocOpen = false"
+                  class="w-full text-left text-gray-600 flex items-center gap-2 hover:bg-gray-100 p-1 px-2 rounded">
+                  🎪 {{ scene.name }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
     <div class="flex">
 
-      <!-- Sommaire -->
-      <aside class="w-80 h-screen sticky top-0 overflow-y-auto border-r border-gray-200 bg-blue-50">
+      <!-- Sommaire (caché sur tablette portrait/mobile, affiché en overlay) -->
+      <aside class="hidden lg:block w-80 h-screen sticky top-0 overflow-y-auto border-r border-gray-200 bg-blue-50">
         <div class="p-6">
           <h3 class="font-bold mb-4 text-blue-800 text-lg flex items-center gap-2">📋 Plan du projet</h3>
           <div class="space-y-3">
@@ -396,8 +435,14 @@ ${body}
 
           <!-- En-tête du projet -->
           <div class="mb-8">
-            <div class="flex items-center gap-3 mb-4">
-              <h1 class="font-extrabold text-4xl">{{ project.name }}</h1>
+            <div class="flex items-center gap-3 mb-4 flex-wrap">
+              <button
+                @click="tocOpen = true"
+                class="lg:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+              >
+                📋 Plan
+              </button>
+              <h1 class="font-extrabold text-3xl sm:text-4xl">{{ project.name }}</h1>
               <NuxtLink :to="`/projets/projet-${slug}`" class="px-2" title="Mode Édition">
                 <PencilIcon class="w-4 h-4 link" />
               </NuxtLink>
