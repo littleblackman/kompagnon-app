@@ -5,8 +5,10 @@ import { useProjectStore } from '~/store/project';
 import { usePersonnageStore } from '~/store/personnage';
 import { onMounted, computed, ref } from "vue";
 import PersonnageModal from "@/components/Project/PersonnageModal.vue";
+import PersonnageQuickViewModal from "@/components/Project/PersonnageQuickViewModal.vue";
+import PersonnageGalleryViewer from "@/components/Project/PersonnageGalleryViewer.vue";
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
-import { PencilIcon, TrashIcon, UserPlusIcon, UserIcon, DocumentDuplicateIcon } from '@heroicons/vue/24/solid';
+import { PencilIcon, TrashIcon, UserPlusIcon, UserIcon, DocumentDuplicateIcon, EyeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/solid';
 import { useImages } from '~/composables/useImages';
 
 const auth = useAuthStore();
@@ -24,11 +26,20 @@ const { getImageUrl, getImagesUrls } = useImages();
 onMounted(() => projectStore.fetchProject(slug));
 const project = computed(() => projectStore.project);
 
-// Modal state
+// Modal création/édition
 const personnageModalOpen = ref(false);
 const selectedPersonnage = ref(null);
 
-// Ouvrir modal pour créer/éditer personnage
+// Modale quick view
+const quickViewOpen = ref(false);
+const quickViewPersonnage = ref(null);
+
+const openQuickView = (personnage) => {
+  quickViewPersonnage.value = personnage;
+  quickViewOpen.value = true;
+};
+
+// Ouvrir modal pour créer personnage uniquement
 const openPersonnageModal = (personnage = null) => {
   selectedPersonnage.value = personnage || {
     firstName: '',
@@ -102,6 +113,21 @@ const getPersonnageAvatar = (personnage) => {
 };
 
 
+// Galerie carousel
+const galleryRef = ref<HTMLElement | null>(null);
+const galleryViewerOpen = ref(false);
+const galleryStartIndex = ref(0);
+
+const openGalleryViewer = (index: number) => {
+  galleryStartIndex.value = index;
+  galleryViewerOpen.value = true;
+};
+
+const scrollGallery = (direction: 'left' | 'right') => {
+  if (!galleryRef.value) return;
+  galleryRef.value.scrollBy({ left: direction === 'right' ? 300 : -300, behavior: 'smooth' });
+};
+
 // Personnages triés par niveau (1 = le plus élevé) puis alphabétique
 const sortedPersonnages = computed(() => {
   return [...personnageStore.personnages].sort((a, b) => {
@@ -140,6 +166,60 @@ const sortedPersonnages = computed(() => {
         >
           <UserPlusIcon class="w-4 h-4" />
           Nouveau personnage
+        </button>
+      </div>
+    </div>
+
+    <!-- Galerie carousel -->
+    <div v-if="sortedPersonnages.length > 0" class="mb-8 relative">
+      <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Galerie</h2>
+      <div class="relative group">
+        <!-- Bouton gauche -->
+        <button
+          @click="scrollGallery('left')"
+          class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 w-8 h-8 bg-white border border-gray-200 rounded-full shadow flex items-center justify-center text-gray-600 hover:bg-gray-50 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <ChevronLeftIcon class="w-4 h-4" />
+        </button>
+
+        <!-- Strip défilant -->
+        <div
+          ref="galleryRef"
+          class="flex gap-4 overflow-x-auto scrollbar-hide pb-2"
+          style="scroll-snap-type: x mandatory;"
+        >
+          <div
+            v-for="(personnage, index) in sortedPersonnages"
+            :key="personnage.id"
+            class="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer group/card"
+            style="scroll-snap-align: start;"
+            @click="openGalleryViewer(index)"
+          >
+            <!-- Photo -->
+            <div class="w-20 h-20 rounded-full overflow-hidden bg-gray-100 ring-2 ring-transparent group-hover/card:ring-amber-400 transition-all shadow">
+              <img
+                v-if="getPersonnageAvatar(personnage)"
+                :src="getPersonnageAvatar(personnage)"
+                :alt="getPersonnageName(personnage)"
+                class="w-full h-full object-cover"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center text-gray-300">
+                <UserIcon class="w-8 h-8" />
+              </div>
+            </div>
+            <!-- Nom -->
+            <span class="text-xs text-gray-700 font-medium text-center max-w-[80px] truncate group-hover/card:text-amber-600 transition-colors">
+              {{ getPersonnageName(personnage) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Bouton droite -->
+        <button
+          @click="scrollGallery('right')"
+          class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 w-8 h-8 bg-white border border-gray-200 rounded-full shadow flex items-center justify-center text-gray-600 hover:bg-gray-50 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <ChevronRightIcon class="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -204,25 +284,21 @@ const sortedPersonnages = computed(() => {
             </div>
           </div>
           <div class="flex gap-2">
+            <button
+              @click="openQuickView(personnage)"
+              class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              title="Aperçu rapide"
+            >
+              <EyeIcon class="w-4 h-4" />
+            </button>
             <NuxtLink
               v-if="personnage.slug"
               :to="`/projets/detail-${personnage.slug}`"
-              class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-              title="Voir les détails"
-              @click="console.log('Navigating to:', personnage.slug, personnage)"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-              </svg>
-            </NuxtLink>
-            <button
-              @click="openPersonnageModal(personnage)"
               class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Modifier"
+              title="Modifier la fiche"
             >
               <PencilIcon class="w-4 h-4" />
-            </button>
+            </NuxtLink>
             <button
               @click="duplicatePersonnage(personnage)"
               class="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -270,17 +346,38 @@ const sortedPersonnages = computed(() => {
       </div>
     </div>
 
-    <!-- Modal Personnage -->
+    <!-- Modale création personnage -->
     <PersonnageModal
       v-if="personnageModalOpen"
       :personnage="selectedPersonnage || undefined"
       @close="personnageModalOpen = false"
       @save="handleSavePersonnage"
     />
+
+    <!-- Modale aperçu rapide -->
+    <PersonnageQuickViewModal
+      v-if="quickViewOpen && quickViewPersonnage"
+      :personnage="quickViewPersonnage"
+      @close="quickViewOpen = false"
+    />
+
+    <!-- Viewer galerie plein écran -->
+    <PersonnageGalleryViewer
+      v-if="galleryViewerOpen"
+      :personnages="sortedPersonnages"
+      :start-index="galleryStartIndex"
+      @close="galleryViewerOpen = false"
+    />
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Styles spécifiques si nécessaire */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
 </style>
