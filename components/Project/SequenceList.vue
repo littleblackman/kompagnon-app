@@ -297,7 +297,7 @@ const updateRating = async (ratingData) => {
     <PersonnageConfigModal v-model:showConfig="showPersonnageConfig" />
 
 
-    <li v-for="sequence in sortedSequences" :key="sequence.id" class="pl-6 pr-3 pt-6 pb-6">
+    <li v-for="sequence in sortedSequences" :key="sequence.id" class="pl-2 pr-1 pt-4 pb-4 sm:pl-6 sm:pr-3 sm:pt-6 sm:pb-6">
 
       <div class="mb-4">
         <div class="flex items-center justify-between mb-3">

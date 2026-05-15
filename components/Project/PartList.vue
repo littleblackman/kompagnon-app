@@ -41,8 +41,8 @@ const isPartExpanded = (partId: number) => {
   <div style="width: 100%;">
     <!-- Liste des parties -->
     <ul class="mt-6 space-y-4">
-      <li v-for="(part, index) in projectStore.project?.parts" :key="part.id" 
-          class="bg-orange-50 rounded-lg p-4 hover:bg-orange-100 transition-colors">
+      <li v-for="(part, index) in projectStore.project?.parts" :key="part.id"
+          class="bg-orange-50 rounded-lg p-2 sm:p-4 hover:bg-orange-100 transition-colors">
         <div class="flex items-start gap-2">
           <button 
             @click="togglePart(part.id)"

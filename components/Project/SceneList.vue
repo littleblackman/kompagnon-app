@@ -188,7 +188,7 @@ const vHtml = {
     />
 
     <div v-if="sortedScenes && sortedScenes.length > 0">
-      <div v-for="(scene, index) in sortedScenes" :key="scene.id" class="ml-4 mb-4 p-4 border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+      <div v-for="(scene, index) in sortedScenes" :key="scene.id" class="ml-1 sm:ml-4 mb-3 p-2 sm:p-4 border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
         <div class="flex justify-between">
           <h3 :id="`scene-${scene.id}`" class="font-bold text-blue-600 hover:text-blue-800 cursor-pointer" @click="openSceneModal(scene)">
             {{ scene.name }}

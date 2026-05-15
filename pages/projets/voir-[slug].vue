@@ -528,17 +528,17 @@ ${body}
 
           <!-- ── VUE SCROLL (existante) ── -->
           <div v-if="viewMode === 'scroll'" class="space-y-8">
-            <div v-for="(part, index) in parts" :key="part.id" class="pl-6">
+            <div v-for="(part, index) in parts" :key="part.id">
               <h2 v-if="showTitles.h2" :id="`part-${part.id}`" class="text-2xl font-bold mb-4 text-blue-700">
                 <span v-if="numberParts">{{ toRoman(index + 1) }}. </span>{{ part.name }}
               </h2>
               <div v-if="showOrganizational && part.description" v-html="part.description" class="organizational-text mb-6"></div>
               <div class="space-y-6">
-                <div v-for="sequence in part.sequences" :key="sequence.id" class="ml-4 pl-4">
+                <div v-for="sequence in part.sequences" :key="sequence.id">
                   <h3 v-if="showTitles.h3" :id="`sequence-${sequence.id}`" class="text-xl font-semibold mb-3 text-amber-700">{{ sequence.name }}</h3>
                   <div v-if="showOrganizational && sequence.description" v-html="sequence.description" class="organizational-text mb-4"></div>
                   <div class="space-y-4">
-                    <div v-for="scene in sequence.scenes" :key="scene.id" class="ml-4">
+                    <div v-for="scene in sequence.scenes" :key="scene.id">
                       <h4 v-if="showTitles.h4" :id="`scene-${scene.id}`" class="text-lg font-bold mb-2 text-gray-800">{{ scene.name }}</h4>
                       <div v-if="showPrintable && scene.content" v-html="scene.content" class="scene-content prose prose-sm max-w-none text-justify"></div>
                     </div>

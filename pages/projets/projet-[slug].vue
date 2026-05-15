@@ -5,7 +5,7 @@ import { useProjectStore } from '~/store/project';
 import { onMounted, computed, ref } from "vue";
 import PartList from "@/components/Project/PartList.vue";
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
-import { EyeIcon, Bars3Icon, XMarkIcon, UserGroupIcon } from '@heroicons/vue/24/solid';
+import { Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
 
 const auth = useAuthStore();
 auth.requireAuth();
@@ -111,7 +111,7 @@ const scrollToElement = (elementId: string) => {
 
 
     <!-- Contenu principal -->
-    <div class="flex flex-col items-center p-6">
+    <div class="flex flex-col items-center px-2 py-4 sm:px-4 sm:py-6 lg:p-6">
       <div class="w-full max-w-4xl mb-6">
         <div class="flex items-center gap-3 mb-2">
           <h1 id="project-title" class="font-extrabold text-3xl">{{ project.name }}</h1>
