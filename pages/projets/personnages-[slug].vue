@@ -6,7 +6,6 @@ import { usePersonnageStore } from '~/store/personnage';
 import { onMounted, computed, ref } from "vue";
 import { useConfirm } from '~/composables/useConfirm';
 import PersonnageModal from "@/components/Project/PersonnageModal.vue";
-import PersonnageQuickViewModal from "@/components/Project/PersonnageQuickViewModal.vue";
 import PersonnageGalleryViewer from "@/components/Project/PersonnageGalleryViewer.vue";
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
 import { PencilIcon, TrashIcon, UserPlusIcon, UserIcon, DocumentDuplicateIcon, EyeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/solid';
@@ -33,13 +32,6 @@ const personnageModalOpen = ref(false);
 const selectedPersonnage = ref(null);
 
 // Modale quick view
-const quickViewOpen = ref(false);
-const quickViewPersonnage = ref(null);
-
-const openQuickView = (personnage) => {
-  quickViewPersonnage.value = personnage;
-  quickViewOpen.value = true;
-};
 
 // Ouvrir modal pour créer personnage uniquement
 const openPersonnageModal = (personnage = null) => {
@@ -242,7 +234,7 @@ const sortedPersonnages = computed(() => {
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div
-        v-for="personnage in sortedPersonnages"
+        v-for="(personnage, index) in sortedPersonnages"
         :key="personnage.id"
         class="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow"
       >
@@ -288,9 +280,9 @@ const sortedPersonnages = computed(() => {
           </div>
           <div class="flex gap-2">
             <button
-              @click="openQuickView(personnage)"
+              @click="openGalleryViewer(index)"
               class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-              title="Aperçu rapide"
+              title="Aperçu galerie"
             >
               <EyeIcon class="w-4 h-4" />
             </button>
@@ -355,13 +347,6 @@ const sortedPersonnages = computed(() => {
       :personnage="selectedPersonnage || undefined"
       @close="personnageModalOpen = false"
       @save="handleSavePersonnage"
-    />
-
-    <!-- Modale aperçu rapide -->
-    <PersonnageQuickViewModal
-      v-if="quickViewOpen && quickViewPersonnage"
-      :personnage="quickViewPersonnage"
-      @close="quickViewOpen = false"
     />
 
     <!-- Viewer galerie plein écran -->
