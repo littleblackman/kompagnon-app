@@ -147,7 +147,7 @@ const normalizedImages = computed(() => {
 const personnageStore = usePersonnageStore();
 const config = useRuntimeConfig();
 // Pour les images, on utilise la base sans /api
-const baseUrl = computed(() => config.public.apiBase.replace('/api', ''));
+const baseUrl = computed(() => config.public.apiBase.replace(/\/api$/, ''));
 
 // Refs
 const dropZone = ref<HTMLElement>();

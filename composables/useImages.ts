@@ -1,6 +1,6 @@
 export const useImages = () => {
   const config = useRuntimeConfig();
-  const baseUrl = config.public.apiBase.replace('/api', '');
+  const baseUrl = config.public.apiBase.replace(/\/api$/, '');
 
   /**
    * Convertir une URL relative en URL complète
