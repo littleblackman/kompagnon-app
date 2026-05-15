@@ -111,9 +111,9 @@
           </div>
 
           <!-- Bio -->
-          <div v-if="backgroundText" class="space-y-2">
+          <div v-if="current?.background" class="space-y-2">
             <p class="text-xs uppercase tracking-widest text-white/40">Biographie</p>
-            <p class="text-white/70 text-sm leading-relaxed line-clamp-6">{{ backgroundText }}</p>
+            <div class="text-white/70 text-sm leading-relaxed prose-dark" v-html="current.background" />
           </div>
 
           <!-- Analyse -->
@@ -151,6 +151,14 @@
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+.prose-dark :deep(p) { margin-bottom: 0.5rem; }
+.prose-dark :deep(strong) { color: rgba(255,255,255,0.9); }
+.prose-dark :deep(em) { color: rgba(255,255,255,0.6); }
+.prose-dark :deep(ul), .prose-dark :deep(ol) { padding-left: 1.25rem; margin-bottom: 0.5rem; }
+.prose-dark :deep(li) { margin-bottom: 0.25rem; }
+</style>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
@@ -194,7 +202,6 @@ const stripHtml = (html: string): string => {
   return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
 };
 
-const backgroundText = computed(() => stripHtml(current.value?.background));
 const analysisText = computed(() => stripHtml(current.value?.analysis));
 
 const prev = () => { if (currentIndex.value > 0) currentIndex.value--; };
