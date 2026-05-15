@@ -145,12 +145,11 @@ const handleSave = async () => {
 };
 
 const handleImagesUpdated = (images) => {
-  editedPersonnage.value.images = images;
-  // Mettre à jour l'avatar (première image)
-  if (images.length > 0) {
-    editedPersonnage.value.avatar = images[0];
-  } else {
-    editedPersonnage.value.avatar = undefined;
+  const newAvatar = images.length > 0 ? images[0] : null;
+  // Réassigner les objets entiers pour garantir la réactivité Vue
+  editedPersonnage.value = { ...editedPersonnage.value, images, avatar: newAvatar };
+  if (personnage.value) {
+    personnage.value = { ...personnage.value, images, avatar: newAvatar };
   }
 };
 
