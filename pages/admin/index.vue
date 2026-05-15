@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/store/auth'
 import { useMetadataStore } from '~/store/metadata'
+import { useConfirm } from '~/composables/useConfirm'
 
 definePageMeta({
   middleware: 'auth'
@@ -10,6 +11,7 @@ definePageMeta({
 const authStore = useAuthStore()
 const metadataStore = useMetadataStore()
 const config = useRuntimeConfig()
+const { confirm } = useConfirm()
 
 const activeTab = ref('events')
 const genres = ref<any[]>([])
@@ -290,7 +292,8 @@ const deleteGenre = async (genreId: number, subgenresCount: number) => {
     return
   }
 
-  if (!confirm('Êtes-vous sûr de vouloir supprimer ce genre ?')) return
+  const ok1 = await confirm({ title: 'Supprimer ce genre ?', danger: true, confirmLabel: 'Supprimer' })
+  if (!ok1) return
 
   try {
     await $fetch(`${config.public.apiBase}/admin/genre/${genreId}`, {
@@ -334,7 +337,8 @@ const createSubgenre = async () => {
 
 // Supprimer un sous-genre
 const deleteSubgenre = async (subgenreId: number) => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer ce sous-genre ?')) return
+  const ok = await confirm({ title: 'Supprimer ce sous-genre ?', danger: true, confirmLabel: 'Supprimer' })
+  if (!ok) return
 
   try {
     await $fetch(`${config.public.apiBase}/admin/subgenre/${subgenreId}`, {
@@ -436,7 +440,8 @@ const deleteEventType = async (eventTypeId: number, eventsCount: number) => {
     alert('Impossible de supprimer un type de beat qui contient des beats')
     return
   }
-  if (!confirm('Êtes-vous sûr de vouloir supprimer ce type de beat ?')) return
+  const ok = await confirm({ title: 'Supprimer ce type de beat ?', danger: true, confirmLabel: 'Supprimer' })
+  if (!ok) return
 
   try {
     await $fetch(`${config.public.apiBase}/admin/event-type/${eventTypeId}`, {
@@ -480,7 +485,8 @@ const createEvent = async (eventTypeId: number, eventName: string, isOptional: b
 
 // Supprimer un event
 const deleteEvent = async (eventId: number) => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer ce beat ?')) return
+  const ok = await confirm({ title: 'Supprimer ce beat ?', danger: true, confirmLabel: 'Supprimer' })
+  if (!ok) return
 
   try {
     await $fetch(`${config.public.apiBase}/admin/event/${eventId}`, {
@@ -599,7 +605,8 @@ const saveNarrativeStructure = async () => {
 
 // Supprimer structure
 const deleteNarrativeStructure = async (structureId: number) => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cette structure narrative ?')) return
+  const ok = await confirm({ title: 'Supprimer cette structure narrative ?', danger: true, confirmLabel: 'Supprimer' })
+  if (!ok) return
 
   try {
     await $fetch(`${config.public.apiBase}/admin/narrative-structure/${structureId}`, {
@@ -784,7 +791,8 @@ const deleteNarrativePart = async (narrativePartId: number, eventTypesCount: num
     alert('Impossible de supprimer un segment narratif qui a des types de beats associés')
     return
   }
-  if (!confirm('Êtes-vous sûr de vouloir supprimer ce segment narratif ?')) return
+  const ok = await confirm({ title: 'Supprimer ce segment narratif ?', danger: true, confirmLabel: 'Supprimer' })
+  if (!ok) return
 
   try {
     await $fetch(`${config.public.apiBase}/admin/narrative-part/${narrativePartId}`, {

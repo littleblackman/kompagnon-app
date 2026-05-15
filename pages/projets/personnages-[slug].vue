@@ -4,6 +4,7 @@ import { useAuthStore } from '~/store/auth';
 import { useProjectStore } from '~/store/project';
 import { usePersonnageStore } from '~/store/personnage';
 import { onMounted, computed, ref } from "vue";
+import { useConfirm } from '~/composables/useConfirm';
 import PersonnageModal from "@/components/Project/PersonnageModal.vue";
 import PersonnageQuickViewModal from "@/components/Project/PersonnageQuickViewModal.vue";
 import PersonnageGalleryViewer from "@/components/Project/PersonnageGalleryViewer.vue";
@@ -16,6 +17,7 @@ auth.requireAuth();
 
 const projectStore = useProjectStore();
 const personnageStore = usePersonnageStore();
+const { confirm } = useConfirm();
 const route = useRoute();
 const slug = route.params.slug as string;
 
@@ -66,7 +68,8 @@ const handleSavePersonnage = async (personnageData) => {
 
 // Supprimer personnage
 const deletePersonnage = async (personnageId) => {
-  if (confirm('Êtes-vous sûr de vouloir supprimer ce personnage ? Cette action est irréversible.')) {
+  const ok = await confirm({ title: 'Supprimer ce personnage ?', message: 'Cette action est irréversible. Toutes ses données seront perdues.', danger: true, confirmLabel: 'Supprimer' });
+  if (ok) {
     const success = await personnageStore.deletePersonnage(personnageId);
     if (success) {
       // Recharger le projet pour avoir les données à jour

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useConfirm } from '~/composables/useConfirm';
 import RichTextEditor from "@/components/RichTextEditor.vue";
 import { useProjectStore } from "~/store/project";
 import { usePersonnageStore } from "~/store/personnage";
@@ -7,6 +8,7 @@ import { PropType } from 'vue';
 
 const projectStore = useProjectStore();
 const personnageStore = usePersonnageStore();
+const { confirm } = useConfirm();
 
 interface Scene {
   id: number;
@@ -339,9 +341,8 @@ onUnmounted(() => {
 
 const closeModal = async () => {
   if (saveStatus.value === 'unsaved') {
-    if (!confirm('Vous avez des modifications non sauvegardées. Voulez-vous vraiment fermer ?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Modifications non sauvegardées', message: 'Voulez-vous vraiment fermer sans sauvegarder ?', confirmLabel: 'Fermer quand même', cancelLabel: 'Rester' });
+    if (!ok) return;
   }
   clearLocalStorage();
   // Déclencher la détection à la fermeture de la modale

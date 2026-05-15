@@ -106,6 +106,7 @@
 import { ref, computed } from 'vue';
 import { PhotoIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/solid';
 import { usePersonnageStore } from '~/store/personnage';
+import { useConfirm } from '~/composables/useConfirm';
 
 interface Props {
   personnageId: number;
@@ -145,6 +146,7 @@ const normalizedImages = computed(() => {
 });
 
 const personnageStore = usePersonnageStore();
+const { confirm } = useConfirm();
 const config = useRuntimeConfig();
 // Pour les images, on utilise la base sans /api
 const baseUrl = computed(() => config.public.apiBase.replace(/\/api$/, ''));
@@ -315,11 +317,11 @@ const nextImage = () => {
 };
 
 // Suppression d'image
-const deleteImage = async (index: number) => {
+const deleteImage = async (index: number): Promise<void> => {
   if (!normalizedImages.value || !normalizedImages.value[index]) return;
   
-  const confirmDelete = confirm('Êtes-vous sûr de vouloir supprimer cette image ?');
-  if (!confirmDelete) return;
+  const ok = await confirm({ title: 'Supprimer cette image ?', message: 'Cette action est irréversible.', danger: true, confirmLabel: 'Supprimer' });
+  if (!ok) return;
 
   try {
     await personnageStore.deleteImage(props.personnageId, normalizedImages.value[index]);

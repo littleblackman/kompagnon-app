@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { useConfirm } from '~/composables/useConfirm';
 import { useRoute, useRouter } from 'vue-router';
 import { usePersonnageStore } from '~/store/personnage';
 import { useProjectStore } from '~/store/project';
@@ -18,6 +19,7 @@ definePageMeta({
 const route = useRoute();
 const router = useRouter();
 const personnageStore = usePersonnageStore();
+const { confirm } = useConfirm();
 const projectStore = useProjectStore();
 const authStore = useAuthStore();
 const metadataStore = useMetadataStore();
@@ -284,7 +286,8 @@ const saveNarrativeArc = async () => {
 };
 
 const deleteNarrativeArc = async (arcId) => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cet arc narratif ?')) return;
+  const ok = await confirm({ title: 'Supprimer cet arc narratif ?', danger: true, confirmLabel: 'Supprimer' });
+  if (!ok) return;
 
   try {
     const config = useRuntimeConfig();

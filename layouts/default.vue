@@ -57,7 +57,7 @@ const recentProjects = computed(() =>
 const avatarUrl = computed(() => {
   if (!userStore.profile?.avatar) return null;
   const config = useRuntimeConfig();
-  const baseUrl = config.public.apiBase.replace('/api', '');
+  const baseUrl = config.public.apiBase.replace(/\/api$/, '');
   return `${baseUrl}/${userStore.profile.avatar}`;
 })
 </script>
