@@ -284,9 +284,7 @@ const uploadFiles = async (files: File[]) => {
     );
 
     const uploadedImages = await personnageStore.uploadImages(props.personnageId, compressedFiles);
-    // Le store met déjà à jour le personnage, on émet juste les nouvelles images
-    const personnage = personnageStore.personnages.find(p => p.id === props.personnageId);
-    emit('imagesUpdated', personnage?.images || []);
+    emit('imagesUpdated', [...normalizedImages.value, ...uploadedImages]);
   } catch (error) {
     console.error('Erreur lors de l\'upload:', error);
     alert('Erreur lors de l\'upload des images.');
