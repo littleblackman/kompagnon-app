@@ -129,7 +129,11 @@ const loadProjectSequences = async () => {
 const toggleEdit = () => {
   isEditing.value = !isEditing.value;
   if (isEditing.value) {
-    editedPersonnage.value = { ...personnage.value };
+    editedPersonnage.value = {
+      ...personnage.value,
+      dramaticFunctionIds: personnage.value?.personnageDramaticFunctions
+        ?.map(pdf => pdf.dramaticFunction.id) ?? []
+    };
   }
 };
 
@@ -411,22 +415,64 @@ const updateStep = (index, field, value) => {
             </div>
             
             <div>
-              <h1 class="text-3xl font-bold text-amber-900">
+              <!-- Nom — lecture -->
+              <h1 v-if="!isEditing" class="text-3xl font-bold text-amber-900">
                 {{ personnage?.firstName }} {{ personnage?.lastName }}
               </h1>
+              <!-- Nom — édition -->
+              <div v-else class="flex gap-2 mb-2">
+                <input
+                  v-model="editedPersonnage.firstName"
+                  placeholder="Prénom"
+                  class="text-xl font-bold text-amber-900 border-b-2 border-amber-300 bg-transparent focus:outline-none focus:border-amber-500 w-32"
+                />
+                <input
+                  v-model="editedPersonnage.lastName"
+                  placeholder="Nom"
+                  class="text-xl font-bold text-amber-900 border-b-2 border-amber-300 bg-transparent focus:outline-none focus:border-amber-500 w-32"
+                />
+              </div>
+
               <div class="flex items-center space-x-3 mt-2">
-                <span v-if="personnage?.age" class="text-gray-600">{{ personnage.age }} ans</span>
+                <!-- Âge — lecture -->
+                <span v-if="!isEditing && personnage?.age" class="text-gray-600">{{ personnage.age }} ans</span>
+                <!-- Âge — édition -->
+                <div v-if="isEditing" class="flex items-center gap-1">
+                  <input
+                    v-model.number="editedPersonnage.age"
+                    type="number"
+                    min="0"
+                    max="999"
+                    placeholder="Âge"
+                    class="w-16 text-sm text-gray-600 border-b border-gray-300 bg-transparent focus:outline-none focus:border-amber-400 text-center"
+                  />
+                  <span class="text-sm text-gray-500">ans</span>
+                </div>
+
+                <!-- Niveau — lecture -->
                 <span
-                  v-if="personnage?.level"
+                  v-if="!isEditing && personnage?.level"
                   :class="`px-3 py-1 rounded-full text-xs font-medium ${getLevelColor(personnage.level)}`"
                 >
                   {{ getLevelLabel(personnage.level) }}
                 </span>
+
+                <!-- Niveau — édition -->
+                <select
+                  v-else-if="isEditing"
+                  v-model.number="editedPersonnage.level"
+                  class="px-3 py-1 rounded-lg text-xs font-medium border border-amber-300 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                >
+                  <option :value="1">Protagoniste</option>
+                  <option :value="2">Secondaire</option>
+                  <option :value="3">Tertiaire</option>
+                  <option :value="4">Figurant</option>
+                </select>
               </div>
 
-              <!-- Fonctions dramatiques -->
+              <!-- Fonctions dramatiques — lecture -->
               <div
-                v-if="personnage?.personnageDramaticFunctions && personnage.personnageDramaticFunctions.length > 0"
+                v-if="!isEditing && personnage?.personnageDramaticFunctions && personnage.personnageDramaticFunctions.length > 0"
                 class="flex flex-wrap gap-2 mt-3"
               >
                 <span
@@ -438,6 +484,30 @@ const updateStep = (index, field, value) => {
                   <span class="text-base">🎭</span>
                   {{ pdf.dramaticFunction.name }}
                 </span>
+              </div>
+
+              <!-- Fonctions dramatiques — édition -->
+              <div v-if="isEditing && metadataStore.dramaticFunctions?.length" class="mt-3">
+                <p class="text-xs text-gray-500 mb-2">Fonctions dramatiques</p>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="df in metadataStore.dramaticFunctions"
+                    :key="df.id"
+                    type="button"
+                    :title="df.description"
+                    @click="editedPersonnage.dramaticFunctionIds?.includes(df.id)
+                      ? editedPersonnage.dramaticFunctionIds = editedPersonnage.dramaticFunctionIds.filter(id => id !== df.id)
+                      : editedPersonnage.dramaticFunctionIds = [...(editedPersonnage.dramaticFunctionIds ?? []), df.id]"
+                    :class="[
+                      'inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded-full transition-all',
+                      editedPersonnage.dramaticFunctionIds?.includes(df.id)
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    ]"
+                  >
+                    🎭 {{ df.name }}
+                  </button>
+                </div>
               </div>
 
               <!-- Arcs narratifs -->
