@@ -4,7 +4,9 @@ export const useAuthStore = defineStore('auth', {
     state: () => ({
         token: process.client ? localStorage.getItem('token') : null,
         user: null as object | null,
-        tokenRefreshInterval: null as NodeJS.Timeout | null,
+        lastEmail: process.client ? (localStorage.getItem('lastEmail') || '') : '',
+        sessionExpired: false,
+        pingInterval: null as NodeJS.Timeout | null,
         lastActivity: Date.now()
     }),
 
@@ -23,7 +25,6 @@ export const useAuthStore = defineStore('auth', {
                     throw new Error(errorData.error || 'Registration failed')
                 }
 
-                // Auto-login après inscription
                 await this.login(email, password)
             } catch (error) {
                 console.error('Erreur d\'inscription:', error)
@@ -46,20 +47,46 @@ export const useAuthStore = defineStore('auth', {
 
                 const data = await response.json()
                 this.token = data.token
+                this.lastEmail = email
                 localStorage.setItem('token', data.token)
+                localStorage.setItem('lastEmail', email)
 
                 await this.fetchUser()
 
-                // Charger les metadata après connexion
                 const { useMetadataStore } = await import('~/store/metadata');
                 const metadataStore = useMetadataStore();
                 await metadataStore.fetchMetadata();
 
+                this.startSessionPing()
                 navigateTo('/')
             } catch (error) {
                 console.error('Erreur de connexion:', error)
                 throw error
             }
+        },
+
+        // Reconnexion depuis la modale sans naviguer
+        async relogin(email: string, password: string) {
+            const config = useRuntimeConfig();
+            const response = await fetch(`${config.public.apiBase}/login_check`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email, password})
+            })
+
+            if (!response.ok) {
+                throw new Error('Identifiants incorrects')
+            }
+
+            const data = await response.json()
+            this.token = data.token
+            this.lastEmail = email
+            localStorage.setItem('token', data.token)
+            localStorage.setItem('lastEmail', email)
+
+            await this.fetchUser()
+            this.clearSessionExpired()
+            this.startSessionPing()
         },
 
         async fetchUser() {
@@ -69,14 +96,17 @@ export const useAuthStore = defineStore('auth', {
                 const config = useRuntimeConfig()
                 const response = await fetch(`${config.public.apiBase}/users/me`, {
                     method: 'GET',
-                    headers: {
-                        'X-AUTH-TOKEN': this.token
-                    },
+                    headers: { 'X-AUTH-TOKEN': this.token },
                     body: null
                 })
 
                 if (!response.ok) {
                     if (response.status === 401 || response.status === 403) {
+                        if (this.user !== null) {
+                            // Session expirée en cours de travail → modale, pas de redirection
+                            this.setSessionExpired()
+                            return
+                        }
                         this.logout()
                     }
                     throw new Error('Token invalide ou utilisateur non autorisé')
@@ -89,9 +119,38 @@ export const useAuthStore = defineStore('auth', {
             }
         },
 
+        setSessionExpired() {
+            this.sessionExpired = true
+            this.token = null
+            this.stopSessionPing()
+            localStorage.removeItem('token')
+        },
+
+        clearSessionExpired() {
+            this.sessionExpired = false
+        },
+
+        startSessionPing() {
+            this.stopSessionPing()
+            this.pingInterval = setInterval(() => {
+                if (this.token) {
+                    this.fetchUser().catch(() => {})
+                }
+            }, 10 * 60 * 1000)
+        },
+
+        stopSessionPing() {
+            if (this.pingInterval) {
+                clearInterval(this.pingInterval)
+                this.pingInterval = null
+            }
+        },
+
         logout() {
+            this.stopSessionPing()
             this.token = null
             this.user = null
+            this.sessionExpired = false
             localStorage.removeItem('token')
             navigateTo('/login')
         },
@@ -101,22 +160,21 @@ export const useAuthStore = defineStore('auth', {
             if (token) {
                 this.token = token
                 await this.fetchUser();
-                
-                // Charger les metadata si token valide
+
                 const { useMetadataStore } = await import('~/store/metadata');
                 const metadataStore = useMetadataStore();
                 if (!metadataStore.loaded) {
                     await metadataStore.fetchMetadata();
                 }
+
+                this.startSessionPing()
             }
         },
 
-        // check if the user is authenticated else redirect to login
         requireAuth() {
             if (!this.token) {
                 navigateTo('/login')
             }
         }
-
     }
 })
