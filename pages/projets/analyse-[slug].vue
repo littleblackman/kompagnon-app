@@ -288,9 +288,7 @@ const goToSequence = (sequenceId: number) => {
                       :class="row.appearsIn.has(column.id)
                         ? 'bg-amber-400/80 hover:bg-amber-500'
                         : 'hover:bg-gray-100'"
-                      data-controller="tooltip" :title="row.appearsIn.has(column.id)
-                        ? `${row.name} apparaît dans ${column.name}`
-                        : `${row.name} est absent de ${column.name}`"
+                      data-controller="tooltip" :title="column.name"
                       @click="goToSequence(column.id)"
                     ></button>
                   </td>
