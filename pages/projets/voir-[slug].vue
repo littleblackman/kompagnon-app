@@ -629,37 +629,36 @@ ${body}
                   <div v-if="showOrganizational && sequence.description" v-html="sequence.description" class="organizational-text mb-4"></div>
                   <div class="space-y-4">
                     <template v-for="scene in sequence.scenes" :key="scene.id">
-                      <div>
-                        <div class="group/scene flex items-center gap-2 mb-2">
-                          <h4
-                            v-if="showTitles.h4"
-                            :id="`scene-${scene.id}`"
-                            class="text-lg font-bold text-gray-800 cursor-pointer hover:text-amber-700 transition-colors print:cursor-auto"
-                            title="Éditer cette scène"
-                            @click="openScene(scene, sequence)"
-                          >
-                            {{ scene.name }}
-                          </h4>
+                      <div class="group/scene relative">
+                        <h4
+                          v-if="showTitles.h4"
+                          :id="`scene-${scene.id}`"
+                          class="text-lg font-bold mb-2 text-gray-800 cursor-pointer hover:text-amber-700 transition-colors print:cursor-auto"
+                          title="Éditer cette scène"
+                          @click="openScene(scene, sequence)"
+                        >
+                          {{ scene.name }}
+                        </h4>
 
-                          <!-- Discret tant qu'il n'y a rien à voir -->
-                          <button
-                            type="button"
-                            @click="noteScene = scene"
-                            :title="scene.notes ? 'Note de travail' : 'Ajouter une note'"
-                            class="rounded p-1 text-gray-300 hover:text-amber-500 opacity-0
-                                   group-hover/scene:opacity-100 focus:opacity-100
-                                   transition-opacity print:hidden"
-                          >
-                            <ChatBubbleBottomCenterTextIcon class="h-4 w-4" />
-                          </button>
-
-                          <!-- Présence d'une note : un point, rien de plus -->
-                          <span
-                            v-if="scene.notes"
-                            class="h-1.5 w-1.5 rounded-full bg-amber-400 print:hidden"
-                            title="Cette scène porte une note"
-                          ></span>
-                        </div>
+                        <!--
+                          Annotation en marge : hors de la colonne de texte, elle
+                          ne coupe plus la lecture. Repliée dans le bloc sous lg,
+                          faute de marge disponible, et visible au repos sur
+                          petit écran puisque le survol n'y existe pas.
+                        -->
+                        <button
+                          type="button"
+                          @click="noteScene = scene"
+                          :title="scene.notes ? 'Note de travail' : 'Ajouter une note'"
+                          :class="[
+                            'absolute top-0 right-0 lg:-right-12 rounded p-1 transition-opacity print:hidden',
+                            scene.notes
+                              ? 'text-amber-500 hover:text-amber-700'
+                              : 'text-gray-300 hover:text-amber-500 opacity-100 lg:opacity-0 lg:group-hover/scene:opacity-100 focus:opacity-100'
+                          ]"
+                        >
+                          <ChatBubbleBottomCenterTextIcon class="h-4 w-4" />
+                        </button>
                         <div
                           v-if="showPrintable && scene.content"
                           v-html="scene.content"
