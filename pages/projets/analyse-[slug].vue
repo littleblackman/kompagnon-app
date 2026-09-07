@@ -313,11 +313,11 @@ const goToSequence = (sequenceId: number) => {
                 </div>
                 <div>
                   <dt class="text-xs uppercase tracking-wide text-gray-500">Entrée</dt>
-                  <dd class="font-medium text-gray-900">{{ row.first?.label ?? '—' }}</dd>
+                  <dd class="font-medium text-gray-900">{{ row.first?.name ?? '—' }}</dd>
                 </div>
                 <div>
                   <dt class="text-xs uppercase tracking-wide text-gray-500">Dernière</dt>
-                  <dd class="font-medium text-gray-900">{{ row.last?.label ?? '—' }}</dd>
+                  <dd class="font-medium text-gray-900">{{ row.last?.name ?? '—' }}</dd>
                 </div>
                 <div>
                   <dt class="text-xs uppercase tracking-wide text-gray-500">Absence la plus longue</dt>
@@ -326,6 +326,21 @@ const goToSequence = (sequenceId: number) => {
                   </dd>
                 </div>
               </dl>
+
+              <!-- Les séquences nommées : « I.3 » ne dit rien hors de la grille -->
+              <div class="mt-3 flex flex-wrap gap-1.5">
+                <button
+                  v-for="column in sequences.filter(c => row.appearsIn.has(c.id))"
+                  :key="column.id"
+                  type="button"
+                  class="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs text-amber-800 transition-colors hover:border-amber-400 hover:bg-amber-50"
+                  data-controller="tooltip"
+                  :title="`${column.part} · aller à la séquence`"
+                  @click="goToSequence(column.id)"
+                >
+                  {{ column.name }}
+                </button>
+              </div>
             </template>
           </div>
         </section>
