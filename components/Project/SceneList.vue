@@ -5,8 +5,10 @@ import PersonnageDetectionModal from '~/components/Project/PersonnageDetectionMo
 import { useProjectStore } from "~/store/project";
 import { PropType } from 'vue';
 import { TrashIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, DocumentDuplicateIcon, PencilIcon } from '@heroicons/vue/24/outline';
+import { useConfirm } from '~/composables/useConfirm';
 
 const projectStore = useProjectStore();
+const { confirm } = useConfirm();
 
 interface Scene {
   id: number;
@@ -83,6 +85,14 @@ const handleSaveScene = async (scene) => {
 };
 
 const handleDeleteScene = async (scene) => {
+  const ok = await confirm({
+    title: 'Supprimer cette scène ?',
+    message: `« ${scene.name || 'Sans titre'} » et son contenu seront définitivement perdus.`,
+    danger: true,
+    confirmLabel: 'Supprimer'
+  });
+  if (!ok) return;
+
   try {
     await projectStore.deleteScene(scene.id);
   } catch (error) {

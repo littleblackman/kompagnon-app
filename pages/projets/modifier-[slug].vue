@@ -7,6 +7,9 @@ import { onMounted, computed, ref } from 'vue'
 import ProjectSubMenu from '@/components/Project/SubMenu.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import { TrashIcon } from '@heroicons/vue/24/solid'
+import { useConfirm } from '~/composables/useConfirm'
+
+const { confirm } = useConfirm()
 
 definePageMeta({
   middleware: 'auth'
@@ -86,8 +89,6 @@ const formData = ref({
 const isLoading = ref(false)
 const errorMessage = ref('')
 const isDeleting = ref(false)
-const showDeleteModal = ref(false)
-const deleteConfirmText = ref('')
 
 // Gestion du changement de genre
 const onGenreChange = () => {
@@ -149,22 +150,23 @@ const submitForm = async () => {
 }
 
 // Fonctions de suppression
-const openDeleteModal = () => {
-  showDeleteModal.value = true
-  deleteConfirmText.value = ''
-}
-
-const closeDeleteModal = () => {
-  showDeleteModal.value = false
-  deleteConfirmText.value = ''
-}
-
 const deleteProject = async () => {
   if (!project.value?.id) return
 
-  if (deleteConfirmText.value !== 'SUPPRIMER') {
-    return
-  }
+  const ok = await confirm({
+    title: 'Supprimer le projet',
+    message: `« ${project.value.name} » sera supprimé définitivement, avec :`,
+    details: [
+      'toutes les parties, séquences et scènes',
+      'le contenu écrit de chaque scène',
+      'tous les personnages et leurs images',
+      'toutes les données liées'
+    ],
+    requireText: 'SUPPRIMER',
+    danger: true,
+    confirmLabel: 'Supprimer'
+  })
+  if (!ok) return
 
   isDeleting.value = true
   errorMessage.value = ''
@@ -177,11 +179,8 @@ const deleteProject = async () => {
     errorMessage.value = 'Erreur lors de la suppression du projet'
   } finally {
     isDeleting.value = false
-    closeDeleteModal()
   }
 }
-
-const canDelete = computed(() => deleteConfirmText.value === 'SUPPRIMER')
 
 // Analyse IA
 const showAIAnalysisModal = ref(false)
@@ -431,7 +430,7 @@ const applySuggestions = async () => {
 
             <button
               type="button"
-              @click="openDeleteModal"
+              @click="deleteProject"
               class="flex items-center justify-center gap-2 bg-red-600 text-white py-3 px-6 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 font-medium transition-colors"
             >
               <TrashIcon class="w-5 h-5" />
@@ -591,90 +590,6 @@ const applySuggestions = async () => {
       </div>
     </div>
 
-    <!-- Modal de confirmation de suppression -->
-    <div
-      v-if="showDeleteModal"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      @click.self="closeDeleteModal"
-    >
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <div class="flex items-start gap-4 mb-4">
-          <div class="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-            <TrashIcon class="w-6 h-6 text-red-600" />
-          </div>
-          <div class="flex-1">
-            <h3 class="text-xl font-bold text-gray-900 mb-2">
-              Supprimer le projet
-            </h3>
-            <p class="text-sm text-gray-600">
-              {{ project?.name }}
-            </p>
-          </div>
-        </div>
-
-        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
-          <div class="flex items-start">
-            <div class="flex-shrink-0">
-              <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-              </svg>
-            </div>
-            <div class="ml-3">
-              <h4 class="text-sm font-semibold text-red-800 mb-1">
-                ⚠️ Attention : Cette action est irréversible !
-              </h4>
-              <div class="text-sm text-red-700 space-y-1">
-                <p>En supprimant ce projet, vous perdrez définitivement :</p>
-                <ul class="list-disc list-inside ml-2 space-y-1">
-                  <li>Toutes les <strong>parties</strong></li>
-                  <li>Toutes les <strong>séquences</strong></li>
-                  <li>Toutes les <strong>scènes</strong> et leur contenu</li>
-                  <li>Tous les <strong>personnages</strong></li>
-                  <li>Toutes les données liées</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="mb-6">
-          <label for="confirmText" class="block text-sm font-medium text-gray-700 mb-2">
-            Pour confirmer, tapez <span class="font-bold text-red-600">SUPPRIMER</span> :
-          </label>
-          <input
-            id="confirmText"
-            v-model="deleteConfirmText"
-            type="text"
-            class="w-full px-3 py-2 border-2 border-gray-300 rounded-md focus:outline-none focus:border-red-500"
-            placeholder="Tapez SUPPRIMER"
-            @keyup.enter="canDelete && deleteProject()"
-          />
-        </div>
-
-        <div v-if="errorMessage" class="mb-4 text-red-600 text-sm">
-          {{ errorMessage }}
-        </div>
-
-        <div class="flex gap-3">
-          <button
-            type="button"
-            @click="closeDeleteModal"
-            :disabled="isDeleting"
-            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
-          >
-            Annuler
-          </button>
-          <button
-            type="button"
-            @click="deleteProject"
-            :disabled="!canDelete || isDeleting"
-            class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-          >
-            {{ isDeleting ? 'Suppression...' : 'Supprimer' }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 

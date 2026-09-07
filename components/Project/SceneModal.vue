@@ -4,6 +4,7 @@ import { useConfirm } from '~/composables/useConfirm';
 import RichTextEditor from "@/components/RichTextEditor.vue";
 import { useProjectStore } from "~/store/project";
 import { usePersonnageStore } from "~/store/personnage";
+import { TrashIcon } from '@heroicons/vue/24/outline';
 import { PropType } from 'vue';
 
 const projectStore = useProjectStore();
@@ -44,7 +45,6 @@ const emit = defineEmits(['close', 'save', 'delete', 'navigate']);
 const currentScene = ref<Scene | null>(null);
 const selectedSequenceId = ref<number | null>(null);
 const afterSceneId = ref<number | null>(null);
-const showDeleteConfirm = ref(false);
 const saveStatus = ref<'saved' | 'saving' | 'error' | 'unsaved'>('saved');
 let autoSaveInterval: NodeJS.Timeout | null = null;
 
@@ -160,7 +160,15 @@ const handleSave = async () => {
 
 const handleDelete = async () => {
   if (!sceneData.value.id) return;
-  
+
+  const ok = await confirm({
+    title: 'Supprimer cette scène ?',
+    message: `« ${sceneData.value.name || 'Sans titre'} » et son contenu seront définitivement perdus.`,
+    danger: true,
+    confirmLabel: 'Supprimer'
+  });
+  if (!ok) return;
+
   try {
     await projectStore.deleteScene(sceneData.value.id);
     emit('close');
@@ -433,7 +441,16 @@ const closeModal = async () => {
           <button @click="handleSave" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
             Enregistrer
           </button>
-          
+
+          <button
+            v-if="sceneData.id"
+            @click="handleDelete"
+            class="p-2 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50"
+            title="Supprimer la scène"
+          >
+            <TrashIcon class="w-5 h-5" />
+          </button>
+
           <button @click="closeModal" class="text-gray-500 hover:text-gray-700 p-2">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -467,19 +484,6 @@ const closeModal = async () => {
     </div>
   </div>
 
-  <!-- Modal de confirmation de suppression -->
-  <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-    <div class="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
-      <h3 class="text-lg font-bold mb-4">Confirmation de suppression</h3>
-      <p class="text-gray-600 mb-6">Êtes-vous sûr de vouloir supprimer cette scène ?</p>
-      <div class="flex justify-end space-x-4">
-        <button @click="handleDelete" 
-                class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
-          Supprimer
-        </button>
-      </div>
-    </div>
-  </div>
 </div>
 </template>
 

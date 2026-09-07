@@ -2,7 +2,9 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import RichTextEditor from "~/components/RichTextEditor.vue";
 import { useProjectStore } from "~/store/project";
+import { useConfirm } from "~/composables/useConfirm";
 const projectStore = useProjectStore();
+const { confirm } = useConfirm();
 
 // props
 const props = defineProps({
@@ -15,7 +17,6 @@ const emit = defineEmits(['close', 'save', 'delete']);
 const currentSequence = ref({ ...props.sequence });
 const selectedPartId = ref<number | null>(null);
 const afterSequenceId = ref<number | null>(null);
-const showDeleteConfirm = ref(false);
 
 // Liste des parties disponibles
 const availableParts = computed(() => projectStore.parts);
@@ -81,17 +82,16 @@ const save = async () => {
   }
 };
 
-const deleteSequence = () => {
-  showDeleteConfirm.value = true;
-};
+const deleteSequence = async () => {
+  const ok = await confirm({
+    title: 'Supprimer cette séquence ?',
+    message: `« ${currentSequence.value.name || 'Sans titre'} » sera supprimée, ainsi que toutes ses scènes.`,
+    danger: true,
+    confirmLabel: 'Supprimer'
+  });
+  if (!ok) return;
 
-const confirmDelete = () => {
   emit('delete', currentSequence.value);
-  showDeleteConfirm.value = false;
-};
-
-const cancelDelete = () => {
-  showDeleteConfirm.value = false;
 };
 </script>
 
@@ -143,24 +143,6 @@ const cancelDelete = () => {
           <button @click="emit('close')" class="px-4 py-2 bg-gray-500 text-white rounded">Annuler</button>
           <button @click="save" class="px-4 py-2 bg-primary text-white rounded">
             Valider
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal de confirmation de suppression -->
-    <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-      <div class="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
-        <h3 class="text-lg font-bold mb-4">Confirmation de suppression</h3>
-        <p class="text-gray-600 mb-6">Êtes-vous sûr de vouloir supprimer cette séquence ?</p>
-        <div class="flex justify-end space-x-4">
-          <button @click="cancelDelete" 
-                  class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors">
-            Annuler
-          </button>
-          <button @click="confirmDelete" 
-                  class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
-            Supprimer
           </button>
         </div>
       </div>

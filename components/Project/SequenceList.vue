@@ -18,7 +18,9 @@ import { useProjectStore } from "~/store/project";
 import { useMetadataStore } from "~/store/metadata";
 import { usePersonnageStore } from "~/store/personnage";
 import { useAuthStore } from "~/store/auth";
+import { useConfirm } from "~/composables/useConfirm";
 
+const { confirm } = useConfirm();
 const projectStore = useProjectStore();
 const metadataStore = useMetadataStore();
 const personnageStore = usePersonnageStore();
@@ -214,8 +216,15 @@ const removePersonnageFromSequence = async (sequencePersonnageId, sequenceId) =>
     // Trouver le personnageId depuis le sequencePersonnage
     const sequence = props.sequences?.find(s => s.id === sequenceId);
     const sequencePersonnage = sequence?.sequencePersonnages?.find(sp => sp.id === sequencePersonnageId);
-    
+
     if (sequencePersonnage && sequencePersonnage.personnage) {
+      const ok = await confirm({
+        title: 'Retirer ce personnage ?',
+        message: `${getPersonnageName(sequencePersonnage.personnage)} ne sera plus associé à cette séquence. Le personnage lui-même n'est pas supprimé.`,
+        confirmLabel: 'Retirer'
+      });
+      if (!ok) return;
+
       await personnageStore.removePersonnageFromSequence(sequenceId, sequencePersonnage.personnage.id);
       
       // Recharger le projet pour mettre à jour l'affichage

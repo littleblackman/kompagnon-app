@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import { useProjectStore } from "~/store/project";
+import { useConfirm } from "~/composables/useConfirm";
 const projectStore = useProjectStore();
-
-const showDeleteConfirm = ref(false);
+const { confirm } = useConfirm();
 
 const props = defineProps({
   part: { type: Object, default: null },
@@ -50,8 +50,28 @@ const savePart = async () => {
   }
 };
 
+// Supprimer une partie emporte toute sa hiérarchie : on annonce le volume exact.
+const deletionDetails = computed(() => {
+  const sequences = projectStore.parts.find(p => p.id === editedPart.value.id)?.sequences ?? [];
+  const scenes = sequences.reduce((n, seq) => n + (seq.scenes?.length ?? 0), 0);
+  if (!sequences.length) return [];
+  return [
+    `${sequences.length} séquence${sequences.length > 1 ? 's' : ''}`,
+    `${scenes} scène${scenes > 1 ? 's' : ''} et leur contenu`
+  ];
+});
+
 const confirmDelete = async () => {
   if (!editedPart.value.id) return;
+
+  const ok = await confirm({
+    title: 'Supprimer cette partie ?',
+    message: `« ${editedPart.value.name || 'Sans titre'} » sera supprimée définitivement, avec :`,
+    details: deletionDetails.value,
+    danger: true,
+    confirmLabel: 'Supprimer'
+  });
+  if (!ok) return;
 
   try {
     await projectStore.deletePart(editedPart.value.id);
@@ -91,7 +111,7 @@ const confirmDelete = async () => {
       <div class="flex justify-between gap-2 mt-4">
         <button
             v-if="editedPart.id"
-            @click="showDeleteConfirm = true"
+            @click="confirmDelete"
             class="px-4 py-2 rounded bg-red-500 text-white"
         >
           Supprimer
@@ -105,27 +125,6 @@ const confirmDelete = async () => {
           </button>
         </div>
       </div>
-
-
-      <div v-if="showDeleteConfirm" class="mt-4 p-4 border border-red-500 rounded bg-red-50">
-        <p class="text-red-700 mb-2">Confirmer la suppression de cette partie ?</p>
-            <div class="flex justify-end gap-2">
-              <button
-                  @click="showDeleteConfirm = false"
-                  class="px-3 py-1 rounded bg-gray-400 text-white"
-              >
-                Annuler
-              </button>
-              <button
-                  @click="confirmDelete"
-                  class="px-3 py-1 rounded bg-red-600 text-white"
-              >
-                Oui, supprimer
-              </button>
-            </div>
-      </div>
-
-
     </div>
   </div>
 </template>

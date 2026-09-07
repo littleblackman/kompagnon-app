@@ -219,6 +219,13 @@ const updateEventTypeParams = async (eventTypeId: number, weight?: number, isMan
 const removeEventTypeFromSubgenre = async (eventTypeId: number) => {
   if (!selectedSubgenre.value) return
 
+  const ok = await confirm({
+    title: 'Retirer ce type de beat ?',
+    message: `Il ne sera plus associé au sous-genre « ${selectedSubgenre.value.name} ». Le type de beat lui-même n'est pas supprimé.`,
+    confirmLabel: 'Retirer'
+  })
+  if (!ok) return
+
   try {
     await $fetch(`${config.public.apiBase}/admin/subgenre-event-type/remove`, {
       method: 'DELETE',
@@ -629,7 +636,18 @@ const addSection = () => {
 }
 
 // Supprimer une section
-const removeSection = (sectionName: string) => {
+const removeSection = async (sectionName: string) => {
+  const count = narrativeStructureForm.value.narrativePartOrder[sectionName]?.length ?? 0
+  const ok = await confirm({
+    title: `Supprimer la section « ${sectionName} » ?`,
+    message: count
+      ? `Les ${count} segment${count > 1 ? 's' : ''} qu'elle contient seront retirés de la structure.`
+      : undefined,
+    danger: true,
+    confirmLabel: 'Supprimer'
+  })
+  if (!ok) return
+
   delete narrativeStructureForm.value.narrativePartOrder[sectionName]
 }
 
@@ -645,7 +663,15 @@ const addNarrativePartToSection = (sectionName: string) => {
 }
 
 // Retirer un segment narratif d'une section
-const removeNarrativePartFromSection = (sectionName: string, index: number) => {
+const removeNarrativePartFromSection = async (sectionName: string, index: number) => {
+  const code = narrativeStructureForm.value.narrativePartOrder[sectionName]?.[index]
+  const ok = await confirm({
+    title: 'Retirer ce segment ?',
+    message: `« ${code} » sera retiré de la section « ${sectionName} ».`,
+    confirmLabel: 'Retirer'
+  })
+  if (!ok) return
+
   narrativeStructureForm.value.narrativePartOrder[sectionName].splice(index, 1)
 }
 
