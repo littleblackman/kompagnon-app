@@ -12,7 +12,7 @@ import {
   EyeIcon,            // Pour idée esthétique  
   InformationCircleIcon 
 } from '@heroicons/vue/24/solid'
-import { ArrowUpIcon, ArrowDownIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
+import { ArrowUpIcon, ArrowDownIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 import { StarIcon } from '@heroicons/vue/24/solid'
 
 import { useProjectStore } from "~/store/project";
@@ -30,17 +30,20 @@ const toast = useToast();
 // Une séquence à la fois : l'appel est lent et coûte un jeton
 const analysing = ref<{ id: number; kind: 'alignment' | 'criterias' } | null>(null);
 
+const analysingField = ref<{ id: number; field: string } | null>(null);
+
 const isAnalysing = (sequenceId: number, kind: 'alignment' | 'criterias') =>
   analysing.value?.id === sequenceId && analysing.value.kind === kind;
 
-const runAlignment = async (sequenceId: number) => {
-  analysing.value = { id: sequenceId, kind: 'alignment' };
-  const result = await projectStore.analyseSequenceAlignment(sequenceId);
-  analysing.value = null;
+const isAnalysingField = (sequenceId: number, field: string) =>
+  analysingField.value?.id === sequenceId && analysingField.value.field === field;
 
-  result.success
-    ? toast.success('Alignement analysé')
-    : toast.error(result.message ?? "L'analyse a échoué.");
+const runAlignment = async (sequenceId: number, field: 'intention' | 'aesthetic' | 'information') => {
+  analysingField.value = { id: sequenceId, field };
+  const result = await projectStore.analyseSequenceAlignment(sequenceId, field);
+  analysingField.value = null;
+
+  if (!result.success) toast.error(result.message ?? "L'analyse a échoué.");
 };
 
 const runCriterias = async (sequenceId: number) => {
@@ -499,6 +502,18 @@ const updateRating = async (ratingData) => {
                 :comment="sequence.alignment?.intention?.comment ?? ''"
                 label="Intention"
               />
+              <button
+                @click="runAlignment(sequence.id, 'intention')"
+                :disabled="!!analysingField"
+                class="shrink-0 rounded-full p-1 text-gray-400 transition-colors hover:bg-white hover:text-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
+                data-controller="tooltip"
+                title="Le texte écrit tient-il cette ligne ?"
+              >
+                <ArrowPathIcon
+                  class="h-4 w-4"
+                  :class="isAnalysingField(sequence.id, 'intention') && 'animate-spin'"
+                />
+              </button>
             </div>
 
             <!-- Esthétique -->
@@ -517,6 +532,18 @@ const updateRating = async (ratingData) => {
                 :comment="sequence.alignment?.aesthetic?.comment ?? ''"
                 label="Idée esthétique"
               />
+              <button
+                @click="runAlignment(sequence.id, 'aesthetic')"
+                :disabled="!!analysingField"
+                class="shrink-0 rounded-full p-1 text-gray-400 transition-colors hover:bg-white hover:text-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
+                data-controller="tooltip"
+                title="Le texte écrit tient-il cette ligne ?"
+              >
+                <ArrowPathIcon
+                  class="h-4 w-4"
+                  :class="isAnalysingField(sequence.id, 'aesthetic') && 'animate-spin'"
+                />
+              </button>
             </div>
 
             <!-- Info -->
@@ -535,25 +562,26 @@ const updateRating = async (ratingData) => {
                 :comment="sequence.alignment?.information?.comment ?? ''"
                 label="Information"
               />
+              <button
+                @click="runAlignment(sequence.id, 'information')"
+                :disabled="!!analysingField"
+                class="shrink-0 rounded-full p-1 text-gray-400 transition-colors hover:bg-white hover:text-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
+                data-controller="tooltip"
+                title="Le texte écrit tient-il cette ligne ?"
+              >
+                <ArrowPathIcon
+                  class="h-4 w-4"
+                  :class="isAnalysingField(sequence.id, 'information') && 'animate-spin'"
+                />
+              </button>
             </div>
           </div>
             </div>
           </div>
 
-          <!-- Les deux analyses : l'alignement juge le texte écrit,
-               les intensités le notent. Deux questions, deux appels. -->
+          <!-- Les intensités se demandent pour toute la séquence ;
+               l'alignement se vérifie ligne par ligne, au plus près du champ. -->
           <div class="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              @click="runAlignment(sequence.id)"
-              :disabled="!!analysing"
-              class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              data-controller="tooltip"
-              title="Le texte tient-il l'intention, l'idée esthétique et l'information annoncées ?"
-            >
-              <span v-if="isAnalysing(sequence.id, 'alignment')">Analyse…</span>
-              <span v-else>Vérifier le cadrage</span>
-            </button>
-
             <button
               @click="runCriterias(sequence.id)"
               :disabled="!!analysing"

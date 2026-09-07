@@ -260,20 +260,27 @@ export const useProjectStore = defineStore('project', {
          * Le verdict n'est pas persisté côté serveur : il reflète l'état du
          * texte à l'instant de l'analyse et devient faux dès qu'on le réécrit.
          */
-        async analyseSequenceAlignment(sequenceId: number): Promise<{ success: boolean; message?: string }> {
+        async analyseSequenceAlignment(
+            sequenceId: number,
+            field?: 'intention' | 'aesthetic' | 'information'
+        ): Promise<{ success: boolean; message?: string }> {
             const found = this.findSequenceContext(sequenceId);
             if (!found) return { success: false, message: 'Séquence introuvable' };
 
             const config = useRuntimeConfig();
             const authStore = useAuthStore();
+            const query = field ? `?field=${field}` : '';
 
             try {
-                const result: any = await $fetch(`${config.public.apiBase}/sequence/${sequenceId}/analyse/alignment`, {
+                const result: any = await $fetch(`${config.public.apiBase}/sequence/${sequenceId}/analyse/alignment${query}`, {
                     method: 'POST',
                     headers: { 'X-AUTH-TOKEN': authStore.token! },
                 });
 
-                (found.sequence as any).alignment = result.analysis;
+                // Fusion et non remplacement : analyser une ligne ne doit pas
+                // effacer le verdict des deux autres.
+                const sequence = found.sequence as any;
+                sequence.alignment = { ...(sequence.alignment ?? {}), ...result.analysis };
                 return { success: true };
             } catch (error: any) {
                 const message = error?.data?.message ?? "L'analyse a échoué.";
