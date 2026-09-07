@@ -8,7 +8,6 @@ import { PencilIcon } from '@heroicons/vue/24/solid';
 import { ChatBubbleBottomCenterTextIcon } from '@heroicons/vue/24/outline';
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
 import SceneModal from "@/components/Project/SceneModal.vue";
-import PersonnageDetectionModal from "@/components/Project/PersonnageDetectionModal.vue";
 import SceneNoteModal from "@/components/Project/SceneNoteModal.vue";
 import AllNotesPanel from "@/components/Project/AllNotesPanel.vue";
 import { toRoman } from '~/utils/roman';
@@ -751,7 +750,6 @@ ${body}
       Sans cette modale montée ici, le drapeau resterait armé et la fenêtre
       surgirait sur une autre page.
     -->
-    <PersonnageDetectionModal />
 
     <SceneNoteModal
       :open="!!noteScene"

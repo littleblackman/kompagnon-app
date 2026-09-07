@@ -103,6 +103,8 @@
 </template>
 
 <script setup lang="ts">
+import { useToast } from '~/composables/useToast';
+const toast = useToast();
 import { ref, computed } from 'vue';
 import { PhotoIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/solid';
 import { usePersonnageStore } from '~/store/personnage';
@@ -261,7 +263,7 @@ const uploadFiles = async (files: File[]) => {
   // Filtrer les images
   const imageFiles = files.filter(file => file.type.startsWith('image/'));
   if (imageFiles.length === 0) {
-    alert('Veuillez sélectionner des fichiers images.');
+    toast.error('Veuillez sélectionner des fichiers images.');
     return;
   }
 
@@ -289,7 +291,7 @@ const uploadFiles = async (files: File[]) => {
     emit('imagesUpdated', [...normalizedImages.value, ...uploadedImages]);
   } catch (error) {
     console.error('Erreur lors de l\'upload:', error);
-    alert('Erreur lors de l\'upload des images.');
+    toast.error('Erreur lors de l\'upload des images.');
   } finally {
     isUploading.value = false;
   }
@@ -329,7 +331,7 @@ const deleteImage = async (index: number): Promise<void> => {
     emit('imagesUpdated', updatedImages);
   } catch (error) {
     console.error('Erreur lors de la suppression:', error);
-    alert('Erreur lors de la suppression de l\'image.');
+    toast.error('Erreur lors de la suppression de l\'image.');
   }
 };
 
@@ -361,7 +363,7 @@ const handleImageDrop = async (targetIndex: number) => {
     emit('imagesUpdated', newImages);
   } catch (error) {
     console.error('Erreur lors de la réorganisation:', error);
-    alert('Erreur lors de la réorganisation des images.');
+    toast.error('Erreur lors de la réorganisation des images.');
   }
   
   draggedIndex.value = null;

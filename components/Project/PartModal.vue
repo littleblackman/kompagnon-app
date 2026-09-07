@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useToast } from '~/composables/useToast';
+const toast = useToast();
 import { ref, watch, computed } from "vue";
 import { useProjectStore } from "~/store/project";
 import { useConfirm } from "~/composables/useConfirm";
@@ -39,7 +41,7 @@ watch(() => props.part, (newPart) => {
 
 const savePart = async () => {
   if (!editedPart.value.name.trim()) {
-    alert("Le nom est obligatoire.");
+    toast.error("Le nom est obligatoire.");
     return;
   }
 
@@ -49,7 +51,7 @@ const savePart = async () => {
     emit("close");
   } catch (error) {
     console.error("Erreur API :", error);
-    alert("Erreur lors de la sauvegarde.");
+    toast.error("Erreur lors de la sauvegarde.");
   }
 };
 
@@ -81,7 +83,7 @@ const confirmDelete = async () => {
     emit("close");
   } catch (error) {
     console.error("Erreur API :", error);
-    alert("Erreur lors de la suppression.");
+    toast.error("Erreur lors de la suppression.");
   }
 };
 

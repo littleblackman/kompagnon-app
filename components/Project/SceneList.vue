@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue';
 import SceneModal from '~/components/Project/SceneModal.vue';
-import PersonnageDetectionModal from '~/components/Project/PersonnageDetectionModal.vue';
 import InsertDivider from '~/components/Project/InsertDivider.vue';
 import SequencePickerModal from '~/components/Project/SequencePickerModal.vue';
 import SceneNoteModal from '~/components/Project/SceneNoteModal.vue';
@@ -222,7 +221,6 @@ const vHtml = {
 
 <template>
   <div>
-    <PersonnageDetectionModal />
 
     <SceneModal
       v-if="sceneModalOpen"

@@ -2,7 +2,6 @@
 import RatingStars from "@/components/Project/RatingStars.vue";
 import SequenceModal from "~/components/Project/SequenceModal.vue";
 import PersonnageModal from "~/components/Project/PersonnageModal.vue";
-import PersonnageDetectionModal from "~/components/Project/PersonnageDetectionModal.vue";
 import PersonnageConfigModal from "~/components/Project/PersonnageConfigModal.vue";
 import FieldIcon from '@/components/FieldIcon.vue'
 import SceneList from '@/components/Project/SceneList.vue'
@@ -295,7 +294,6 @@ const updateRating = async (ratingData) => {
         @save="handleSavePersonnage"
     />
     
-    <PersonnageDetectionModal />
     
     <PersonnageConfigModal v-model:showConfig="showPersonnageConfig" />
 

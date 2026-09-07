@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { useToast } from '~/composables/useToast';
+const toast = useToast();
 import { ref, computed, watch, nextTick } from 'vue';
 import RichTextEditor from "~/components/RichTextEditor.vue";
 import { useProjectStore } from "~/store/project";
@@ -56,12 +58,12 @@ watch(selectedPartId, (newPartId, oldPartId) => {
 
 const save = async () => {
   if (!selectedPartId.value) {
-    alert("Veuillez sélectionner une partie");
+    toast.error("Veuillez sélectionner une partie");
     return;
   }
   
   if (!currentSequence.value.name.trim()) {
-    alert("Le nom est obligatoire");
+    toast.error("Le nom est obligatoire");
     return;
   }
 
@@ -85,7 +87,7 @@ const save = async () => {
     }
   } catch (error) {
     console.error('Erreur lors de la sauvegarde:', error);
-    alert('Erreur lors de la sauvegarde');
+    toast.error('Erreur lors de la sauvegarde');
   }
 };
 

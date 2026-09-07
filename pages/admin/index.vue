@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useToast } from '~/composables/useToast'
+import { usePrompt } from '~/composables/usePrompt'
+
+const toast = useToast()
+const { prompt } = usePrompt()
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/store/auth'
 import { useMetadataStore } from '~/store/metadata'
@@ -295,7 +300,7 @@ const createGenre = async () => {
 // Supprimer un genre
 const deleteGenre = async (genreId: number, subgenresCount: number) => {
   if (subgenresCount > 0) {
-    alert('Impossible de supprimer un genre qui contient des sous-genres')
+    toast.error('Impossible de supprimer un genre qui contient des sous-genres')
     return
   }
 
@@ -322,7 +327,7 @@ const openCreateSubgenreModal = () => {
 // Créer un sous-genre
 const createSubgenre = async () => {
   if (!createSubgenreForm.value.genre_id) {
-    alert('Veuillez sélectionner un genre parent')
+    toast.error('Veuillez sélectionner un genre parent')
     return
   }
 
@@ -355,7 +360,7 @@ const deleteSubgenre = async (subgenreId: number) => {
     await fetchGenres()
   } catch (error) {
     console.error('Erreur lors de la suppression du sous-genre:', error)
-    alert('Erreur lors de la suppression du sous-genre')
+    toast.error('Erreur lors de la suppression du sous-genre')
   }
 }
 
@@ -437,14 +442,14 @@ const saveEventType = async () => {
     closeEventTypeModal()
   } catch (error) {
     console.error('Erreur lors de la sauvegarde du type de beat:', error)
-    alert('Erreur lors de la sauvegarde')
+    toast.error('Erreur lors de la sauvegarde')
   }
 }
 
 // Supprimer un event type
 const deleteEventType = async (eventTypeId: number, eventsCount: number) => {
   if (eventsCount > 0) {
-    alert('Impossible de supprimer un type de beat qui contient des beats')
+    toast.error('Impossible de supprimer un type de beat qui contient des beats')
     return
   }
   const ok = await confirm({ title: 'Supprimer ce type de beat ?', danger: true, confirmLabel: 'Supprimer' })
@@ -458,7 +463,7 @@ const deleteEventType = async (eventTypeId: number, eventsCount: number) => {
     await fetchEventTypes()
   } catch (error) {
     console.error('Erreur lors de la suppression du type de beat:', error)
-    alert('Erreur lors de la suppression')
+    toast.error('Erreur lors de la suppression')
   }
 }
 
@@ -486,7 +491,7 @@ const createEvent = async (eventTypeId: number, eventName: string, isOptional: b
     }
   } catch (error) {
     console.error('Erreur lors de la création du beat:', error)
-    alert('Erreur lors de la création du beat')
+    toast.error('Erreur lors de la création du beat')
   }
 }
 
@@ -503,7 +508,7 @@ const deleteEvent = async (eventId: number) => {
     await fetchEventTypes()
   } catch (error) {
     console.error('Erreur lors de la suppression du beat:', error)
-    alert('Erreur lors de la suppression')
+    toast.error('Erreur lors de la suppression')
   }
 }
 
@@ -523,7 +528,7 @@ const toggleEventOptional = async (event: any) => {
     await fetchEventTypes()
   } catch (error) {
     console.error('Erreur lors de la mise à jour du beat:', error)
-    alert('Erreur lors de la mise à jour')
+    toast.error('Erreur lors de la mise à jour')
   }
 }
 
@@ -606,7 +611,7 @@ const saveNarrativeStructure = async () => {
     closeNarrativeStructureModal()
   } catch (error) {
     console.error('Erreur lors de la sauvegarde de la structure narrative:', error)
-    alert('Erreur lors de la sauvegarde')
+    toast.error('Erreur lors de la sauvegarde')
   }
 }
 
@@ -623,14 +628,23 @@ const deleteNarrativeStructure = async (structureId: number) => {
     await fetchNarrativeStructures()
   } catch (error) {
     console.error('Erreur lors de la suppression:', error)
-    alert('Erreur lors de la suppression')
+    toast.error('Erreur lors de la suppression')
   }
 }
 
 // Ajouter une section (acte/phase)
-const addSection = () => {
-  const sectionName = prompt('Nom de la section (ex: "Acte 1", "Éveil", etc.):')
-  if (!sectionName || !sectionName.trim()) return
+const addSection = async () => {
+  const sectionName = await prompt({
+    title: 'Nouvelle section',
+    message: 'Nom de la section, par exemple « Acte 1 » ou « Éveil ».',
+    placeholder: 'Acte 1'
+  })
+  if (!sectionName) return
+
+  if (narrativeStructureForm.value.narrativePartOrder[sectionName]) {
+    toast.error('Cette section existe déjà')
+    return
+  }
 
   narrativeStructureForm.value.narrativePartOrder[sectionName] = []
 }
@@ -652,14 +666,19 @@ const removeSection = async (sectionName: string) => {
 }
 
 // Ajouter un segment narratif à une section
-const addNarrativePartToSection = (sectionName: string) => {
-  const code = prompt('Code du Segment Narratif (ex: SETUP, CRISIS, etc.):')
-  if (!code || !code.trim()) return
+const addNarrativePartToSection = async (sectionName: string) => {
+  const code = await prompt({
+    title: 'Ajouter un segment narratif',
+    message: `Code du segment à ajouter à « ${sectionName} ».`,
+    placeholder: 'SETUP',
+    uppercase: true
+  })
+  if (!code) return
 
   if (!narrativeStructureForm.value.narrativePartOrder[sectionName]) {
     narrativeStructureForm.value.narrativePartOrder[sectionName] = []
   }
-  narrativeStructureForm.value.narrativePartOrder[sectionName].push(code.toUpperCase())
+  narrativeStructureForm.value.narrativePartOrder[sectionName].push(code)
 }
 
 // Retirer un segment narratif d'une section
@@ -807,14 +826,14 @@ const saveNarrativePart = async () => {
     closeNarrativePartModal()
   } catch (error) {
     console.error('Erreur lors de la sauvegarde du segment narratif:', error)
-    alert('Erreur lors de la sauvegarde')
+    toast.error('Erreur lors de la sauvegarde')
   }
 }
 
 // Supprimer segment narratif
 const deleteNarrativePart = async (narrativePartId: number, eventTypesCount: number) => {
   if (eventTypesCount > 0) {
-    alert('Impossible de supprimer un segment narratif qui a des types de beats associés')
+    toast.error('Impossible de supprimer un segment narratif qui a des types de beats associés')
     return
   }
   const ok = await confirm({ title: 'Supprimer ce segment narratif ?', danger: true, confirmLabel: 'Supprimer' })
@@ -829,7 +848,7 @@ const deleteNarrativePart = async (narrativePartId: number, eventTypesCount: num
     await metadataStore.fetchMetadata()
   } catch (error) {
     console.error('Erreur lors de la suppression:', error)
-    alert('Erreur lors de la suppression')
+    toast.error('Erreur lors de la suppression')
   }
 }
 
