@@ -3,9 +3,10 @@ import { ref, nextTick } from 'vue';
 import SceneModal from '~/components/Project/SceneModal.vue';
 import PersonnageDetectionModal from '~/components/Project/PersonnageDetectionModal.vue';
 import InsertDivider from '~/components/Project/InsertDivider.vue';
+import SequencePickerModal from '~/components/Project/SequencePickerModal.vue';
 import { useProjectStore } from "~/store/project";
 import { PropType } from 'vue';
-import { TrashIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, DocumentDuplicateIcon, PencilIcon } from '@heroicons/vue/24/outline';
+import { TrashIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, DocumentDuplicateIcon, PencilIcon, ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline';
 import { useConfirm } from '~/composables/useConfirm';
 
 const projectStore = useProjectStore();
@@ -46,6 +47,28 @@ const sceneModalOpen = ref(false);
 const currentScene = ref<Scene | null>(null);
 const afterSceneId = ref<number | null>(null);
 const focusParagraph = ref<number | null>(null);
+
+// Déplacement vers une autre séquence
+const movingScene = ref<any | null>(null);
+
+const confirmMoveScene = async (targetSequenceId: number) => {
+  const scene = movingScene.value;
+  movingScene.value = null;
+  if (!scene) return;
+
+  try {
+    // Déplacer en fin de séquence cible : sans point d'insertion, l'API
+    // placerait la scène en tête, ce qui n'est pas ce qu'on attend d'un
+    // déplacement et couperait le fil du récit à l'arrivée.
+    const target = projectStore.sequences.find(s => s.id === targetSequenceId);
+    const targetScenes = [...(target?.scenes ?? [])].sort((a, b) => a.position - b.position);
+    const lastId = targetScenes.length ? targetScenes[targetScenes.length - 1].id : undefined;
+
+    await projectStore.moveSceneToSequence(scene.id, targetSequenceId, lastId);
+  } catch (error) {
+    console.error('Erreur lors du déplacement de la scène :', error);
+  }
+};
 
 const openSceneModal = (scene = null) => {
   if (!scene) {
@@ -200,6 +223,16 @@ const vHtml = {
       @navigate="handleNavigateToScene"
     />
 
+    <SequencePickerModal
+      :open="!!movingScene"
+      title="Déplacer la scène"
+      :message="movingScene ? `« ${movingScene.name || 'Sans titre'} » sera déplacée à la fin de la séquence choisie.` : ''"
+      confirm-label="Déplacer"
+      :exclude-id="sequenceId"
+      @confirm="confirmMoveScene"
+      @cancel="movingScene = null"
+    />
+
     <div v-if="sortedScenes && sortedScenes.length > 0">
       <template v-for="(scene, index) in sortedScenes" :key="scene.id">
       <div class="ml-1 sm:ml-4 mb-3 p-2 sm:p-4 border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
@@ -246,6 +279,15 @@ const vHtml = {
               <DocumentDuplicateIcon class="h-4 w-4" />
             </button>
             
+            <!-- Bouton Déplacer vers une autre séquence -->
+            <button
+              class="p-1 rounded text-gray-500 hover:text-amber-700 hover:bg-amber-50"
+              @click="movingScene = scene"
+              title="Déplacer vers une autre séquence"
+            >
+              <ArrowRightOnRectangleIcon class="h-4 w-4" />
+            </button>
+
             <!-- Bouton Supprimer -->
             <button 
               class="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50" 

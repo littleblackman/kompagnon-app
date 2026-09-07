@@ -254,6 +254,50 @@ export const useProjectStore = defineStore('project', {
             }
         },
 
+        /**
+         * Déplace une scène vers une autre séquence (ou la repositionne dans
+         * la sienne). Le serveur renumérote les deux conteneurs et renvoie
+         * leurs positions finales.
+         */
+        async moveSceneToSequence(sceneId: number, targetSequenceId: number, afterSceneId?: number): Promise<void> {
+            const found = this.findSceneContext(sceneId);
+            if (!found?.sequence.scenes) return;
+
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                const result: any = await $fetch(`${config.public.apiBase}/scene/move`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-AUTH-TOKEN': authStore.token!,
+                    },
+                    body: { sceneId, targetSequenceId, afterSceneId },
+                });
+
+                const scene = found.scene;
+                found.sequence.scenes.splice(found.index, 1);
+
+                const target = this.sequences.find(s => s.id === targetSequenceId);
+                if (target) {
+                    if (!target.scenes) target.scenes = [];
+                    target.scenes.push(scene);
+                    scene.sequence_id = targetSequenceId;
+                }
+
+                // Source et cible ont toutes deux bougé. Quand c'est la même
+                // séquence, les deux appels portent sur le même tableau.
+                applyPositions(found.sequence.scenes, result.sourcePositions);
+                if (target?.scenes) applyPositions(target.scenes, result.targetPositions);
+
+                this.calculateStats();
+            } catch (error) {
+                console.error("Erreur lors du déplacement de la scène :", error);
+                throw error;
+            }
+        },
+
         // delete part
         async deletePart(partId: number) {
             try {

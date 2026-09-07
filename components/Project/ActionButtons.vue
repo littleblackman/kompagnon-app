@@ -9,6 +9,7 @@ import {
 import PartModal from './PartModal.vue'
 import SequenceModal from './SequenceModal.vue'
 import SceneModal from './SceneModal.vue'
+import SequencePickerModal from './SequencePickerModal.vue'
 
 interface Props {
   projectId: number
@@ -124,8 +125,9 @@ const openModal = (type: 'part' | 'sequence' | 'scene') => {
   modalOpen.value = true
 }
 
-const confirmSequencePick = () => {
-  if (!pickedSequenceId.value) return
+const confirmSequencePick = (sequenceId: number) => {
+  if (!sequenceId) return
+  pickedSequenceId.value = sequenceId
   sequencePickerOpen.value = false
   modalType.value = 'scene'
   modalOpen.value = true
@@ -222,42 +224,14 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
     </div>
 
     <!-- Choix de la séquence cible avant de créer une scène -->
-    <Teleport to="body">
-      <div
-        v-if="sequencePickerOpen"
-        class="fixed inset-0 z-[150] flex items-center justify-center p-4"
-      >
-        <div class="absolute inset-0 bg-black/50" @click="sequencePickerOpen = false" />
-        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10">
-          <h3 class="text-base font-semibold text-gray-900 mb-4">Dans quelle séquence ?</h3>
-
-          <select v-model="pickedSequenceId" class="w-full border rounded-lg p-2 text-sm mb-6">
-            <optgroup v-for="part in projectStore.parts" :key="part.id" :label="part.name">
-              <option v-for="seq in part.sequences ?? []" :key="seq.id" :value="seq.id">
-                {{ seq.name }}
-              </option>
-            </optgroup>
-          </select>
-
-          <div class="flex gap-3 justify-end">
-            <button
-              @click="sequencePickerOpen = false"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-            >
-              Annuler
-            </button>
-            <button
-              @click="confirmSequencePick"
-              :disabled="!pickedSequenceId"
-              :class="['px-4 py-2 text-sm font-medium text-white rounded-lg',
-                       pickedSequenceId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-gray-300 cursor-not-allowed']"
-            >
-              Continuer
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <SequencePickerModal
+      :open="sequencePickerOpen"
+      title="Dans quelle séquence ?"
+      confirm-label="Continuer"
+      :initial-id="pickedSequenceId"
+      @confirm="confirmSequencePick"
+      @cancel="sequencePickerOpen = false"
+    />
 
     <!-- Modales -->
     <PartModal
