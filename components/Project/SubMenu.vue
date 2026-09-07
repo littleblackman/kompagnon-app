@@ -14,23 +14,27 @@
 
         <!-- Liens de navigation (icônes seules sur mobile) -->
         <div class="flex items-center gap-1">
-          <NuxtLink :to="`/projets/projet-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('projet-') }" title="Écrire">
+          <NuxtLink :to="`/projets/projet-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('projet-') }" data-controller="tooltip" title="Écrire">
             <PencilIcon class="w-5 h-5" />
             <span class="hidden sm:inline">Écrire</span>
           </NuxtLink>
-          <NuxtLink :to="`/projets/voir-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('voir-') }" title="Voir">
+          <NuxtLink :to="`/projets/voir-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('voir-') }" data-controller="tooltip" title="Voir">
             <EyeIcon class="w-5 h-5" />
             <span class="hidden sm:inline">Voir</span>
           </NuxtLink>
-          <NuxtLink :to="`/projets/personnages-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('personnages-') }" title="Personnages">
+          <NuxtLink :to="`/projets/personnages-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('personnages-') }" data-controller="tooltip" title="Personnages">
             <UserGroupIcon class="w-5 h-5" />
             <span class="hidden sm:inline">Personnages</span>
           </NuxtLink>
-          <NuxtLink :to="`/projets/reference-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('reference-') }" title="Référence">
+          <NuxtLink :to="`/projets/analyse-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('analyse-') }" data-controller="tooltip" title="Analyse">
+            <ChartBarIcon class="w-5 h-5" />
+            <span class="hidden sm:inline">Analyse</span>
+          </NuxtLink>
+          <NuxtLink :to="`/projets/reference-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('reference-') }" data-controller="tooltip" title="Référence">
             <BookOpenIcon class="w-5 h-5" />
             <span class="hidden sm:inline">Référence</span>
           </NuxtLink>
-          <NuxtLink :to="`/projets/modifier-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('modifier-') }" title="Paramètres">
+          <NuxtLink :to="`/projets/modifier-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('modifier-') }" data-controller="tooltip" title="Paramètres">
             <CogIcon class="w-5 h-5" />
             <span class="hidden sm:inline">Paramètres</span>
           </NuxtLink>
@@ -47,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon, ArrowLeftIcon, BookOpenIcon } from '@heroicons/vue/24/solid';
+import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon, ArrowLeftIcon, BookOpenIcon, ChartBarIcon } from '@heroicons/vue/24/solid';
 import { useProjectStore } from '~/store/project';
 
 interface Props {
