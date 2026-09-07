@@ -6,21 +6,12 @@ import SequencePickerModal from '~/components/Project/SequencePickerModal.vue';
 import SceneNoteModal from '~/components/Project/SceneNoteModal.vue';
 import { useProjectStore } from "~/store/project";
 import { PropType } from 'vue';
+import type { Scene } from '~/types';
 import { TrashIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, DocumentDuplicateIcon, PencilIcon, ArrowRightOnRectangleIcon, ChatBubbleBottomCenterTextIcon } from '@heroicons/vue/24/outline';
 import { useConfirm } from '~/composables/useConfirm';
 
 const projectStore = useProjectStore();
 const { confirm } = useConfirm();
-
-interface Scene {
-  id: number;
-  name: string;
-  position: number;
-  description: string;
-  content: string;
-  status: any[];
-  sequenceId: number;
-}
 
 const props = defineProps({
   scenes: {

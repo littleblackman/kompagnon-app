@@ -1,11 +1,22 @@
 export interface Scene {
-  id: number
+  /** Absent tant que la scène n'a pas été créée côté serveur */
+  id?: number
   name: string
-  description: string
-  position: number
-  sequence_id: number
-  status_id?: number
+  description?: string
   content?: string
+  /** Posée par le serveur : le front n'exprime que de l'ordre relatif */
+  position?: number
+  /**
+   * Renvoyée par l'API via le getter virtuel getSequenceId().
+   * À ne pas confondre avec sequence_id, attendu en écriture.
+   */
+  sequenceId?: number
+  /** Clé attendue par l'API en écriture (POST /scene/update) */
+  sequence_id?: number
+  /** Insertion relative à la création */
+  afterSceneId?: number
+  status?: any
+  status_id?: number
   /** Note de travail, affichée en marge et jamais exportée */
   notes?: string | null
 }

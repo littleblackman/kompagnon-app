@@ -6,20 +6,11 @@ import { useProjectStore } from "~/store/project";
 import { usePersonnageStore } from "~/store/personnage";
 import { TrashIcon } from '@heroicons/vue/24/outline';
 import { PropType } from 'vue';
+import type { Scene } from '~/types';
 
 const projectStore = useProjectStore();
 const personnageStore = usePersonnageStore();
 const { confirm } = useConfirm();
-
-interface Scene {
-  id: number;
-  name: string;
-  position: number;
-  description: string;
-  content: string;
-  status: any[];
-  sequenceId: number;
-}
 
 const props = defineProps({
   scene: {
