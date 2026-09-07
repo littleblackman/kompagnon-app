@@ -57,6 +57,18 @@ const runCriterias = async (sequenceId: number) => {
 };
 
 // Les propositions ne sont pas enregistrées tant qu'on ne les reprend pas
+const suggestionFor = (sequence: any, criteriaId: number) =>
+  (sequence.suggestedCriterias ?? []).find((s: any) => s.criteriaId === criteriaId) ?? null;
+
+const applySuggestion = async (sequence: any, criteriaId: number) => {
+  const suggestion = suggestionFor(sequence, criteriaId);
+  if (!suggestion) return;
+
+  await projectStore.saveCriteria(suggestion.value, sequence.id, criteriaId);
+  sequence.suggestedCriterias = sequence.suggestedCriterias
+    .filter((s: any) => s.criteriaId !== criteriaId);
+};
+
 const applySuggestedCriterias = async (sequence: any) => {
   const suggestions = sequence.suggestedCriterias ?? [];
   for (const suggestion of suggestions) {
@@ -356,7 +368,7 @@ const updateRating = async (ratingData) => {
             <button
               class="relative p-1 rounded text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50"
               @click="criteriaModalSequenceId = sequence.id"
-              data-controller="tooltip" title="Intensité dramatique"
+              data-controller="tooltip" title="Intensités"
             >
               <StarIcon class="h-5 w-5" />
               <span
@@ -579,58 +591,6 @@ const updateRating = async (ratingData) => {
             </div>
           </div>
 
-          <!-- Les intensités se demandent pour toute la séquence ;
-               l'alignement se vérifie ligne par ligne, au plus près du champ. -->
-          <div class="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              @click="runCriterias(sequence.id)"
-              :disabled="!!analysing"
-              class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              data-controller="tooltip"
-              title="Proposer une note d'intensité par critère, d'après le texte écrit"
-            >
-              <span v-if="isAnalysing(sequence.id, 'criterias')">Analyse…</span>
-              <span v-else>Proposer les intensités</span>
-            </button>
-          </div>
-
-          <!-- Propositions du modèle : rien n'est enregistré sans validation -->
-          <div
-            v-if="sequence.suggestedCriterias?.length"
-            class="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3"
-          >
-            <div class="mb-2 flex items-center justify-between gap-3">
-              <span class="text-xs font-semibold uppercase tracking-wide text-amber-700">
-                Intensités proposées
-              </span>
-              <div class="flex gap-2">
-                <button
-                  @click="sequence.suggestedCriterias = null"
-                  class="rounded px-2 py-1 text-xs text-gray-600 hover:bg-white"
-                >
-                  Ignorer
-                </button>
-                <button
-                  @click="applySuggestedCriterias(sequence)"
-                  class="rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
-                >
-                  Appliquer
-                </button>
-              </div>
-            </div>
-            <ul class="space-y-1">
-              <li
-                v-for="suggestion in sequence.suggestedCriterias"
-                :key="suggestion.criteriaId"
-                class="flex items-baseline gap-2 text-sm"
-              >
-                <span class="w-44 shrink-0 text-gray-700">{{ suggestion.name }}</span>
-                <span class="w-8 shrink-0 font-semibold tabular-nums text-amber-800">{{ suggestion.value }}</span>
-                <span class="text-xs italic text-gray-500">{{ suggestion.comment }}</span>
-              </li>
-            </ul>
-          </div>
-
           <div v-html="sequence.description" class="text-gray-500 organizational-text mt-3"></div>
 
           <SceneList
@@ -651,18 +611,60 @@ const updateRating = async (ratingData) => {
           <div class="flex items-center justify-between mb-4">
             <h3 class="font-bold text-gray-800 flex items-center gap-2">
               <StarIcon class="w-5 h-5 text-yellow-400" />
-              Intensité dramatique
+              Intensités
             </h3>
             <button @click="criteriaModalSequenceId = null" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
           </div>
+
+          <!-- L'analyse est ici, au contact des notes qu'elle propose -->
+          <button
+            @click="runCriterias(sequence.id)"
+            :disabled="!!analysing"
+            class="mb-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ArrowPathIcon
+              class="h-3.5 w-3.5"
+              :class="isAnalysing(sequence.id, 'criterias') && 'animate-spin'"
+            />
+            {{ isAnalysing(sequence.id, 'criterias') ? 'Analyse…' : 'Proposer d\'après le texte' }}
+          </button>
+
           <div v-for="criteria in metadataStore.criterias" :key="criteria.id" class="mb-4">
-            <div class="text-sm font-semibold text-gray-700 mb-2">{{ criteria.name }}</div>
+            <div class="mb-2 flex items-baseline justify-between gap-2">
+              <span class="text-sm font-semibold text-gray-700">{{ criteria.name }}</span>
+
+              <!-- Proposition : lisible à côté de la note, appliquée au clic -->
+              <button
+                v-if="suggestionFor(sequence, criteria.id)"
+                @click="applySuggestion(sequence, criteria.id)"
+                class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-200"
+                data-controller="tooltip"
+                :title="suggestionFor(sequence, criteria.id)?.comment || 'Appliquer cette note'"
+              >
+                proposé {{ suggestionFor(sequence, criteria.id)?.value }}
+              </button>
+            </div>
             <RatingStars
               :rating="getCriteriaRating(sequence, criteria.id)"
               :sequenceId="sequence.id"
               :criteriaId="criteria.id"
               @rate="updateRating"
             />
+          </div>
+
+          <div v-if="sequence.suggestedCriterias?.length" class="flex justify-end gap-2 border-t border-gray-100 pt-3">
+            <button
+              @click="sequence.suggestedCriterias = null"
+              class="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+            >
+              Ignorer
+            </button>
+            <button
+              @click="applySuggestedCriterias(sequence)"
+              class="rounded bg-amber-500 px-3 py-1 text-xs font-medium text-white hover:bg-amber-600"
+            >
+              Tout appliquer
+            </button>
           </div>
         </div>
       </div>
