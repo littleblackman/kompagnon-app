@@ -1,24 +1,27 @@
 /**
- * Infobulles maison, activées par data-controller="tooltip".
- * Le texte vient de data-tooltip, que le plugin renseigne à partir du title
- * au premier survol — ce qui supprime du même coup l'infobulle native.
+ * Infobulle maison, unique et attachée au <body>.
+ *
+ * Positionnée en `fixed` par plugins/tooltip.client.ts : un pseudo-élément
+ * resterait découpé par les conteneurs en overflow (la grille d'analyse) et
+ * enfermé dans les contextes d'empilement des colonnes collantes.
  */
 
-[data-tooltip] {
-  position: relative;
-}
+.app-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 400; /* au-dessus des modales, qui montent à 200 */
 
-[data-tooltip]:hover::after,
-[data-tooltip]:focus-visible::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-bottom: 0.5rem;
+  max-width: 18rem;
+  width: max-content;
   padding: 0.375rem 0.625rem;
+
   background-color: rgba(17, 24, 39, 0.94);
   color: #fff;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+
+  font-family: inherit;
   font-size: 0.75rem;
   font-weight: 400;
   font-style: normal;
@@ -27,54 +30,38 @@
   text-transform: none;
   text-align: center;
   white-space: normal;
-  width: max-content;
-  max-width: 16rem;
-  border-radius: 0.375rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
   pointer-events: none;
-  z-index: 300;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease;
 }
 
-[data-tooltip]:hover::before,
-[data-tooltip]:focus-visible::before {
+.app-tooltip.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Flèche, retournée quand l'infobulle bascule sous sa cible */
+.app-tooltip::after {
   content: '';
   position: absolute;
-  bottom: 100%;
-  left: 50%;
+  left: var(--arrow-x, 50%);
   transform: translateX(-50%);
-  margin-bottom: 0.125rem;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 5px 5px 0 5px;
-  border-color: rgba(17, 24, 39, 0.94) transparent transparent transparent;
-  pointer-events: none;
-  z-index: 300;
-}
-
-/* En haut de fenêtre, l'infobulle passe sous l'élément pour rester visible */
-[data-tooltip][data-tooltip-placement='bottom']:hover::after,
-[data-tooltip][data-tooltip-placement='bottom']:focus-visible::after {
-  bottom: auto;
   top: 100%;
-  margin-bottom: 0;
-  margin-top: 0.5rem;
+  border: 5px solid transparent;
+  border-top-color: rgba(17, 24, 39, 0.94);
 }
 
-[data-tooltip][data-tooltip-placement='bottom']:hover::before,
-[data-tooltip][data-tooltip-placement='bottom']:focus-visible::before {
-  bottom: auto;
-  top: 100%;
-  margin-bottom: 0;
-  margin-top: 0.125rem;
-  border-width: 0 5px 5px 5px;
-  border-color: transparent transparent rgba(17, 24, 39, 0.94) transparent;
+.app-tooltip.is-below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: rgba(17, 24, 39, 0.94);
 }
 
-/* Une infobulle n'a rien à faire sur une page imprimée */
 @media print {
-  [data-tooltip]:hover::after,
-  [data-tooltip]:hover::before {
+  .app-tooltip {
     display: none;
   }
 }
