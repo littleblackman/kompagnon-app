@@ -82,7 +82,6 @@ const characters = computed(() => {
 
       return {
         id: personnage.id,
-        personnage,
         name: personnageStore.getPersonnageName(personnage),
         appearsIn,
         count: indices.length,
@@ -120,7 +119,6 @@ const partStarts = computed(() => {
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
 
-const { getImageUrl } = useImages();
 
 const selectedCharacter = ref<number | null>(null);
 
@@ -279,9 +277,7 @@ const goToSequence = (sequenceId: number) => {
               <thead>
                 <!-- Bandes de parties : la structure se lit sans étiqueter chaque colonne -->
                 <tr>
-                  <th class="sticky left-0 z-20 w-44 min-w-44 bg-gray-50 px-3 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Personnage
-                  </th>
+                  <th class="sticky left-0 z-20 w-12 min-w-12 bg-gray-50 px-2 py-1.5"></th>
                   <th
                     v-for="(band, index) in partBands"
                     :key="index"
@@ -301,27 +297,24 @@ const goToSequence = (sequenceId: number) => {
                   class="border-t border-gray-100 hover:bg-amber-50/40"
                   :class="selectedCharacter === row.id && 'bg-amber-50/60'"
                 >
+                  <!--
+                    Initiales seules : le nom en toutes lettres tenait la
+                    largeur d'une dizaine de séquences pour une information
+                    qu'un survol suffit à rappeler.
+                  -->
                   <th
-                    class="sticky left-0 z-10 w-44 min-w-44 cursor-pointer bg-white px-3 py-1.5 text-left font-medium text-gray-800 hover:text-amber-700"
+                    class="sticky left-0 z-10 w-12 min-w-12 cursor-pointer bg-white px-2 py-1.5"
                     :class="selectedCharacter === row.id && 'bg-amber-50'"
                     @click="selectedCharacter = selectedCharacter === row.id ? null : row.id"
                   >
-                    <span class="flex items-center gap-2">
-                      <!-- Photo si elle est disponible, initiales sinon -->
-                      <img
-                        v-if="getImageUrl(row.personnage.avatar)"
-                        :src="getImageUrl(row.personnage.avatar)!"
-                        alt=""
-                        class="h-6 w-6 flex-shrink-0 rounded-full object-cover"
-                      />
-                      <span
-                        v-else
-                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-700"
-                      >{{ initials(row.name) }}</span>
-
-                      <span class="truncate">{{ row.name }}</span>
-                      <span class="ml-auto text-xs font-normal text-gray-400">{{ row.count }}</span>
-                    </span>
+                    <span
+                      class="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold transition-colors"
+                      :class="selectedCharacter === row.id
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-amber-100 text-amber-800 hover:bg-amber-200'"
+                      data-controller="tooltip"
+                      :title="`${row.name} · ${row.count} apparition${row.count > 1 ? 's' : ''}`"
+                    >{{ initials(row.name) }}</span>
                   </th>
                   <td
                     v-for="(column, index) in sequences"
