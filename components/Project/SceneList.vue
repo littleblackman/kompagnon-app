@@ -48,21 +48,19 @@ const afterSceneId = ref<number | null>(null);
 const openSceneModal = (scene = null) => {
   if (!scene) {
     // Nouvelle scène
+    // Pas de position ici : le serveur la calcule à partir d'afterSceneId
     currentScene.value = {
       id: undefined,
       name: '',
       description: '',
       content: '',
       status: [],
-      sequenceId: props.sequenceId,
-      position: props.scenes.length
+      sequenceId: props.sequenceId
     };
-    // Si des scènes existent, on place la nouvelle après la dernière
-    if (props.scenes.length > 0) {
-      afterSceneId.value = props.scenes[props.scenes.length - 1].id;
-    } else {
-      afterSceneId.value = null;
-    }
+    // On place la nouvelle après la dernière — sortedScenes, pas props.scenes,
+    // dont l'ordre du tableau ne suit pas forcément les positions
+    const ordered = sortedScenes.value;
+    afterSceneId.value = ordered.length > 0 ? ordered[ordered.length - 1].id : null;
   } else {
     // Édition d'une scène existante
     currentScene.value = { ...scene };
@@ -101,46 +99,8 @@ const handleDeleteScene = async (scene) => {
 };
 
 const handleMoveScene = async (scene, direction) => {
-  const currentIndex = sortedScenes.value.findIndex(s => s.id === scene.id);
-  
   try {
-    if (direction === 'up' && currentIndex > 0) {
-      // NOUVELLE LOGIQUE : Échanger les positions côté frontend
-      const scenesCopy = [...sortedScenes.value];
-      
-      // Échanger avec la scène précédente
-      [scenesCopy[currentIndex], scenesCopy[currentIndex - 1]] = 
-      [scenesCopy[currentIndex - 1], scenesCopy[currentIndex]];
-      
-      // Recalculer les positions
-      scenesCopy.forEach((s, index) => {
-        s.position = index + 1;
-      });
-      
-      // Sauvegarder le nouvel ordre
-      await projectStore.saveSceneOrder(scenesCopy);
-      
-    } else if (direction === 'down' && currentIndex < sortedScenes.value.length - 1) {
-      // NOUVELLE LOGIQUE : Échanger les positions côté frontend
-      const scenesCopy = [...sortedScenes.value];
-      
-      // Échanger avec la scène suivante
-      [scenesCopy[currentIndex], scenesCopy[currentIndex + 1]] = 
-      [scenesCopy[currentIndex + 1], scenesCopy[currentIndex]];
-      
-      // Recalculer les positions
-      scenesCopy.forEach((s, index) => {
-        s.position = index + 1;
-      });
-      
-      // Sauvegarder le nouvel ordre
-      await projectStore.saveSceneOrder(scenesCopy);
-    }
-    
-    // Recharger le projet pour voir les changements
-    if (projectStore.project?.slug) {
-      await projectStore.fetchProject(projectStore.project.slug);
-    }
+    await projectStore.moveScene(scene.id, direction);
   } catch (error) {
     console.error('Erreur lors du déplacement de la scène:', error);
   }
@@ -155,8 +115,12 @@ const handleDuplicateScene = async (scene) => {
     sequenceId: props.sequenceId,
   };
   
-  // Placer la copie juste après la scène originale
-  await projectStore.saveScene(duplicatedScene, props.sequenceId, scene.id);
+  try {
+    // Placer la copie juste après la scène originale
+    await projectStore.saveScene(duplicatedScene, props.sequenceId, scene.id);
+  } catch (error) {
+    console.error("Erreur lors de la duplication :", error);
+  }
 };
 
 // Navigation vers une autre scène

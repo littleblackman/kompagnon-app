@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { useAuthStore } from '~/store/auth';
 import { usePersonnageStore } from '~/store/personnage';
 import type { Project, Part, Sequence, Scene, Personnage } from '~/types';
+import { applyPositions, move, resequence } from '~/utils/position';
 
 interface UpdatePartResponse {
     part: Part;
@@ -18,9 +19,6 @@ interface CriteriaResponse {
 export const useProjectStore = defineStore('project', {
     state: () => ({
         project: null as Project | null,
-        parts: [] as Part[],
-        sequences: [] as Sequence[],
-        scenes: [] as Scene[],
         personnages: [] as Personnage[],
         expandedParts: new Set<number>(),
         sortOrder: 'position' as 'position' | 'name' | 'date',
@@ -38,7 +36,20 @@ export const useProjectStore = defineStore('project', {
     getters: {
         isPartExpanded: (state) => (partId: number) => {
             return state.expandedParts.has(partId);
-        }
+        },
+
+        // Dérivés de project.parts, jamais dupliqués : deux copies à
+        // resynchroniser à la main finissent toujours par diverger.
+        // Les objets restent les mêmes références, les mutations en place marchent.
+        parts: (state): Part[] => state.project?.parts ?? [],
+
+        sequences: (state): Sequence[] =>
+            (state.project?.parts ?? []).flatMap(part => part.sequences ?? []),
+
+        scenes: (state): Scene[] =>
+            (state.project?.parts ?? [])
+                .flatMap(part => part.sequences ?? [])
+                .flatMap(sequence => sequence.scenes ?? [])
     },
 
     actions: {
@@ -64,9 +75,6 @@ export const useProjectStore = defineStore('project', {
                     ...response,
                     parts: sortedParts
                 };
-                this.parts = sortedParts;
-                this.sequences = this.parts.flatMap(part => part.sequences || []);
-                this.scenes = this.sequences.flatMap(seq => seq.scenes || []);
                 this.personnages = response.personnages || [];
                 
                 // Initialiser la table de référence des personnages
@@ -97,7 +105,6 @@ export const useProjectStore = defineStore('project', {
         addPartToState(part: Part) {
             if (!this.project) return;
             this.project.parts.push(part);
-            this.parts.push(part);
             // Développer la nouvelle partie
             this.expandedParts.add(part.id);
         },
@@ -107,10 +114,6 @@ export const useProjectStore = defineStore('project', {
             const index = this.project.parts.findIndex(p => p.id === part.id);
             if (index !== -1) {
                 this.project.parts[index] = part;
-                const partsIndex = this.parts.findIndex(p => p.id === part.id);
-                if (partsIndex !== -1) {
-                    this.parts[partsIndex] = part;
-                }
             }
         },
 
@@ -193,6 +196,64 @@ export const useProjectStore = defineStore('project', {
             this.filters.search = search;
         },
 
+        // Localisation dans l'arbre — évite de re-boucler à trois niveaux partout
+        findSequenceContext(sequenceId: number): { part: Part; sequence: Sequence; index: number } | null {
+            for (const part of this.project?.parts ?? []) {
+                const index = (part.sequences ?? []).findIndex(s => s.id === sequenceId);
+                if (index !== -1) return { part, sequence: part.sequences![index], index };
+            }
+            return null;
+        },
+
+        findSceneContext(sceneId: number): { part: Part; sequence: Sequence; scene: Scene; index: number } | null {
+            for (const part of this.project?.parts ?? []) {
+                for (const sequence of part.sequences ?? []) {
+                    const index = (sequence.scenes ?? []).findIndex(s => s.id === sceneId);
+                    if (index !== -1) return { part, sequence, scene: sequence.scenes![index], index };
+                }
+            }
+            return null;
+        },
+
+        /**
+         * Déplace une scène d'un cran dans sa séquence.
+         * Mise à jour optimiste, annulée si le serveur refuse.
+         */
+        async moveScene(sceneId: number, direction: 'up' | 'down'): Promise<void> {
+            const found = this.findSceneContext(sceneId);
+            if (!found?.sequence.scenes) return;
+
+            const before = found.sequence.scenes.map(s => ({ id: s.id, position: s.position }));
+            const positions = move(found.sequence.scenes, sceneId, direction);
+            if (!positions) return; // déjà en bout de liste
+
+            try {
+                await this.saveSceneOrder(found.sequence.scenes);
+            } catch (error) {
+                applyPositions(found.sequence.scenes, before);
+                throw error;
+            }
+        },
+
+        /**
+         * Déplace une séquence d'un cran dans sa partie.
+         */
+        async moveSequence(sequenceId: number, direction: 'up' | 'down'): Promise<void> {
+            const found = this.findSequenceContext(sequenceId);
+            if (!found?.part.sequences) return;
+
+            const before = found.part.sequences.map(s => ({ id: s.id, position: s.position }));
+            const positions = move(found.part.sequences, sequenceId, direction);
+            if (!positions) return;
+
+            try {
+                await this.saveSequenceOrder(found.part.sequences);
+            } catch (error) {
+                applyPositions(found.part.sequences, before);
+                throw error;
+            }
+        },
+
         // delete part
         async deletePart(partId: number) {
             try {
@@ -209,11 +270,20 @@ export const useProjectStore = defineStore('project', {
                 });
 
                 // remove the part
-                const index = this.parts.findIndex(p => p.id === partId);
-                this.parts.splice(index, 1);
+                const parts = this.project?.parts;
+                if (!parts) return;
+
+                const index = parts.findIndex(p => p.id === partId);
+                if (index === -1) return; // sans garde, splice(-1) supprimerait la dernière partie
+
+                parts.splice(index, 1);
+                resequence(parts);
+                this.expandedParts.delete(partId);
+                this.calculateStats();
 
             } catch (error) {
                 console.error("Erreur lors de la suppression d'une partie :", error);
+                throw error;
             }
         },
 
@@ -270,36 +340,34 @@ export const useProjectStore = defineStore('project', {
 
                 const { part: savedPart, positions } = result;
 
-                // check if existing part
-                const existingIndex = this.parts.findIndex(p => p.id === savedPart.id);
+                const parts = this.project.parts;
+                const existingIndex = parts.findIndex(p => p.id === savedPart.id);
 
                 if (existingIndex !== -1) {
                     // update part name and description
-                    this.parts[existingIndex] = {
-                        ...this.parts[existingIndex],
+                    parts[existingIndex] = {
+                        ...parts[existingIndex],
                         name: savedPart.name,
                         description: savedPart.description
                     };
 
                 } else {
-                    // add the new part
-                    if (afterPartId) {
-                        const index = this.parts.findIndex(p => p.id === afterPartId);
-                        this.parts.splice(index + 1, 0, savedPart);
+                    // add the new part — la hiérarchie vide évite un `undefined` dans les getters
+                    const created = { ...savedPart, sequences: savedPart.sequences ?? [] };
+                    const index = afterPartId ? parts.findIndex(p => p.id === afterPartId) : -1;
+                    if (index !== -1) {
+                        parts.splice(index + 1, 0, created);
                     } else {
-                        this.parts.unshift(savedPart);
+                        parts.unshift(created);
                     }
+                    this.expandedParts.add(created.id);
                 }
 
-                // Reorder parts
+                // L'API renvoie ici les ids dans leur nouvel ordre, pas des {id, position}
                 if (positions && positions.length > 0) {
-                    this.parts.sort((a, b) => {
-                        return positions.indexOf(a.id) - positions.indexOf(b.id);
-                    });
+                    parts.sort((a, b) => positions.indexOf(a.id) - positions.indexOf(b.id));
+                    parts.forEach((part, i) => { part.position = i + 1; });
                 }
-
-                // project.parts
-                this.project.parts = [...this.parts];
 
             } catch (error) {
                 console.error("Erreur lors de l'ajout/mise à jour d'une partie :", error);
@@ -347,66 +415,6 @@ export const useProjectStore = defineStore('project', {
             }
         },
 
-        // Réorganiser une séquence (change l'ordre)
-        async reorderSequence(sequenceId: number, partId: number, afterSequenceId?: number): Promise<boolean> {
-            try {
-                const config = useRuntimeConfig();
-                const authStore = useAuthStore();
-
-                const sequence = { id: sequenceId, part_id: partId };
-                if (afterSequenceId) {
-                    (sequence as any).afterSequenceId = afterSequenceId;
-                }
-
-                await $fetch(`${config.public.apiBase}/sequence/update`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-AUTH-TOKEN': authStore.token!,
-                    },
-                    body: sequence,
-                });
-
-                // Recharger toute la partie depuis l'API pour garantir la cohérence
-                await this.reloadPart(partId);
-                
-                return true;
-            } catch (error) {
-                console.error("Erreur lors de la réorganisation de la séquence :", error);
-                return false;
-            }
-        },
-
-        // Méthode pour recharger une partie complète
-        async reloadPart(partId: number): Promise<void> {
-            try {
-                const config = useRuntimeConfig();
-                const authStore = useAuthStore();
-
-                const result = await $fetch(`${config.public.apiBase}/part/${partId}`, {
-                    headers: {
-                        'X-AUTH-TOKEN': authStore.token!,
-                    },
-                });
-
-                // Mettre à jour la partie dans le projet local
-                if (this.project && this.project.parts) {
-                    const index = this.project.parts.findIndex(p => p.id === partId);
-                    if (index !== -1) {
-                        this.project.parts[index] = result.part;
-                    }
-                }
-
-                // Mettre à jour les données globales
-                this.sequences = this.parts.flatMap(part => part.sequences || []);
-                this.scenes = this.sequences.flatMap(seq => seq.scenes || []);
-                
-            } catch (error) {
-                console.error("Erreur lors du rechargement de la partie :", error);
-            }
-        },
-
-        // DEPRECATED: Ancienne méthode saveSequence - garder pour compatibilité
         async saveSequence(newSequence: Sequence, partId: number, afterSequenceId?: number): Promise<Sequence | null> {
             try {
                 const config = useRuntimeConfig();
@@ -429,32 +437,20 @@ export const useProjectStore = defineStore('project', {
 
                 const savedSequence = result.sequence;
 
-                // Mise à jour locale dans part
                 const part = this.project?.parts.find(p => p.id === partId);
                 if (part) {
-                    if (!part.sequences) {
-                        part.sequences = [];
-                    }
-                    // On vire l'ancienne si elle existe
-                    part.sequences = part.sequences.filter(s => s.id !== savedSequence.id);
-                    // On ajoute la nouvelle
-                    part.sequences.push(savedSequence);
-                    // Trier les séquences par position
-                    part.sequences.sort((a, b) => a.position - b.position);
-                }
+                    if (!part.sequences) part.sequences = [];
 
-                // Mise à jour globale
-                this.sequences = this.sequences.filter(s => s.id !== savedSequence.id);
-                this.sequences.push(savedSequence);
-                // Trier les séquences globales par position
-                this.sequences.sort((a, b) => a.position - b.position);
-
-                // Mettre à jour le projet pour refléter les changements
-                if (this.project) {
-                    const projectPart = this.project.parts.find(p => p.id === partId);
-                    if (projectPart) {
-                        projectPart.sequences = part?.sequences || [];
+                    const existing = part.sequences.find(s => s.id === savedSequence.id);
+                    if (existing) {
+                        // Mutation en place : ne pas écraser les scènes déjà chargées
+                        Object.assign(existing, { ...savedSequence, scenes: existing.scenes });
+                    } else {
+                        part.sequences.push({ ...savedSequence, scenes: savedSequence.scenes ?? [] });
                     }
+
+                    // Le serveur fait autorité sur les positions
+                    applyPositions(part.sequences, result.positions);
                 }
 
                 return savedSequence;
@@ -476,24 +472,14 @@ export const useProjectStore = defineStore('project', {
                     },
                 });
 
-                // Mise à jour locale
-                if (this.project) {
-                    for (const part of this.project.parts) {
-                        if (part.sequences) {
-                            const index = part.sequences.findIndex(s => s.id === sequenceId);
-                            if (index !== -1) {
-                                part.sequences.splice(index, 1);
-                                break;
-                            }
-                        }
-                    }
+                const found = this.findSequenceContext(sequenceId);
+                if (found) {
+                    found.part.sequences!.splice(found.index, 1);
+                    // Sans ça, les positions locales restent trouées jusqu'au prochain fetch
+                    resequence(found.part.sequences!);
                 }
 
-                // Mise à jour de la liste globale des séquences
-                const index = this.sequences.findIndex(s => s.id === sequenceId);
-                if (index !== -1) {
-                    this.sequences.splice(index, 1);
-                }
+                this.calculateStats();
             } catch (error) {
                 console.error("Erreur lors de la suppression de la séquence :", error);
                 throw error;
@@ -522,52 +508,30 @@ export const useProjectStore = defineStore('project', {
 
                 const savedScene = result.scene;
 
-                // Mise à jour locale dans sequence
                 const sequence = this.sequences.find(s => s.id === sequenceId);
                 if (sequence) {
-                    if (!sequence.scenes) {
-                        sequence.scenes = [];
+                    if (!sequence.scenes) sequence.scenes = [];
+
+                    const existing = sequence.scenes.find(s => s.id === savedScene.id);
+                    if (existing) {
+                        Object.assign(existing, savedScene);
+                    } else {
+                        sequence.scenes.push(savedScene);
                     }
-                    // On vire l'ancienne si elle existe
-                    sequence.scenes = sequence.scenes.filter(s => s.id !== savedScene.id);
-                    // On ajoute la nouvelle
-                    sequence.scenes.push(savedScene);
-                    // Trier les scènes par position
-                    sequence.scenes.sort((a, b) => a.position - b.position);
+
+                    // Le serveur fait autorité : il a décalé les scènes suivantes
+                    // en cas d'insertion via afterSceneId.
+                    applyPositions(sequence.scenes, result.positions);
                 }
 
-                // Mise à jour dans le projet
-                if (this.project) {
-                    for (const part of this.project.parts) {
-                        if (part.sequences) {
-                            for (const seq of part.sequences) {
-                                if (seq.id === sequenceId) {
-                                    if (!seq.scenes) {
-                                        seq.scenes = [];
-                                    }
-                                    seq.scenes = seq.scenes.filter(s => s.id !== savedScene.id);
-                                    seq.scenes.push(savedScene);
-                                    seq.scenes.sort((a, b) => a.position - b.position);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Mise à jour globale
-                this.scenes = this.scenes.filter(s => s.id !== savedScene.id);
-                this.scenes.push(savedScene);
-                // Trier les scènes globales par position
-                this.scenes.sort((a, b) => a.position - b.position);
-
-                // Recalculer les stats après sauvegarde
                 this.calculateStats();
-                
+
                 return savedScene;
             } catch (error) {
                 console.error("Erreur lors de la sauvegarde d'une scène :", error);
-                return null;
+                // Remonter l'échec : renvoyer null en silence faisait afficher
+                // un faux succès à l'appelant.
+                throw error;
             }
         },
 
@@ -680,28 +644,13 @@ export const useProjectStore = defineStore('project', {
                     },
                 });
 
-                // Mise à jour locale
-                if (this.project) {
-                    for (const part of this.project.parts) {
-                        if (part.sequences) {
-                            for (const sequence of part.sequences) {
-                                if (sequence.scenes) {
-                                    const index = sequence.scenes.findIndex(s => s.id === sceneId);
-                                    if (index !== -1) {
-                                        sequence.scenes.splice(index, 1);
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                const found = this.findSceneContext(sceneId);
+                if (found) {
+                    found.sequence.scenes!.splice(found.index, 1);
+                    resequence(found.sequence.scenes!);
                 }
 
-                // Mise à jour de la liste globale des scènes
-                const index = this.scenes.findIndex(s => s.id === sceneId);
-                if (index !== -1) {
-                    this.scenes.splice(index, 1);
-                }
+                this.calculateStats();
             } catch (error) {
                 console.error("Erreur lors de la suppression de la scène :", error);
                 throw error;
@@ -781,9 +730,6 @@ export const useProjectStore = defineStore('project', {
                 // Nettoyer le store si c'est le projet actuellement chargé
                 if (this.project && this.project.id === projectId) {
                     this.project = null;
-                    this.parts = [];
-                    this.sequences = [];
-                    this.scenes = [];
                     this.personnages = [];
                     this.expandedParts.clear();
                 }

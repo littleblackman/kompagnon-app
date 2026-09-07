@@ -155,6 +155,7 @@ const handleSave = async () => {
     }
   } catch (error) {
     console.error('Erreur lors de la sauvegarde de la scène:', error);
+    saveStatus.value = 'error';
   }
 };
 
@@ -187,6 +188,7 @@ const autoSave = async () => {
       await projectStore.saveScene(sceneData.value, props.sequenceId);
     } catch (error) {
       console.error('Erreur lors de l\'auto-save:', error);
+      saveStatus.value = 'error';
     }
   }
 };
@@ -210,21 +212,19 @@ const goToNextScene = async () => {
 // Créer une nouvelle scène après la scène actuelle
 const addSceneAfter = async () => {
   await autoSave();
-  
-  // Position logique : après la scène actuelle
-  const insertPosition = (currentScene.value?.position || 0) + 1;
-  
+
+  // Pas de position calculée ici : le serveur la pose à partir d'afterSceneId
+  // et décale les scènes suivantes, ce qui évite les positions dupliquées.
   const newScene = {
     name: 'Nouvelle scène',
     description: '',
     content: '',
-    position: insertPosition, // Position où on veut l'insérer
     sequenceId: props.sequenceId,
     status: []
   };
-  
+
   try {
-    const savedScene = await projectStore.saveScene(newScene, props.sequenceId);
+    const savedScene = await projectStore.saveScene(newScene, props.sequenceId, sceneData.value.id);
     emit('navigate', savedScene);
   } catch (error) {
     console.error('Erreur lors de la création de la scène:', error);

@@ -71,21 +71,9 @@ const openSequenceModal = (sequence = null) => {
 
 const handleSaveSequence = async ({ sequence, afterSequenceId }) => {
   try {
-    const savedSequence = await projectStore.saveSequence(sequence, props.partId, afterSequenceId);
+    // Le store applique la réponse de l'API (séquence + positions) sur l'arbre
+    await projectStore.saveSequence(sequence, props.partId, afterSequenceId);
     sequenceModalOpen.value = false;
-
-    // Si c'est une nouvelle séquence, recharger la partie pour avoir les bonnes positions
-    if (!sequence.id) {
-      await projectStore.reloadPart(props.partId);
-    } else {
-      // Mise à jour locale pour modification existante
-      if (props.sequences) {
-        const existingIndex = props.sequences.findIndex(seq => seq.id === savedSequence.id);
-        if (existingIndex !== -1) {
-          props.sequences[existingIndex] = savedSequence;
-        }
-      }
-    }
   } catch (error) {
     console.error("Erreur lors de la sauvegarde :", error);
   }
@@ -95,58 +83,14 @@ const handleDeleteSequence = async (sequence) => {
   try {
     await projectStore.deleteSequence(sequence.id);
     sequenceModalOpen.value = false;
-    
-    // Mise à jour locale des séquences
-    if (props.sequences) {
-      const index = props.sequences.findIndex(seq => seq.id === sequence.id);
-      if (index !== -1) {
-        props.sequences.splice(index, 1);
-      }
-    }
   } catch (error) {
     console.error("Erreur lors de la suppression :", error);
   }
 };
 
 const handleMoveSequence = async (sequence, direction) => {
-  const currentIndex = sortedSequences.value.findIndex(s => s.id === sequence.id);
-  
   try {
-    if (direction === 'up' && currentIndex > 0) {
-      // Échanger avec la séquence précédente
-      const sequencesCopy = [...sortedSequences.value];
-      
-      [sequencesCopy[currentIndex], sequencesCopy[currentIndex - 1]] = 
-      [sequencesCopy[currentIndex - 1], sequencesCopy[currentIndex]];
-      
-      // Recalculer les positions
-      sequencesCopy.forEach((s, index) => {
-        s.position = index + 1;
-      });
-      
-      // Sauvegarder le nouvel ordre
-      await projectStore.saveSequenceOrder(sequencesCopy);
-      
-    } else if (direction === 'down' && currentIndex < sortedSequences.value.length - 1) {
-      // Échanger avec la séquence suivante
-      const sequencesCopy = [...sortedSequences.value];
-      
-      [sequencesCopy[currentIndex], sequencesCopy[currentIndex + 1]] = 
-      [sequencesCopy[currentIndex + 1], sequencesCopy[currentIndex]];
-      
-      // Recalculer les positions
-      sequencesCopy.forEach((s, index) => {
-        s.position = index + 1;
-      });
-      
-      // Sauvegarder le nouvel ordre
-      await projectStore.saveSequenceOrder(sequencesCopy);
-    }
-    
-    // Recharger le projet pour voir les changements
-    if (projectStore.project?.slug) {
-      await projectStore.fetchProject(projectStore.project.slug);
-    }
+    await projectStore.moveSequence(sequence.id, direction);
   } catch (error) {
     console.error('Erreur lors du déplacement de la séquence:', error);
   }
