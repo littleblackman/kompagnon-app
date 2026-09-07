@@ -6,6 +6,7 @@ import PersonnageConfigModal from "~/components/Project/PersonnageConfigModal.vu
 import FieldIcon from '@/components/FieldIcon.vue'
 import SceneList from '@/components/Project/SceneList.vue'
 import InsertDivider from '@/components/Project/InsertDivider.vue'
+import AlignmentGauge from '@/components/Project/AlignmentGauge.vue'
 import { 
   LightBulbIcon,      // Pour intention
   EyeIcon,            // Pour idée esthétique  
@@ -19,8 +20,48 @@ import { useMetadataStore } from "~/store/metadata";
 import { usePersonnageStore } from "~/store/personnage";
 import { useAuthStore } from "~/store/auth";
 import { useConfirm } from "~/composables/useConfirm";
+import { useToast } from "~/composables/useToast";
 
 const { confirm } = useConfirm();
+const toast = useToast();
+
+/**** ANALYSE PAR LE MODÈLE ****/
+
+// Une séquence à la fois : l'appel est lent et coûte un jeton
+const analysing = ref<{ id: number; kind: 'alignment' | 'criterias' } | null>(null);
+
+const isAnalysing = (sequenceId: number, kind: 'alignment' | 'criterias') =>
+  analysing.value?.id === sequenceId && analysing.value.kind === kind;
+
+const runAlignment = async (sequenceId: number) => {
+  analysing.value = { id: sequenceId, kind: 'alignment' };
+  const result = await projectStore.analyseSequenceAlignment(sequenceId);
+  analysing.value = null;
+
+  result.success
+    ? toast.success('Alignement analysé')
+    : toast.error(result.message ?? "L'analyse a échoué.");
+};
+
+const runCriterias = async (sequenceId: number) => {
+  analysing.value = { id: sequenceId, kind: 'criterias' };
+  const result = await projectStore.suggestSequenceCriterias(sequenceId);
+  analysing.value = null;
+
+  result.success
+    ? toast.success('Intensités proposées')
+    : toast.error(result.message ?? "L'analyse a échoué.");
+};
+
+// Les propositions ne sont pas enregistrées tant qu'on ne les reprend pas
+const applySuggestedCriterias = async (sequence: any) => {
+  const suggestions = sequence.suggestedCriterias ?? [];
+  for (const suggestion of suggestions) {
+    await projectStore.saveCriteria(suggestion.value, sequence.id, suggestion.criteriaId);
+  }
+  sequence.suggestedCriterias = null;
+  toast.success(`${suggestions.length} note${suggestions.length > 1 ? 's' : ''} appliquée${suggestions.length > 1 ? 's' : ''}`);
+};
 const projectStore = useProjectStore();
 const metadataStore = useMetadataStore();
 const personnageStore = usePersonnageStore();
@@ -453,6 +494,11 @@ const updateRating = async (ratingData) => {
                 placeholder="Intention : Émotions et sensations..."
                 class="flex-1 bg-transparent text-sm text-gray-800 placeholder-amber-400 focus:outline-none"
               />
+              <AlignmentGauge
+                :level="sequence.alignment?.intention?.level ?? null"
+                :comment="sequence.alignment?.intention?.comment ?? ''"
+                label="Intention"
+              />
             </div>
 
             <!-- Esthétique -->
@@ -465,6 +511,11 @@ const updateRating = async (ratingData) => {
                 @keyup.enter="(e) => e.target.blur()"
                 placeholder="Esthétique : Approche artistique..."
                 class="flex-1 bg-transparent text-sm text-gray-800 placeholder-purple-400 focus:outline-none"
+              />
+              <AlignmentGauge
+                :level="sequence.alignment?.aesthetic?.level ?? null"
+                :comment="sequence.alignment?.aesthetic?.comment ?? ''"
+                label="Idée esthétique"
               />
             </div>
 
@@ -479,12 +530,80 @@ const updateRating = async (ratingData) => {
                 placeholder="Information : Éléments narratifs clés..."
                 class="flex-1 bg-transparent text-sm text-gray-800 placeholder-blue-400 focus:outline-none"
               />
+              <AlignmentGauge
+                :level="sequence.alignment?.information?.level ?? null"
+                :comment="sequence.alignment?.information?.comment ?? ''"
+                label="Information"
+              />
             </div>
           </div>
             </div>
           </div>
 
-          <div v-html="sequence.description" class="text-gray-500 organizational-text"></div>
+          <!-- Les deux analyses : l'alignement juge le texte écrit,
+               les intensités le notent. Deux questions, deux appels. -->
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              @click="runAlignment(sequence.id)"
+              :disabled="!!analysing"
+              class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              data-controller="tooltip"
+              title="Le texte tient-il l'intention, l'idée esthétique et l'information annoncées ?"
+            >
+              <span v-if="isAnalysing(sequence.id, 'alignment')">Analyse…</span>
+              <span v-else>Vérifier le cadrage</span>
+            </button>
+
+            <button
+              @click="runCriterias(sequence.id)"
+              :disabled="!!analysing"
+              class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              data-controller="tooltip"
+              title="Proposer une note d'intensité par critère, d'après le texte écrit"
+            >
+              <span v-if="isAnalysing(sequence.id, 'criterias')">Analyse…</span>
+              <span v-else>Proposer les intensités</span>
+            </button>
+          </div>
+
+          <!-- Propositions du modèle : rien n'est enregistré sans validation -->
+          <div
+            v-if="sequence.suggestedCriterias?.length"
+            class="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3"
+          >
+            <div class="mb-2 flex items-center justify-between gap-3">
+              <span class="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Intensités proposées
+              </span>
+              <div class="flex gap-2">
+                <button
+                  @click="sequence.suggestedCriterias = null"
+                  class="rounded px-2 py-1 text-xs text-gray-600 hover:bg-white"
+                >
+                  Ignorer
+                </button>
+                <button
+                  @click="applySuggestedCriterias(sequence)"
+                  class="rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
+                >
+                  Appliquer
+                </button>
+              </div>
+            </div>
+            <ul class="space-y-1">
+              <li
+                v-for="suggestion in sequence.suggestedCriterias"
+                :key="suggestion.criteriaId"
+                class="flex items-baseline gap-2 text-sm"
+              >
+                <span class="w-44 shrink-0 text-gray-700">{{ suggestion.name }}</span>
+                <span class="w-8 shrink-0 font-semibold tabular-nums text-amber-800">{{ suggestion.value }}</span>
+                <span class="text-xs italic text-gray-500">{{ suggestion.comment }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <div v-html="sequence.description" class="text-gray-500 organizational-text mt-3"></div>
 
           <SceneList
             :scenes="sequence.scenes"

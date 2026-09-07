@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { useAuthStore } from '~/store/auth';
 import { usePersonnageStore } from '~/store/personnage';
+import { useMetadataStore } from '~/store/metadata';
 import type { Project, Part, Sequence, Scene, Personnage } from '~/types';
 import { applyPositions, move, resequence } from '~/utils/position';
 
@@ -255,6 +256,59 @@ export const useProjectStore = defineStore('project', {
         },
 
         /**
+         * Alignement du texte d'une séquence avec ce qu'elle annonce.
+         * Le verdict n'est pas persisté côté serveur : il reflète l'état du
+         * texte à l'instant de l'analyse et devient faux dès qu'on le réécrit.
+         */
+        async analyseSequenceAlignment(sequenceId: number): Promise<{ success: boolean; message?: string }> {
+            const found = this.findSequenceContext(sequenceId);
+            if (!found) return { success: false, message: 'Séquence introuvable' };
+
+            const config = useRuntimeConfig();
+            const authStore = useAuthStore();
+
+            try {
+                const result: any = await $fetch(`${config.public.apiBase}/sequence/${sequenceId}/analyse/alignment`, {
+                    method: 'POST',
+                    headers: { 'X-AUTH-TOKEN': authStore.token! },
+                });
+
+                (found.sequence as any).alignment = result.analysis;
+                return { success: true };
+            } catch (error: any) {
+                const message = error?.data?.message ?? "L'analyse a échoué.";
+                console.error("Erreur lors de l'analyse d'alignement :", error);
+                return { success: false, message };
+            }
+        },
+
+        /**
+         * Notes d'intensité proposées par le modèle. Elles ne sont pas
+         * enregistrées : l'auteur les reprend ou les ignore.
+         */
+        async suggestSequenceCriterias(sequenceId: number): Promise<{ success: boolean; message?: string }> {
+            const found = this.findSequenceContext(sequenceId);
+            if (!found) return { success: false, message: 'Séquence introuvable' };
+
+            const config = useRuntimeConfig();
+            const authStore = useAuthStore();
+
+            try {
+                const result: any = await $fetch(`${config.public.apiBase}/sequence/${sequenceId}/analyse/criterias`, {
+                    method: 'POST',
+                    headers: { 'X-AUTH-TOKEN': authStore.token! },
+                });
+
+                (found.sequence as any).suggestedCriterias = result.ratings;
+                return { success: true };
+            } catch (error: any) {
+                const message = error?.data?.message ?? "L'analyse a échoué.";
+                console.error("Erreur lors de la suggestion de critères :", error);
+                return { success: false, message };
+            }
+        },
+
+        /**
          * Enregistre la note d'une scène.
          * Payload minimal : le serveur applique une sémantique patch, donc
          * envoyer la scène entière risquerait d'écraser un contenu en cours
@@ -377,7 +431,7 @@ export const useProjectStore = defineStore('project', {
                     value: value
                 }
 
-                const result: CriteriaResponse = await $fetch(`${config.public.apiBase}/criteria/update`, {
+                await $fetch(`${config.public.apiBase}/criteria/update`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -386,8 +440,33 @@ export const useProjectStore = defineStore('project', {
                     body: criteriaData,
                 });
 
+                // Sans mise à jour locale, ni les étoiles ni les courbes
+                // d'analyse ne reflétaient la note avant un rechargement.
+                const found = this.findSequenceContext(sequenceId);
+                if (!found) return;
+
+                const sequence = found.sequence as any;
+                if (!sequence.sequenceCriterias) sequence.sequenceCriterias = [];
+
+                const existing = sequence.sequenceCriterias
+                    .find((sc: any) => sc.criteria?.id === criteriaId);
+
+                if (existing) {
+                    existing.rating = value;
+                } else {
+                    const metadataStore = useMetadataStore();
+                    const criteria = (metadataStore.criterias ?? [])
+                        .find((c: any) => c.id === criteriaId);
+                    sequence.sequenceCriterias.push({
+                        id: null,
+                        criteria: criteria ?? { id: criteriaId, name: '' },
+                        rating: value
+                    });
+                }
+
             } catch (error) {
-                console.error("Erreur lors de l'ajout/mise à jour d'une partie :", error);
+                console.error("Erreur lors de l'enregistrement d'un critère :", error);
+                throw error;
             }
         },
 
