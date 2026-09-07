@@ -7,7 +7,7 @@ const props = defineProps<{
   contentType?: 'organizational' | 'printable';
 }>();
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'ready']);
 
 const LANG_KEY = 'kompagnon_spell_lang';
 const savedLang = typeof localStorage !== 'undefined' ? localStorage.getItem(LANG_KEY) : null;
@@ -37,7 +37,34 @@ function applyLang(editor: any, lang: string) {
 function onEditorInit(_evt: any, editor: any) {
   editorInstance.value = editor;
   applyLang(editor, currentLang.value);
+  emit('ready', editor);
 }
+
+/**
+ * Place le curseur sur le n-ième paragraphe et le signale brièvement.
+ * Sert à retrouver, en édition, le passage repéré en lecture.
+ */
+function focusParagraph(index: number) {
+  const editor = editorInstance.value;
+  if (!editor || index < 0) return;
+
+  const paragraphs = editor.getBody()?.querySelectorAll('p');
+  const target = paragraphs?.[index];
+  if (!target) return;
+
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  editor.selection.select(target);
+  editor.selection.collapse(true);
+  editor.focus();
+
+  // Surlignage temporaire : sans repère visuel, le curseur seul se rate
+  const previous = target.style.backgroundColor;
+  target.style.transition = 'background-color 400ms ease';
+  target.style.backgroundColor = 'rgba(251, 191, 36, 0.35)';
+  setTimeout(() => { target.style.backgroundColor = previous; }, 1800);
+}
+
+defineExpose({ focusParagraph, editorInstance });
 
 function setLang(lang: 'fr' | 'en') {
   currentLang.value = lang;

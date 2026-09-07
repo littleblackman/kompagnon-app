@@ -42,10 +42,25 @@ const props = defineProps({
   insertAfterId: {
     type: Number,
     default: null
+  },
+  /** Index du paragraphe sur lequel poser le curseur à l'ouverture */
+  focusParagraph: {
+    type: Number,
+    default: null
   }
 });
 
 const emit = defineEmits(['close', 'save', 'delete', 'navigate']);
+
+const editorRef = ref<any>(null);
+
+// TinyMCE n'est pas prêt au montage : on attend son signal pour viser le
+// paragraphe repéré en lecture.
+const onEditorReady = () => {
+  if (props.focusParagraph !== null && props.focusParagraph >= 0) {
+    editorRef.value?.focusParagraph(props.focusParagraph);
+  }
+};
 
 const currentScene = ref<Scene | null>(null);
 const selectedSequenceId = ref<number | null>(null);
@@ -485,10 +500,12 @@ const closeModal = async () => {
           <label class="block text-sm font-medium text-gray-700 mb-2">Contenu</label>
           <div class="h-full">
             <RichTextEditor 
+              ref="editorRef"
               v-model="currentScene.content" 
               class="h-full"
               content-type="printable"
               :editor-height="'100%'"
+              @ready="onEditorReady"
             />
           </div>
         </div>

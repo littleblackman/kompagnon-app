@@ -6,6 +6,9 @@ import { useUserStore } from '~/store/user';
 import { onMounted, computed, ref, watch, nextTick } from "vue";
 import { PencilIcon } from '@heroicons/vue/24/solid';
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
+import SceneModal from "@/components/Project/SceneModal.vue";
+import PersonnageDetectionModal from "@/components/Project/PersonnageDetectionModal.vue";
+import InsertDivider from "@/components/Project/InsertDivider.vue";
 import { toRoman } from '~/utils/roman';
 
 const auth = useAuthStore();
@@ -68,7 +71,7 @@ function htmlToParas(html: string): string[] {
 
 type Block =
   | { kind: 'cover'; title: string; author: string }
-  | { kind: 'title'; cls: 'bp-part' | 'bp-seq' | 'bp-scene'; text: string }
+  | { kind: 'title'; cls: 'bp-part' | 'bp-seq' | 'bp-scene'; text: string; sceneId?: number }
   | { kind: 'para';  html: string }
 
 const allBlocks = computed((): Block[] => {
@@ -96,7 +99,7 @@ const allBlocks = computed((): Block[] => {
 
       for (const scene of (seq.scenes || [])) {
         if (showTitles.value.h4)
-          blocks.push({ kind: 'title', cls: 'bp-scene', text: scene.name });
+          blocks.push({ kind: 'title', cls: 'bp-scene', text: scene.name, sceneId: scene.id });
         if (showPrintable.value && scene.content)
           htmlToParas(scene.content).forEach(p => blocks.push({ kind: 'para', html: p }));
       }
@@ -205,6 +208,68 @@ const project = computed(() => projectStore.project);
 const parts = computed(() => projectStore.parts);
 
 const updateStats = () => projectStore.calculateStats();
+
+// ── Édition depuis la lecture ─────────────────────────────────────────
+// On repère un passage en lisant, on veut l'éditer sans avoir à le
+// rechercher dans l'écran d'écriture.
+
+type EditingState = {
+  scene: any;
+  sequenceId: number;
+  scenes: any[];
+  insertAfterId: number | null;
+  focusParagraph: number | null;
+};
+
+const editing = ref<EditingState | null>(null);
+
+const openScene = (scene: any, sequence: any, focusParagraph: number | null = null) => {
+  editing.value = {
+    scene: { ...scene },
+    sequenceId: sequence.id,
+    scenes: sequence.scenes ?? [],
+    insertAfterId: null,
+    focusParagraph
+  };
+};
+
+const insertSceneAfter = (scene: any, sequence: any) => {
+  editing.value = {
+    scene: { id: undefined, name: '', description: '', content: '', status: [], sequenceId: sequence.id },
+    sequenceId: sequence.id,
+    scenes: sequence.scenes ?? [],
+    insertAfterId: scene?.id ?? null,
+    focusParagraph: null
+  };
+};
+
+/**
+ * Ouvre l'éditeur sur le paragraphe cliqué.
+ * L'index se calcule sur le DOM rendu, dans le même ordre que les <p> de
+ * l'éditeur, puisque les deux viennent du même HTML.
+ */
+const editFromParagraph = (event: MouseEvent, scene: any, sequence: any) => {
+  const container = event.currentTarget as HTMLElement;
+  const paragraph = (event.target as HTMLElement).closest('p');
+
+  if (!paragraph || !container.contains(paragraph)) {
+    openScene(scene, sequence);
+    return;
+  }
+
+  const index = Array.from(container.querySelectorAll('p')).indexOf(paragraph);
+  openScene(scene, sequence, index >= 0 ? index : null);
+};
+
+// Mode livre : les blocs sont aplatis, on retrouve la séquence par la scène
+const openSceneById = (sceneId: number) => {
+  const found = projectStore.findSceneContext(sceneId);
+  if (found) openScene(found.scene, found.sequence);
+};
+
+// Le store mute l'arbre en place et parts/allBlocks sont des computed :
+// inutile de recharger le projet, ce qui ferait perdre la position de lecture.
+const closeEditor = () => { editing.value = null; };
 
 watch([showOrganizational, showPrintable, showTitles, numberParts, viewMode, pageFormat], () => {
   savePreferences({
@@ -538,10 +603,31 @@ ${body}
                   <h3 v-if="showTitles.h3" :id="`sequence-${sequence.id}`" class="text-xl font-semibold mb-3 text-amber-700">{{ sequence.name }}</h3>
                   <div v-if="showOrganizational && sequence.description" v-html="sequence.description" class="organizational-text mb-4"></div>
                   <div class="space-y-4">
-                    <div v-for="scene in sequence.scenes" :key="scene.id">
-                      <h4 v-if="showTitles.h4" :id="`scene-${scene.id}`" class="text-lg font-bold mb-2 text-gray-800">{{ scene.name }}</h4>
-                      <div v-if="showPrintable && scene.content" v-html="scene.content" class="scene-content prose prose-sm max-w-none text-justify"></div>
-                    </div>
+                    <template v-for="scene in sequence.scenes" :key="scene.id">
+                      <div>
+                        <h4
+                          v-if="showTitles.h4"
+                          :id="`scene-${scene.id}`"
+                          class="text-lg font-bold mb-2 text-gray-800 cursor-pointer hover:text-amber-700 transition-colors print:cursor-auto"
+                          title="Éditer cette scène"
+                          @click="openScene(scene, sequence)"
+                        >
+                          {{ scene.name }}
+                        </h4>
+                        <div
+                          v-if="showPrintable && scene.content"
+                          v-html="scene.content"
+                          class="scene-content editable-content prose prose-sm max-w-none text-justify"
+                          @click="editFromParagraph($event, scene, sequence)"
+                        ></div>
+                      </div>
+
+                      <InsertDivider
+                        label="Scène"
+                        dense
+                        @insert="insertSceneAfter(scene, sequence)"
+                      />
+                    </template>
                   </div>
                 </div>
               </div>
@@ -571,7 +657,12 @@ ${body}
                     <div class="bp-cover-author">{{ block.author }}</div>
                   </template>
                   <!-- Titres -->
-                  <div v-else-if="block.kind === 'title'" :class="block.cls">{{ block.text }}</div>
+                  <div
+                    v-else-if="block.kind === 'title'"
+                    :class="[block.cls, block.sceneId && 'cursor-pointer hover:text-amber-700 transition-colors print:cursor-auto']"
+                    :title="block.sceneId ? 'Éditer cette scène' : null"
+                    @click="block.sceneId && openSceneById(block.sceneId)"
+                  >{{ block.text }}</div>
                   <!-- Contenu HTML -->
                   <div v-else v-html="block.html" class="bp-para"></div>
                 </template>
@@ -587,10 +678,54 @@ ${body}
         </div>
       </main>
     </div>
+
+    <!-- Édition depuis la lecture -->
+    <SceneModal
+      v-if="editing"
+      :scene="editing.scene"
+      :projectId="project?.id ?? 0"
+      :sequenceId="editing.sequenceId"
+      :availableScenes="editing.scenes"
+      :insert-after-id="editing.insertAfterId"
+      :focus-paragraph="editing.focusParagraph"
+      @close="closeEditor"
+      @save="closeEditor"
+      @delete="closeEditor"
+    />
+
+    <!--
+      SceneModal déclenche la détection de personnages à sa fermeture.
+      Sans cette modale montée ici, le drapeau resterait armé et la fenêtre
+      surgirait sur une autre page.
+    -->
+    <PersonnageDetectionModal />
   </div>
 </template>
 
 <style scoped>
+/* Le texte de lecture est éditable au clic : sans repère, personne ne le devine */
+.editable-content {
+  cursor: text;
+}
+
+.editable-content :deep(p) {
+  border-radius: 0.25rem;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.editable-content :deep(p:hover) {
+  background-color: rgba(251, 191, 36, 0.10);
+  box-shadow: -0.5rem 0 0 rgba(251, 191, 36, 0.10), 0.5rem 0 0 rgba(251, 191, 36, 0.10);
+  cursor: pointer;
+}
+
+@media print {
+  .editable-content :deep(p:hover) {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
 .link { text-decoration: none; color: #79AC78; transition: color 0.3s ease-in-out; }
 .link:hover { color: #FF9B9B; transform: scale(1.4); }
 

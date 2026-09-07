@@ -45,6 +45,7 @@ const sortedScenes = computed(() => {
 const sceneModalOpen = ref(false);
 const currentScene = ref<Scene | null>(null);
 const afterSceneId = ref<number | null>(null);
+const focusParagraph = ref<number | null>(null);
 
 const openSceneModal = (scene = null) => {
   if (!scene) {
@@ -72,6 +73,29 @@ const openSceneModal = (scene = null) => {
       afterSceneId.value = null;
     }
   }
+  focusParagraph.value = null;
+  sceneModalOpen.value = true;
+};
+
+/**
+ * Ouvre l'éditeur directement sur le paragraphe cliqué, plutôt que de
+ * laisser chercher le passage dans toute la scène.
+ */
+const editFromParagraph = (event: MouseEvent, scene) => {
+  const container = event.currentTarget as HTMLElement;
+  const paragraph = (event.target as HTMLElement).closest('p');
+
+  currentScene.value = { ...scene };
+  const index = sortedScenes.value.findIndex(s => s.id === scene.id);
+  afterSceneId.value = index > 0 ? sortedScenes.value[index - 1].id : null;
+
+  if (paragraph && container.contains(paragraph)) {
+    const position = Array.from(container.querySelectorAll('p')).indexOf(paragraph);
+    focusParagraph.value = position >= 0 ? position : null;
+  } else {
+    focusParagraph.value = null;
+  }
+
   sceneModalOpen.value = true;
 };
 
@@ -91,6 +115,7 @@ const insertSceneAfter = (sceneId: number | null) => {
     sequenceId: props.sequenceId
   };
   afterSceneId.value = sceneId;
+  focusParagraph.value = null;
   sceneModalOpen.value = true;
 };
 
@@ -168,6 +193,7 @@ const vHtml = {
       :sequenceId="sequenceId"
       :availableScenes="sortedScenes"
       :insert-after-id="afterSceneId"
+      :focus-paragraph="focusParagraph"
       @close="sceneModalOpen = false"
       @save="handleSaveScene"
       @delete="handleDeleteScene"
@@ -230,7 +256,11 @@ const vHtml = {
             </button>
           </div>
         </div>
-        <div class="mt-2 prose prose-sm max-w-none scene-content printable-content p-4" v-html="scene.content"></div>
+        <div
+          class="mt-2 prose prose-sm max-w-none scene-content printable-content editable-content p-4"
+          v-html="scene.content"
+          @click="editFromParagraph($event, scene)"
+        ></div>
       </div>
 
       <!-- Insertion contextuelle, y compris après la dernière scène -->
@@ -256,6 +286,29 @@ const vHtml = {
 </template>
 
 <style>
+/* Le texte de lecture est éditable au clic : sans repère, personne ne le devine */
+.editable-content {
+  cursor: text;
+}
+
+.editable-content p {
+  border-radius: 0.25rem;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.editable-content p:hover {
+  background-color: rgba(251, 191, 36, 0.10);
+  box-shadow: -0.5rem 0 0 rgba(251, 191, 36, 0.10), 0.5rem 0 0 rgba(251, 191, 36, 0.10);
+  cursor: pointer;
+}
+
+@media print {
+  .editable-content p:hover {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
 /* Contenu organisationnel (Parts et Sequences) */
 .organizational-text {
   color: #9CA3AF !important; /* gray-400 */
