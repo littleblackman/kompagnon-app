@@ -82,6 +82,7 @@ const characters = computed(() => {
 
       return {
         id: personnage.id,
+        personnage,
         name: personnageStore.getPersonnageName(personnage),
         appearsIn,
         count: indices.length,
@@ -92,6 +93,34 @@ const characters = computed(() => {
     })
     .sort((a, b) => b.count - a.count);
 });
+
+/** Parties regroupées, pour l'en-tête en bandes de la grille */
+const partBands = computed(() => {
+  const bands: Array<{ name: string; label: string; span: number }> = [];
+
+  projectStore.parts.forEach((part, index) => {
+    const span = (part.sequences ?? []).length;
+    if (span) bands.push({ name: part.name, label: toRoman(index + 1), span });
+  });
+
+  return bands;
+});
+
+// Première séquence de chaque partie : y poser un trait plus marqué
+const partStarts = computed(() => {
+  const starts = new Set<number>();
+  let cursor = 0;
+  partBands.value.forEach((band) => {
+    starts.add(cursor);
+    cursor += band.span;
+  });
+  return starts;
+});
+
+const initials = (name: string) =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
+
+const { getImageUrl } = useImages();
 
 const selectedCharacter = ref<number | null>(null);
 
@@ -246,19 +275,22 @@ const goToSequence = (sequenceId: number) => {
           </p>
 
           <div v-else class="overflow-x-auto rounded-lg border border-gray-200">
-            <table class="w-full border-collapse text-sm">
+            <table class="border-collapse text-sm">
               <thead>
+                <!-- Bandes de parties : la structure se lit sans étiqueter chaque colonne -->
                 <tr>
-                  <th class="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th class="sticky left-0 z-20 w-44 min-w-44 bg-gray-50 px-3 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Personnage
                   </th>
                   <th
-                    v-for="column in sequences"
-                    :key="column.id"
-                    class="border-l border-gray-100 bg-gray-50 px-1 py-2 text-center text-[11px] font-medium text-gray-500"
-                    data-controller="tooltip" :title="`${column.part} › ${column.name}`"
+                    v-for="(band, index) in partBands"
+                    :key="index"
+                    :colspan="band.span"
+                    class="border-l-2 border-gray-300 bg-gray-50 px-1 py-1.5 text-center text-[11px] font-semibold text-gray-600"
+                    data-controller="tooltip"
+                    :title="band.name"
                   >
-                    {{ column.label }}
+                    <span class="block truncate">{{ band.label }}</span>
                   </th>
                 </tr>
               </thead>
@@ -270,27 +302,45 @@ const goToSequence = (sequenceId: number) => {
                   :class="selectedCharacter === row.id && 'bg-amber-50/60'"
                 >
                   <th
-                    class="sticky left-0 z-10 cursor-pointer bg-white px-3 py-2 text-left font-medium text-gray-800 hover:text-amber-700"
+                    class="sticky left-0 z-10 w-44 min-w-44 cursor-pointer bg-white px-3 py-1.5 text-left font-medium text-gray-800 hover:text-amber-700"
                     :class="selectedCharacter === row.id && 'bg-amber-50'"
                     @click="selectedCharacter = selectedCharacter === row.id ? null : row.id"
                   >
-                    {{ row.name }}
-                    <span class="ml-1 text-xs font-normal text-gray-400">{{ row.count }}</span>
+                    <span class="flex items-center gap-2">
+                      <!-- Photo si elle est disponible, initiales sinon -->
+                      <img
+                        v-if="getImageUrl(row.personnage.avatar)"
+                        :src="getImageUrl(row.personnage.avatar)!"
+                        alt=""
+                        class="h-6 w-6 flex-shrink-0 rounded-full object-cover"
+                      />
+                      <span
+                        v-else
+                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-700"
+                      >{{ initials(row.name) }}</span>
+
+                      <span class="truncate">{{ row.name }}</span>
+                      <span class="ml-auto text-xs font-normal text-gray-400">{{ row.count }}</span>
+                    </span>
                   </th>
                   <td
-                    v-for="column in sequences"
+                    v-for="(column, index) in sequences"
                     :key="column.id"
-                    class="border-l border-gray-100 p-0"
+                    class="w-[18px] min-w-[18px] p-0"
+                    :class="partStarts.has(index) ? 'border-l-2 border-gray-300' : 'border-l border-gray-100'"
                   >
                     <button
                       type="button"
-                      class="block h-8 w-full transition-colors"
-                      :class="row.appearsIn.has(column.id)
-                        ? 'bg-amber-400/80 hover:bg-amber-500'
-                        : 'hover:bg-gray-100'"
-                      data-controller="tooltip" :title="column.name"
+                      class="flex h-7 w-full items-center justify-center transition-colors hover:bg-gray-100"
+                      data-controller="tooltip"
+                      :title="column.name"
                       @click="goToSequence(column.id)"
-                    ></button>
+                    >
+                      <span
+                        class="h-2 w-2 rounded-full transition-colors"
+                        :class="row.appearsIn.has(column.id) ? 'bg-amber-500' : 'bg-gray-200'"
+                      ></span>
+                    </button>
                   </td>
                 </tr>
               </tbody>
