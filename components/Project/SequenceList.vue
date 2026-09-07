@@ -312,7 +312,7 @@ const updateRating = async (ratingData) => {
             <button
               class="relative p-1 rounded text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50"
               @click="criteriaModalSequenceId = sequence.id"
-              title="Intensité dramatique"
+              data-controller="tooltip" title="Intensité dramatique"
             >
               <StarIcon class="h-5 w-5" />
               <span
@@ -326,7 +326,7 @@ const updateRating = async (ratingData) => {
               <button
                 class="p-1 rounded text-gray-600 hover:text-gray-800 hover:bg-gray-50"
                 @click="openSequenceModal(sequence)"
-                title="Éditer la séquence"
+                data-controller="tooltip" title="Éditer la séquence"
               >
                 <PencilIcon class="h-4 w-4" />
               </button>
@@ -334,7 +334,7 @@ const updateRating = async (ratingData) => {
                 :disabled="sortedSequences.findIndex(s => s.id === sequence.id) === 0"
                 :class="['p-1 rounded', sortedSequences.findIndex(s => s.id === sequence.id) === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50']"
                 @click="handleMoveSequence(sequence, 'up')"
-                title="Déplacer vers le haut"
+                data-controller="tooltip" title="Déplacer vers le haut"
               >
                 <ArrowUpIcon class="h-4 w-4" />
               </button>
@@ -342,7 +342,7 @@ const updateRating = async (ratingData) => {
                 :disabled="sortedSequences.findIndex(s => s.id === sequence.id) === sortedSequences.length - 1"
                 :class="['p-1 rounded', sortedSequences.findIndex(s => s.id === sequence.id) === sortedSequences.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50']"
                 @click="handleMoveSequence(sequence, 'down')"
-                title="Déplacer vers le bas"
+                data-controller="tooltip" title="Déplacer vers le bas"
               >
                 <ArrowDownIcon class="h-4 w-4" />
               </button>
@@ -377,17 +377,17 @@ const updateRating = async (ratingData) => {
                   <LightBulbIcon
                     v-if="contextSummary(sequence).intention"
                     class="w-3.5 h-3.5 text-amber-500"
-                    title="Intention renseignée"
+                    data-controller="tooltip" title="Intention renseignée"
                   />
                   <EyeIcon
                     v-if="contextSummary(sequence).aesthetic"
                     class="w-3.5 h-3.5 text-purple-500"
-                    title="Esthétique renseignée"
+                    data-controller="tooltip" title="Esthétique renseignée"
                   />
                   <InformationCircleIcon
                     v-if="contextSummary(sequence).information"
                     class="w-3.5 h-3.5 text-blue-500"
-                    title="Information renseignée"
+                    data-controller="tooltip" title="Information renseignée"
                   />
                 </span>
               </span>
@@ -402,7 +402,7 @@ const updateRating = async (ratingData) => {
                 <button
                   @click="updatePersonnage(null, sequence.id)"
                   class="flex items-center gap-1 px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded-full transition-colors"
-                  title="Ajouter un personnage"
+                  data-controller="tooltip" title="Ajouter un personnage"
                 >
                   <span class="font-bold">+</span>
                   <span>Ajouter</span>
@@ -410,7 +410,7 @@ const updateRating = async (ratingData) => {
                 <button
                   @click="showPersonnageConfig = true"
                   class="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs rounded-full transition-colors"
-                  title="Configurer la détection automatique"
+                  data-controller="tooltip" title="Configurer la détection automatique"
                 >
                   ⚙️
                 </button>
@@ -430,7 +430,7 @@ const updateRating = async (ratingData) => {
                   <button
                     @click.stop="removePersonnageFromSequence(sp.id, sequence.id)"
                     class="ml-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full w-4 h-4 flex items-center justify-center transition-colors"
-                    title="Retirer de cette séquence"
+                    data-controller="tooltip" title="Retirer de cette séquence"
                   >
                     <span class="text-xs leading-none">×</span>
                   </button>
@@ -444,7 +444,7 @@ const updateRating = async (ratingData) => {
           <div class="space-y-2 my-3">
             <!-- Intention -->
             <div class="flex items-center gap-2 bg-amber-50 rounded-full px-3 py-2.5 border border-amber-200 transition-all hover:bg-amber-100 focus-within:ring-2 focus-within:ring-amber-400 focus-within:bg-white">
-              <LightBulbIcon class="w-4 h-4 text-amber-600 flex-shrink-0" title="Intention" />
+              <LightBulbIcon class="w-4 h-4 text-amber-600 flex-shrink-0" data-controller="tooltip" title="Intention" />
               <input
                 type="text"
                 :value="sequence.intention ?? ''"
@@ -457,7 +457,7 @@ const updateRating = async (ratingData) => {
 
             <!-- Esthétique -->
             <div class="flex items-center gap-2 bg-purple-50 rounded-full px-3 py-2.5 border border-purple-200 transition-all hover:bg-purple-100 focus-within:ring-2 focus-within:ring-purple-400 focus-within:bg-white">
-              <EyeIcon class="w-4 h-4 text-purple-600 flex-shrink-0" title="Esthétique" />
+              <EyeIcon class="w-4 h-4 text-purple-600 flex-shrink-0" data-controller="tooltip" title="Esthétique" />
               <input
                 type="text"
                 :value="sequence.aesthetic_idea ?? ''"
@@ -470,7 +470,7 @@ const updateRating = async (ratingData) => {
 
             <!-- Info -->
             <div class="flex items-center gap-2 bg-blue-50 rounded-full px-3 py-2.5 border border-blue-200 transition-all hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-400 focus-within:bg-white">
-              <InformationCircleIcon class="w-4 h-4 text-blue-600 flex-shrink-0" title="Information" />
+              <InformationCircleIcon class="w-4 h-4 text-blue-600 flex-shrink-0" data-controller="tooltip" title="Information" />
               <input
                 type="text"
                 :value="sequence.information ?? ''"
@@ -539,42 +539,4 @@ const updateRating = async (ratingData) => {
   color: #9CA3AF !important;
 }
 
-/* Amélioration des tooltips natifs */
-[title] {
-  position: relative;
-}
-
-[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0.5rem 0.75rem;
-  background-color: rgba(0, 0, 0, 0.9);
-  color: white;
-  font-size: 0.875rem;
-  border-radius: 0.375rem;
-  white-space: normal;
-  max-width: 300px;
-  z-index: 50;
-  pointer-events: none;
-  margin-bottom: 0.5rem;
-  line-height: 1.4;
-}
-
-[title]:hover::before {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 6px 6px 0 6px;
-  border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
-  margin-bottom: 0.125rem;
-  z-index: 50;
-}
 </style>

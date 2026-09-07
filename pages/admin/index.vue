@@ -969,7 +969,7 @@ onMounted(async () => {
                       v-if="genre.subgenresCount === 0"
                       @click.stop="deleteGenre(genre.id, genre.subgenresCount)"
                       class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Supprimer ce genre"
+                      data-controller="tooltip" title="Supprimer ce genre"
                     >
                       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1011,7 +1011,7 @@ onMounted(async () => {
                         v-if="subgenre.eventTypesCount === 0"
                         @click.stop="deleteSubgenre(subgenre.id)"
                         class="ml-3 p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Supprimer ce sous-genre"
+                        data-controller="tooltip" title="Supprimer ce sous-genre"
                       >
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1097,7 +1097,7 @@ onMounted(async () => {
                 <div class="flex items-center gap-2">
                   <button @click="openNarrativePartModal(narrativePart)"
                           class="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Modifier">
+                          data-controller="tooltip" title="Modifier">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
@@ -1105,7 +1105,7 @@ onMounted(async () => {
                   <button v-if="narrativePart.eventTypesCount === 0"
                           @click="deleteNarrativePart(narrativePart.id, narrativePart.eventTypesCount)"
                           class="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Supprimer">
+                          data-controller="tooltip" title="Supprimer">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
@@ -1183,14 +1183,14 @@ onMounted(async () => {
                   <div class="flex items-center gap-3">
                     <button @click.stop="openNarrativeStructureModal(structure)"
                             class="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                            title="Modifier">
+                            data-controller="tooltip" title="Modifier">
                       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
                     <button @click.stop="deleteNarrativeStructure(structure.id)"
                             class="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Supprimer">
+                            data-controller="tooltip" title="Supprimer">
                       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -1323,7 +1323,7 @@ onMounted(async () => {
                     <button
                       @click.stop="openEventTypeModal(eventType)"
                       class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Modifier ce type de beat"
+                      data-controller="tooltip" title="Modifier ce type de beat"
                     >
                       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1333,7 +1333,7 @@ onMounted(async () => {
                       v-if="eventType.eventsCount === 0"
                       @click.stop="deleteEventType(eventType.id, eventType.eventsCount)"
                       class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Supprimer ce type de beat"
+                      data-controller="tooltip" title="Supprimer ce type de beat"
                     >
                       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1377,7 +1377,7 @@ onMounted(async () => {
                       <button
                         @click.stop="deleteEvent(event.id)"
                         class="ml-3 p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Supprimer ce beat"
+                        data-controller="tooltip" title="Supprimer ce beat"
                       >
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1561,7 +1561,7 @@ onMounted(async () => {
                     <button
                       @click="removeEventTypeFromSubgenre(eventType.id)"
                       class="text-red-600 hover:text-red-800 text-sm font-medium ml-4"
-                      title="Supprimer cet event type"
+                      data-controller="tooltip" title="Supprimer cet event type"
                     >
                       Supprimer
                     </button>
@@ -1951,7 +1951,7 @@ onMounted(async () => {
                         @click="moveSectionUp(sectionName)"
                         :disabled="sectionIndex === 0"
                         class="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Déplacer la section vers le haut"
+                        data-controller="tooltip" title="Déplacer la section vers le haut"
                       >
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
@@ -1962,7 +1962,7 @@ onMounted(async () => {
                         @click="moveSectionDown(sectionName)"
                         :disabled="sectionIndex === getSectionsArray().length - 1"
                         class="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Déplacer la section vers le bas"
+                        data-controller="tooltip" title="Déplacer la section vers le bas"
                       >
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -1972,7 +1972,7 @@ onMounted(async () => {
                       <button
                         @click="removeSection(sectionName)"
                         class="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Supprimer cette section"
+                        data-controller="tooltip" title="Supprimer cette section"
                       >
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1990,7 +1990,7 @@ onMounted(async () => {
                           @click="moveNarrativePartUp(sectionName, index)"
                           :disabled="index === 0"
                           class="p-1 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Déplacer vers le haut"
+                          data-controller="tooltip" title="Déplacer vers le haut"
                         >
                           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
@@ -2000,7 +2000,7 @@ onMounted(async () => {
                           @click="moveNarrativePartDown(sectionName, index)"
                           :disabled="index === narrativeStructureForm.narrativePartOrder[sectionName].length - 1"
                           class="p-1 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Déplacer vers le bas"
+                          data-controller="tooltip" title="Déplacer vers le bas"
                         >
                           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -2009,7 +2009,7 @@ onMounted(async () => {
                         <button
                           @click="removeNarrativePartFromSection(sectionName, index)"
                           class="p-1 text-red-600 hover:bg-red-50 rounded"
-                          title="Retirer"
+                          data-controller="tooltip" title="Retirer"
                         >
                           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

@@ -53,7 +53,7 @@
               <button
                 @click="triggerFileInput"
                 class="absolute bottom-0 right-0 bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600 transition-colors"
-                title="Changer l'avatar"
+                data-controller="tooltip" title="Changer l'avatar"
               >
                 <PencilIcon class="w-4 h-4" />
               </button>
@@ -76,7 +76,7 @@
             </label>
             <div 
               class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors"
-              title="Cliquez pour modifier votre profil"
+              data-controller="tooltip" title="Cliquez pour modifier votre profil"
             >
               {{ userStore.profile?.email }}
             </div>

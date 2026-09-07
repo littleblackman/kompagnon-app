@@ -42,7 +42,7 @@ const scrollToElement = (elementId: string) => {
     <button
       @click="showTableOfContents = !showTableOfContents"
       class="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
-      title="Table des matières"
+      data-controller="tooltip" title="Table des matières"
     >
       <Bars3Icon v-if="!showTableOfContents" class="w-5 h-5" />
       <XMarkIcon v-else class="w-5 h-5" />

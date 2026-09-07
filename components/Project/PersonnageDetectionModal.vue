@@ -26,7 +26,7 @@
               <button
                 @click="personnageStore.ignorePersonnageAlways(detected.personnage!.id)"
                 class="px-3 py-1 text-gray-500 text-sm rounded border border-gray-300 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-                title="Ne plus jamais suggérer ce personnage"
+                data-controller="tooltip" title="Ne plus jamais suggérer ce personnage"
               >
                 Ignorer toujours
               </button>

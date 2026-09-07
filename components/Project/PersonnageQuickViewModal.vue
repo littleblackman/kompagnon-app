@@ -8,7 +8,7 @@
         <!-- Avatar cliquable -->
         <div
           class="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 ring-2 ring-gray-200 cursor-pointer hover:ring-amber-400 transition-all"
-          :title="allImages.length ? 'Voir les photos' : ''"
+          data-controller="tooltip" :title="allImages.length ? 'Voir les photos' : ''"
           @click="allImages.length && openLightbox(0)"
         >
           <img

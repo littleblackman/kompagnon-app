@@ -433,7 +433,7 @@ const closeModal = async () => {
                 ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' 
                 : 'bg-gray-50 text-gray-400 cursor-not-allowed'
             ]"
-            title="Scène précédente"
+            data-controller="tooltip" title="Scène précédente"
           >
             ← <span v-if="previousScene" class="hidden sm:inline">{{ previousScene.name }}</span>
           </button>
@@ -454,7 +454,7 @@ const closeModal = async () => {
           <button 
             @click="addSceneAfter"
             class="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg font-medium transition-colors"
-            title="Ajouter une scène après"
+            data-controller="tooltip" title="Ajouter une scène après"
           >
             + Scène
           </button>
@@ -468,7 +468,7 @@ const closeModal = async () => {
                 ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' 
                 : 'bg-gray-50 text-gray-400 cursor-not-allowed'
             ]"
-            title="Scène suivante"
+            data-controller="tooltip" title="Scène suivante"
           >
             <span v-if="nextScene" class="hidden sm:inline">{{ nextScene.name }}</span> →
           </button>
@@ -497,7 +497,7 @@ const closeModal = async () => {
             v-if="sceneData.id"
             @click="handleDelete"
             class="p-2 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50"
-            title="Supprimer la scène"
+            data-controller="tooltip" title="Supprimer la scène"
           >
             <TrashIcon class="w-5 h-5" />
           </button>

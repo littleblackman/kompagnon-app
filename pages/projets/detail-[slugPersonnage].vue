@@ -478,7 +478,7 @@ const updateStep = (index, field, value) => {
                 <span
                   v-for="pdf in personnage.personnageDramaticFunctions"
                   :key="pdf.dramaticFunction.id"
-                  :title="`${pdf.dramaticFunction.description || ''}\n\nCaractéristiques:\n${Array.isArray(pdf.dramaticFunction.characteristics) ? pdf.dramaticFunction.characteristics.join('\n• ') : pdf.dramaticFunction.characteristics || ''}\n\nTendance: ${pdf.dramaticFunction.tendency || 'N/A'}`"
+                  data-controller="tooltip" :title="`${pdf.dramaticFunction.description || ''}\n\nCaractéristiques:\n${Array.isArray(pdf.dramaticFunction.characteristics) ? pdf.dramaticFunction.characteristics.join('\n• ') : pdf.dramaticFunction.characteristics || ''}\n\nTendance: ${pdf.dramaticFunction.tendency || 'N/A'}`"
                   class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded-full bg-purple-600 text-white hover:bg-purple-700 shadow-sm transition-all cursor-help"
                 >
                   <span class="text-base">🎭</span>
@@ -494,7 +494,7 @@ const updateStep = (index, field, value) => {
                     v-for="df in metadataStore.dramaticFunctions"
                     :key="df.id"
                     type="button"
-                    :title="df.description"
+                    data-controller="tooltip" :title="df.description"
                     @click="editedPersonnage.dramaticFunctionIds?.includes(df.id)
                       ? editedPersonnage.dramaticFunctionIds = editedPersonnage.dramaticFunctionIds.filter(id => id !== df.id)
                       : editedPersonnage.dramaticFunctionIds = [...(editedPersonnage.dramaticFunctionIds ?? []), df.id]"
@@ -518,7 +518,7 @@ const updateStep = (index, field, value) => {
                 <span
                   v-for="pna in personnage.personnageNarrativeArcs"
                   :key="pna.id"
-                  :title="`${pna.narrativeArc.description || ''}\n\nÉtapes:\n${Array.isArray(pna.narrativeArc.steps) ? pna.narrativeArc.steps.map((s, i) => `${i + 1}. ${s}`).join('\n') : ''}\n\nTendance: ${pna.narrativeArc.tendency === 'positive' ? '↗️ Positive' : pna.narrativeArc.tendency === 'negative' ? '↘️ Négative' : '↔️ Ambiguë'}`"
+                  data-controller="tooltip" :title="`${pna.narrativeArc.description || ''}\n\nÉtapes:\n${Array.isArray(pna.narrativeArc.steps) ? pna.narrativeArc.steps.map((s, i) => `${i + 1}. ${s}`).join('\n') : ''}\n\nTendance: ${pna.narrativeArc.tendency === 'positive' ? '↗️ Positive' : pna.narrativeArc.tendency === 'negative' ? '↘️ Négative' : '↔️ Ambiguë'}`"
                   class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded-full bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-all cursor-help"
                 >
                   <span class="text-base">
@@ -757,14 +757,14 @@ const updateStep = (index, field, value) => {
                     <button
                       @click="openNarrativeArcModal(pna)"
                       class="px-2 py-1 text-xs bg-white hover:bg-indigo-100 text-indigo-700 rounded border border-indigo-300 transition-colors"
-                      title="Modifier"
+                      data-controller="tooltip" title="Modifier"
                     >
                       ✏️
                     </button>
                     <button
                       @click="deleteNarrativeArc(pna.id)"
                       class="px-2 py-1 text-xs bg-white hover:bg-red-100 text-red-700 rounded border border-red-300 transition-colors"
-                      title="Supprimer"
+                      data-controller="tooltip" title="Supprimer"
                     >
                       🗑️
                     </button>

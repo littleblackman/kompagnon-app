@@ -189,7 +189,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
     <div ref="menuRef" class="fixed bottom-4 right-4 flex flex-col gap-3 z-50 print:hidden">
       <button
         @click="isMenuOpen = !isMenuOpen"
-        :title="isMenuOpen ? 'Fermer le menu' : 'Ajouter / naviguer'"
+        data-controller="tooltip" :title="isMenuOpen ? 'Fermer le menu' : 'Ajouter / naviguer'"
         class="bg-amber-600 hover:bg-amber-700 text-white font-bold p-3 rounded-full shadow-lg transition-transform"
         :class="isMenuOpen ? 'rotate-45' : ''"
       >
@@ -236,7 +236,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
             :disabled="!projectStore.parts.length"
             :class="['w-full text-left px-2 py-1 text-sm rounded',
                      projectStore.parts.length ? 'hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed']"
-            :title="projectStore.parts.length ? '' : 'Créez d\'abord une partie'"
+            data-controller="tooltip" :title="projectStore.parts.length ? '' : 'Créez d\'abord une partie'"
           >
             + Séquence
           </button>
@@ -245,7 +245,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
             :disabled="!projectStore.sequences.length"
             :class="['w-full text-left px-2 py-1 text-sm rounded',
                      projectStore.sequences.length ? 'hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed']"
-            :title="projectStore.sequences.length ? '' : 'Créez d\'abord une séquence'"
+            data-controller="tooltip" :title="projectStore.sequences.length ? '' : 'Créez d\'abord une séquence'"
           >
             + Scène
           </button>
@@ -256,7 +256,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
     <!-- Choix de la séquence cible avant de créer une scène -->
     <SequencePickerModal
       :open="sequencePickerOpen"
-      title="Dans quelle séquence ?"
+      data-controller="tooltip" title="Dans quelle séquence ?"
       confirm-label="Continuer"
       :initial-id="pickedSequenceId"
       @confirm="confirmSequencePick"

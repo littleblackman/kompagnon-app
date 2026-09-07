@@ -269,7 +269,7 @@ const sortedPersonnages = computed(() => {
                 <span
                   v-for="pdf in personnage.personnageDramaticFunctions"
                   :key="pdf.dramaticFunction.id"
-                  :title="`${pdf.dramaticFunction.description || ''}\n\nCaractéristiques:\n${Array.isArray(pdf.dramaticFunction.characteristics) ? pdf.dramaticFunction.characteristics.join('\n• ') : pdf.dramaticFunction.characteristics || ''}\n\nTendance: ${pdf.dramaticFunction.tendency || 'N/A'}`"
+                  data-controller="tooltip" :title="`${pdf.dramaticFunction.description || ''}\n\nCaractéristiques:\n${Array.isArray(pdf.dramaticFunction.characteristics) ? pdf.dramaticFunction.characteristics.join('\n• ') : pdf.dramaticFunction.characteristics || ''}\n\nTendance: ${pdf.dramaticFunction.tendency || 'N/A'}`"
                   class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded-full bg-purple-600 text-white hover:bg-purple-700 shadow-sm transition-all cursor-help"
                 >
                   <span class="text-base">🎭</span>
@@ -282,7 +282,7 @@ const sortedPersonnages = computed(() => {
             <button
               @click="openGalleryViewer(index)"
               class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-              title="Aperçu galerie"
+              data-controller="tooltip" title="Aperçu galerie"
             >
               <EyeIcon class="w-4 h-4" />
             </button>
@@ -290,21 +290,21 @@ const sortedPersonnages = computed(() => {
               v-if="personnage.slug"
               :to="`/projets/detail-${personnage.slug}`"
               class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Modifier la fiche"
+              data-controller="tooltip" title="Modifier la fiche"
             >
               <PencilIcon class="w-4 h-4" />
             </NuxtLink>
             <button
               @click="duplicatePersonnage(personnage)"
               class="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-              title="Dupliquer"
+              data-controller="tooltip" title="Dupliquer"
             >
               <DocumentDuplicateIcon class="w-4 h-4" />
             </button>
             <button
               @click="deletePersonnage(personnage.id)"
               class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              title="Supprimer"
+              data-controller="tooltip" title="Supprimer"
             >
               <TrashIcon class="w-4 h-4" />
             </button>

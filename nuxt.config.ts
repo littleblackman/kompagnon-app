@@ -8,6 +8,7 @@ export default defineNuxtConfig({
   css: [
     '~/assets/css/main.css',
     '~/assets/main.scss',
+    '~/assets/scss/tooltip.css',
   ],
 
   vite: {
@@ -30,7 +31,7 @@ export default defineNuxtConfig({
   },
   nitro: {
     routeRules: {
-      '/api/**': { proxy: 'http://localhost:8000/api/**' }
+      '/api/**': { proxy: 'http://localhost:8000/api/**' },
     }
   },
 

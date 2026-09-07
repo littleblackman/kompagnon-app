@@ -237,7 +237,7 @@ const vHtml = {
 
     <SequencePickerModal
       :open="!!movingScene"
-      title="Déplacer la scène"
+      data-controller="tooltip" title="Déplacer la scène"
       :message="movingScene ? `« ${movingScene.name || 'Sans titre'} » sera déplacée à la fin de la séquence choisie.` : ''"
       confirm-label="Déplacer"
       :exclude-id="sequenceId"
@@ -257,7 +257,7 @@ const vHtml = {
             <button 
               class="p-1 rounded text-gray-600 hover:text-gray-800 hover:bg-gray-50"
               @click="openSceneModal(scene)"
-              title="Éditer la scène"
+              data-controller="tooltip" title="Éditer la scène"
             >
               <PencilIcon class="h-4 w-4" />
             </button>
@@ -267,7 +267,7 @@ const vHtml = {
               :disabled="index === 0"
               :class="['p-1 rounded', index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50']"
               @click="handleMoveScene(scene, 'up')"
-              title="Déplacer vers le haut"
+              data-controller="tooltip" title="Déplacer vers le haut"
             >
               <ArrowUpIcon class="h-4 w-4" />
             </button>
@@ -277,7 +277,7 @@ const vHtml = {
               :disabled="index === sortedScenes.length - 1"
               :class="['p-1 rounded', index === sortedScenes.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50']"
               @click="handleMoveScene(scene, 'down')"
-              title="Déplacer vers le bas"
+              data-controller="tooltip" title="Déplacer vers le bas"
             >
               <ArrowDownIcon class="h-4 w-4" />
             </button>
@@ -286,7 +286,7 @@ const vHtml = {
             <button 
               class="p-1 rounded text-green-500 hover:text-green-700 hover:bg-green-50"
               @click="handleDuplicateScene(scene)"
-              title="Dupliquer la scène"
+              data-controller="tooltip" title="Dupliquer la scène"
             >
               <DocumentDuplicateIcon class="h-4 w-4" />
             </button>
@@ -295,7 +295,7 @@ const vHtml = {
             <button
               class="relative p-1 rounded hover:bg-amber-50"
               @click="noteScene = scene"
-              :title="scene.notes ? 'Note de travail' : 'Ajouter une note'"
+              data-controller="tooltip" :title="scene.notes ? 'Note de travail' : 'Ajouter une note'"
             >
               <ChatBubbleBottomCenterTextIcon
                 :class="['h-4 w-4', scene.notes ? 'text-amber-500' : 'text-gray-300 hover:text-amber-400']"
@@ -310,7 +310,7 @@ const vHtml = {
             <button
               class="p-1 rounded text-gray-500 hover:text-amber-700 hover:bg-amber-50"
               @click="movingScene = scene"
-              title="Déplacer vers une autre séquence"
+              data-controller="tooltip" title="Déplacer vers une autre séquence"
             >
               <ArrowRightOnRectangleIcon class="h-4 w-4" />
             </button>
@@ -319,7 +319,7 @@ const vHtml = {
             <button 
               class="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50" 
               @click="handleDeleteScene(scene)"
-              title="Supprimer la scène"
+              data-controller="tooltip" title="Supprimer la scène"
             >
               <TrashIcon class="h-4 w-4" />
             </button>

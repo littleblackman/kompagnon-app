@@ -98,7 +98,7 @@ onUnmounted(() => {
       <button 
         @click="close"
         class="absolute top-4 right-4 text-white bg-black bg-opacity-50 hover:bg-opacity-75 rounded-full w-12 h-12 flex items-center justify-center text-2xl transition-colors z-10"
-        title="Fermer (Escape)"
+        data-controller="tooltip" title="Fermer (Escape)"
       >
         ×
       </button>
@@ -108,7 +108,7 @@ onUnmounted(() => {
         v-if="currentImageIndex > 0"
         @click.stop="previousImage"
         class="absolute left-4 top-1/2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 hover:bg-opacity-75 rounded-full w-12 h-12 flex items-center justify-center text-xl transition-colors"
-        title="Image précédente (←)"
+        data-controller="tooltip" title="Image précédente (←)"
       >
         ←
       </button>
@@ -118,7 +118,7 @@ onUnmounted(() => {
         v-if="currentImageIndex < images.length - 1"
         @click.stop="nextImage"
         class="absolute right-4 top-1/2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 hover:bg-opacity-75 rounded-full w-12 h-12 flex items-center justify-center text-xl transition-colors"
-        title="Image suivante (→)"
+        data-controller="tooltip" title="Image suivante (→)"
       >
         →
       </button>

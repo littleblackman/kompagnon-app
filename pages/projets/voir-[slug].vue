@@ -523,7 +523,7 @@ ${body}
                 📋 Plan
               </button>
               <h1 class="font-extrabold text-3xl sm:text-4xl">{{ project.name }}</h1>
-              <NuxtLink :to="`/projets/projet-${slug}`" class="px-2" title="Mode Édition">
+              <NuxtLink :to="`/projets/projet-${slug}`" class="px-2" data-controller="tooltip" title="Mode Édition">
                 <PencilIcon class="w-4 h-4 link" />
               </NuxtLink>
             </div>
@@ -591,7 +591,7 @@ ${body}
                 <button
                   @click="allNotesOpen = true"
                   class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-colors"
-                  title="Voir toutes les notes de travail"
+                  data-controller="tooltip" title="Voir toutes les notes de travail"
                 >
                   <ChatBubbleBottomCenterTextIcon class="w-4 h-4" />
                   Notes
@@ -600,14 +600,14 @@ ${body}
                 <button
                   @click="exportPdf"
                   class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
-                  title="Exporter en PDF (impression)"
+                  data-controller="tooltip" title="Exporter en PDF (impression)"
                 >
                   🖨 PDF
                 </button>
                 <button
                   @click="downloadDoc"
                   class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
-                  title="Exporter en Word / Google Docs (.doc)"
+                  data-controller="tooltip" title="Exporter en Word / Google Docs (.doc)"
                 >
                   📝 Word
                 </button>
@@ -633,7 +633,7 @@ ${body}
                           v-if="showTitles.h4"
                           :id="`scene-${scene.id}`"
                           class="text-lg font-bold mb-2 text-gray-800 cursor-pointer hover:text-amber-700 transition-colors print:cursor-auto"
-                          title="Éditer cette scène"
+                          data-controller="tooltip" title="Éditer cette scène"
                           @click="openScene(scene, sequence)"
                         >
                           {{ scene.name }}
@@ -648,7 +648,7 @@ ${body}
                         <button
                           type="button"
                           @click="noteScene = scene"
-                          :title="scene.notes ? 'Note de travail' : 'Ajouter une note'"
+                          data-controller="tooltip" :title="scene.notes ? 'Note de travail' : 'Ajouter une note'"
                           :class="[
                             'absolute top-0 right-0 lg:-right-12 rounded p-1 transition-opacity print:hidden',
                             scene.notes
@@ -674,7 +674,7 @@ ${body}
                         <div
                           v-if="showOrganizational && scene.notes"
                           class="mt-2 border-l border-amber-300/70 pl-3 text-sm text-amber-800/70 italic cursor-pointer hover:text-amber-900 transition-colors print:hidden"
-                          title="Modifier la note"
+                          data-controller="tooltip" title="Modifier la note"
                           @click="noteScene = scene"
                         >
                           {{ scene.notes }}
@@ -713,7 +713,7 @@ ${body}
                   <div
                     v-else-if="block.kind === 'title'"
                     :class="[block.cls, block.sceneId && 'cursor-pointer hover:text-amber-700 transition-colors print:cursor-auto']"
-                    :title="block.sceneId ? 'Éditer cette scène' : null"
+                    data-controller="tooltip" :title="block.sceneId ? 'Éditer cette scène' : null"
                     @click="block.sceneId && openSceneById(block.sceneId)"
                   >{{ block.text }}</div>
                   <!-- Contenu HTML -->
