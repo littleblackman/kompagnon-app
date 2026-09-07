@@ -255,6 +255,41 @@ export const useProjectStore = defineStore('project', {
         },
 
         /**
+         * Enregistre la note d'une scène.
+         * Payload minimal : le serveur applique une sémantique patch, donc
+         * envoyer la scène entière risquerait d'écraser un contenu en cours
+         * d'édition ailleurs.
+         */
+        async updateSceneNotes(sceneId: number, notes: string): Promise<void> {
+            const found = this.findSceneContext(sceneId);
+            if (!found) return;
+
+            const previous = found.scene.notes ?? null;
+            const value = notes.trim() ? notes : null;
+
+            // Optimiste : la note s'affiche tout de suite
+            found.scene.notes = value;
+
+            try {
+                const config = useRuntimeConfig();
+                const authStore = useAuthStore();
+
+                await $fetch(`${config.public.apiBase}/scene/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-AUTH-TOKEN': authStore.token!,
+                    },
+                    body: { id: sceneId, notes: value },
+                });
+            } catch (error) {
+                found.scene.notes = previous;
+                console.error("Erreur lors de l'enregistrement de la note :", error);
+                throw error;
+            }
+        },
+
+        /**
          * Déplace une scène vers une autre séquence (ou la repositionne dans
          * la sienne). Le serveur renumérote les deux conteneurs et renvoie
          * leurs positions finales.

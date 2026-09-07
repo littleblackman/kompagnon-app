@@ -6,7 +6,7 @@ import InsertDivider from '~/components/Project/InsertDivider.vue';
 import SequencePickerModal from '~/components/Project/SequencePickerModal.vue';
 import { useProjectStore } from "~/store/project";
 import { PropType } from 'vue';
-import { TrashIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, DocumentDuplicateIcon, PencilIcon, ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline';
+import { TrashIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, DocumentDuplicateIcon, PencilIcon, ArrowRightOnRectangleIcon, ChatBubbleBottomCenterTextIcon } from '@heroicons/vue/24/outline';
 import { useConfirm } from '~/composables/useConfirm';
 
 const projectStore = useProjectStore();
@@ -50,6 +50,29 @@ const focusParagraph = ref<number | null>(null);
 
 // Déplacement vers une autre séquence
 const movingScene = ref<any | null>(null);
+
+// Notes de travail : panneau dépliant, pas une modale — une note est une
+// pensée de marge, une fenêtre par-dessus casserait le fil de la relecture.
+const notesOpenFor = ref<number | null>(null);
+const noteDraft = ref('');
+
+const toggleNotes = (scene) => {
+  if (notesOpenFor.value === scene.id) {
+    notesOpenFor.value = null;
+    return;
+  }
+  noteDraft.value = scene.notes ?? '';
+  notesOpenFor.value = scene.id;
+};
+
+const saveNote = async (scene) => {
+  if ((scene.notes ?? '') === noteDraft.value) return;
+  try {
+    await projectStore.updateSceneNotes(scene.id, noteDraft.value);
+  } catch (error) {
+    console.error("Erreur lors de l'enregistrement de la note :", error);
+  }
+};
 
 const confirmMoveScene = async (targetSequenceId: number) => {
   const scene = movingScene.value;
@@ -279,6 +302,21 @@ const vHtml = {
               <DocumentDuplicateIcon class="h-4 w-4" />
             </button>
             
+            <!-- Bouton Note -->
+            <button
+              class="relative p-1 rounded hover:bg-amber-50"
+              @click="toggleNotes(scene)"
+              :title="scene.notes ? 'Note de travail' : 'Ajouter une note'"
+            >
+              <ChatBubbleBottomCenterTextIcon
+                :class="['h-4 w-4', scene.notes ? 'text-amber-500' : 'text-gray-300 hover:text-amber-400']"
+              />
+              <span
+                v-if="scene.notes"
+                class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-amber-500"
+              ></span>
+            </button>
+
             <!-- Bouton Déplacer vers une autre séquence -->
             <button
               class="p-1 rounded text-gray-500 hover:text-amber-700 hover:bg-amber-50"
@@ -303,6 +341,36 @@ const vHtml = {
           v-html="scene.content"
           @click="editFromParagraph($event, scene)"
         ></div>
+
+        <!-- Note de travail -->
+        <div
+          v-if="notesOpenFor === scene.id"
+          class="mt-2 border-l-2 border-amber-300 bg-amber-50/60 rounded-r p-3 print:hidden"
+        >
+          <label class="block text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">
+            Note de travail
+          </label>
+          <textarea
+            v-model="noteDraft"
+            rows="3"
+            placeholder="À retravailler, vérifier la chronologie…"
+            class="w-full bg-white/70 border border-amber-200 rounded p-2 text-sm text-gray-800 placeholder-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            @blur="saveNote(scene)"
+            @keydown.escape="notesOpenFor = null"
+          ></textarea>
+          <p class="mt-1 text-xs text-amber-600/80">
+            Enregistrée en quittant le champ. Jamais incluse dans les exports.
+          </p>
+        </div>
+
+        <!-- Aperçu quand le panneau est fermé, pour qu'une note ne s'oublie pas -->
+        <div
+          v-else-if="scene.notes"
+          class="mt-2 border-l-2 border-amber-300 bg-amber-50/60 rounded-r px-3 py-2 text-sm text-gray-600 italic cursor-pointer print:hidden"
+          @click="toggleNotes(scene)"
+        >
+          {{ scene.notes }}
+        </div>
       </div>
 
       <!-- Insertion contextuelle, y compris après la dernière scène -->

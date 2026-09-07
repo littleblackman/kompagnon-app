@@ -607,6 +607,19 @@ ${body}
                           class="scene-content editable-content prose prose-sm max-w-none text-justify"
                           @click="editFromParagraph($event, scene, sequence)"
                         ></div>
+
+                        <!--
+                          Note de travail, en marge. Rattachée à la case
+                          « Notes d'organisation » plutôt qu'à un réglage de plus,
+                          et absente de allBlocks : elle ne doit jamais atterrir
+                          dans les exports PDF ou Word.
+                        -->
+                        <div
+                          v-if="showOrganizational && scene.notes"
+                          class="mt-2 border-l-2 border-amber-300 bg-amber-50/60 rounded-r px-3 py-2 text-sm text-gray-600 italic print:hidden"
+                        >
+                          {{ scene.notes }}
+                        </div>
                       </div>
                     </template>
                   </div>

@@ -6,6 +6,8 @@ export interface Scene {
   sequence_id: number
   status_id?: number
   content?: string
+  /** Note de travail, affichée en marge et jamais exportée */
+  notes?: string | null
 }
 
 export interface SequencePersonnage {
