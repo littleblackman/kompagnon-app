@@ -12,7 +12,7 @@ import {
   EyeIcon,            // Pour idée esthétique  
   InformationCircleIcon 
 } from '@heroicons/vue/24/solid'
-import { ArrowUpIcon, ArrowDownIcon, PencilIcon } from '@heroicons/vue/24/outline'
+import { ArrowUpIcon, ArrowDownIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 import { StarIcon } from '@heroicons/vue/24/solid'
 
 import { useProjectStore } from "~/store/project";
@@ -49,6 +49,43 @@ const selectedPersonnage = ref(null);
 const showPersonnageConfig = ref(false);
 const criteriaModalSequenceId = ref<number | null>(null);
 const afterSequenceId = ref<number | null>(null);
+
+/**** BANDE DE CONTEXTE (personnages + intention / esthétique / information) ****/
+
+// Repliée par défaut : sur une séquence pleine de scènes, ces trois champs et
+// la liste des personnages repoussaient le texte hors de l'écran.
+const CONTEXT_STORAGE_KEY = 'kompagnon-sequence-context-open';
+const openContexts = ref<Set<number>>(new Set());
+
+onMounted(() => {
+  try {
+    const raw = localStorage.getItem(CONTEXT_STORAGE_KEY);
+    if (raw) openContexts.value = new Set(JSON.parse(raw));
+  } catch {
+    // simple préférence d'affichage : on repart replié sans bruit
+  }
+});
+
+const isContextOpen = (sequenceId: number) => openContexts.value.has(sequenceId);
+
+const toggleContext = (sequenceId: number) => {
+  const next = new Set(openContexts.value);
+  next.has(sequenceId) ? next.delete(sequenceId) : next.add(sequenceId);
+  openContexts.value = next;
+  try {
+    localStorage.setItem(CONTEXT_STORAGE_KEY, JSON.stringify([...next]));
+  } catch {
+    // pas de persistance possible : l'état reste valable pour la session
+  }
+};
+
+// Ce qui est renseigné doit rester visible même replié, sinon on l'oublie
+const contextSummary = (sequence: any) => ({
+  personnages: sequence.sequencePersonnages?.length ?? 0,
+  intention: !!sequence.intention?.trim(),
+  aesthetic: !!sequence.aesthetic_idea?.trim(),
+  information: !!sequence.information?.trim()
+});
 
 
 /**** SEQUENCES & SAVE PART ****/
@@ -318,6 +355,47 @@ const updateRating = async (ratingData) => {
 
       <!-- Contenu séquence (pleine largeur) -->
       <div class="w-full">
+          <!-- Bande de contexte repliable : personnages + champs narratifs -->
+          <div class="mb-3 border border-gray-200 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              @click="toggleContext(sequence.id)"
+              class="w-full flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+              :aria-expanded="isContextOpen(sequence.id)"
+            >
+              <span class="flex items-center gap-2 min-w-0">
+                <ChevronDownIcon v-if="isContextOpen(sequence.id)" class="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <ChevronRightIcon v-else class="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Contexte</span>
+              </span>
+
+              <!-- Résumé, pour ne pas oublier ce qui est renseigné une fois replié -->
+              <span v-if="!isContextOpen(sequence.id)" class="flex items-center gap-2 text-xs text-gray-400">
+                <span v-if="contextSummary(sequence).personnages">
+                  {{ contextSummary(sequence).personnages }}
+                  personnage{{ contextSummary(sequence).personnages > 1 ? 's' : '' }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <LightBulbIcon
+                    v-if="contextSummary(sequence).intention"
+                    class="w-3.5 h-3.5 text-amber-500"
+                    title="Intention renseignée"
+                  />
+                  <EyeIcon
+                    v-if="contextSummary(sequence).aesthetic"
+                    class="w-3.5 h-3.5 text-purple-500"
+                    title="Esthétique renseignée"
+                  />
+                  <InformationCircleIcon
+                    v-if="contextSummary(sequence).information"
+                    class="w-3.5 h-3.5 text-blue-500"
+                    title="Information renseignée"
+                  />
+                </span>
+              </span>
+            </button>
+
+            <div v-show="isContextOpen(sequence.id)" class="p-3 bg-white">
           <!-- Personnages - Style moderne avec badges -->
           <div class="bg-gradient-to-r from-slate-50 to-gray-50 rounded-lg px-4 py-3 border border-gray-200 mb-3">
             <div class="flex items-center justify-between mb-2">
@@ -403,6 +481,8 @@ const updateRating = async (ratingData) => {
                 placeholder="Information : Éléments narratifs clés..."
                 class="flex-1 bg-transparent text-sm text-gray-800 placeholder-blue-400 focus:outline-none"
               />
+            </div>
+          </div>
             </div>
           </div>
 
