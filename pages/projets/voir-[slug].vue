@@ -8,7 +8,6 @@ import { PencilIcon } from '@heroicons/vue/24/solid';
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
 import SceneModal from "@/components/Project/SceneModal.vue";
 import PersonnageDetectionModal from "@/components/Project/PersonnageDetectionModal.vue";
-import InsertDivider from "@/components/Project/InsertDivider.vue";
 import { toRoman } from '~/utils/roman';
 
 const auth = useAuthStore();
@@ -217,7 +216,6 @@ type EditingState = {
   scene: any;
   sequenceId: number;
   scenes: any[];
-  insertAfterId: number | null;
   focusParagraph: number | null;
 };
 
@@ -228,18 +226,7 @@ const openScene = (scene: any, sequence: any, focusParagraph: number | null = nu
     scene: { ...scene },
     sequenceId: sequence.id,
     scenes: sequence.scenes ?? [],
-    insertAfterId: null,
     focusParagraph
-  };
-};
-
-const insertSceneAfter = (scene: any, sequence: any) => {
-  editing.value = {
-    scene: { id: undefined, name: '', description: '', content: '', status: [], sequenceId: sequence.id },
-    sequenceId: sequence.id,
-    scenes: sequence.scenes ?? [],
-    insertAfterId: scene?.id ?? null,
-    focusParagraph: null
   };
 };
 
@@ -621,12 +608,6 @@ ${body}
                           @click="editFromParagraph($event, scene, sequence)"
                         ></div>
                       </div>
-
-                      <InsertDivider
-                        label="Scène"
-                        dense
-                        @insert="insertSceneAfter(scene, sequence)"
-                      />
                     </template>
                   </div>
                 </div>
@@ -686,7 +667,6 @@ ${body}
       :projectId="project?.id ?? 0"
       :sequenceId="editing.sequenceId"
       :availableScenes="editing.scenes"
-      :insert-after-id="editing.insertAfterId"
       :focus-paragraph="editing.focusParagraph"
       @close="closeEditor"
       @save="closeEditor"
