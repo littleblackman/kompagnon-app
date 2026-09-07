@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from '#imports'
+import { ref, computed, nextTick, onMounted, onUnmounted } from '#imports'
 import { useProjectStore } from '~/store/project'
 import {
   ChevronDoubleUpIcon,
   ChevronDoubleDownIcon,
+  ChatBubbleBottomCenterTextIcon,
   PlusIcon
 } from '@heroicons/vue/24/outline'
 import PartModal from './PartModal.vue'
 import SequenceModal from './SequenceModal.vue'
 import SceneModal from './SceneModal.vue'
 import SequencePickerModal from './SequencePickerModal.vue'
+import AllNotesPanel from './AllNotesPanel.vue'
 
 interface Props {
   projectId: number
@@ -46,6 +48,26 @@ const lastSceneId = computed(() => {
   const scenes = [...(targetSequence.value?.scenes ?? [])].sort((a, b) => a.position - b.position)
   return scenes.length ? scenes[scenes.length - 1].id : null
 })
+
+// Vue d'ensemble des notes du projet
+const allNotesOpen = ref(false)
+
+const noteCount = computed(() =>
+  projectStore.scenes.filter((s: any) => s.notes?.trim()).length
+)
+
+/**
+ * Saute à la scène portant la note. La partie doit être dépliée avant de
+ * scroller, sinon l'ancre n'existe pas encore dans le DOM.
+ */
+const goToScene = async (sceneId: number) => {
+  const found = projectStore.findSceneContext(sceneId)
+  if (found) projectStore.expandedParts.add(found.part.id)
+
+  allNotesOpen.value = false
+  await nextTick()
+  document.getElementById(`scene-${sceneId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
 
 const collapseAll = () => projectStore.collapseAllParts()
 const expandAll = () => projectStore.expandAllParts()
@@ -191,6 +213,14 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
             <ChevronDoubleDownIcon class="w-4 h-4" />
             Développer tout
           </button>
+          <button
+            @click="allNotesOpen = true; isMenuOpen = false"
+            class="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded flex items-center gap-2"
+          >
+            <ChatBubbleBottomCenterTextIcon class="w-4 h-4" />
+            Voir les notes
+            <span v-if="noteCount" class="ml-auto text-xs text-amber-600 font-medium">{{ noteCount }}</span>
+          </button>
         </div>
 
         <div>
@@ -231,6 +261,12 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
       :initial-id="pickedSequenceId"
       @confirm="confirmSequencePick"
       @cancel="sequencePickerOpen = false"
+    />
+
+    <AllNotesPanel
+      :open="allNotesOpen"
+      @close="allNotesOpen = false"
+      @open-scene="goToScene"
     />
 
     <!-- Modales -->
