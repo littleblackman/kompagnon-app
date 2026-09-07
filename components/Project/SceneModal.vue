@@ -37,6 +37,11 @@ const props = defineProps({
   availableScenes: {
     type: Array as PropType<Scene[]>,
     required: true
+  },
+  /** À la création : insérer juste après cette scène (null = début de la séquence) */
+  insertAfterId: {
+    type: Number,
+    default: null
   }
 });
 
@@ -145,7 +150,14 @@ watch(selectedSequenceId, () => {
 
 const handleSave = async () => {
   try {
-    const savedScene = await projectStore.saveScene(sceneData.value, props.sequenceId);
+    // La modale est seule propriétaire de la sauvegarde : l'appelant ne doit
+    // pas re-sauvegarder derrière, sous peine de deux POST par enregistrement.
+    // afterSceneId n'a de sens qu'à la création.
+    const savedScene = await projectStore.saveScene(
+      sceneData.value,
+      props.sequenceId,
+      sceneData.value.id ? undefined : (props.insertAfterId ?? undefined)
+    );
     if (savedScene) {
       // Mettre à jour l'id local (crucial pour les nouvelles scènes)
       sceneData.value.id = savedScene.id;

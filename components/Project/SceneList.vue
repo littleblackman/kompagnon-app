@@ -2,6 +2,7 @@
 import { ref, nextTick } from 'vue';
 import SceneModal from '~/components/Project/SceneModal.vue';
 import PersonnageDetectionModal from '~/components/Project/PersonnageDetectionModal.vue';
+import InsertDivider from '~/components/Project/InsertDivider.vue';
 import { useProjectStore } from "~/store/project";
 import { PropType } from 'vue';
 import { TrashIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, DocumentDuplicateIcon, PencilIcon } from '@heroicons/vue/24/outline';
@@ -74,12 +75,23 @@ const openSceneModal = (scene = null) => {
   sceneModalOpen.value = true;
 };
 
-const handleSaveScene = async (scene) => {
-  try {
-    await projectStore.saveScene(scene, props.sequenceId, afterSceneId.value);
-  } catch (error) {
-    console.error("Erreur lors de la sauvegarde :", error);
-  }
+// SceneModal a déjà sauvegardé : on ne fait que refermer.
+const handleSaveScene = () => {
+  sceneModalOpen.value = false;
+};
+
+// Insérer une nouvelle scène juste après celle-ci
+const insertSceneAfter = (sceneId: number | null) => {
+  currentScene.value = {
+    id: undefined,
+    name: '',
+    description: '',
+    content: '',
+    status: [],
+    sequenceId: props.sequenceId
+  };
+  afterSceneId.value = sceneId;
+  sceneModalOpen.value = true;
 };
 
 const handleDeleteScene = async (scene) => {
@@ -155,6 +167,7 @@ const vHtml = {
       :projectId="projectId"
       :sequenceId="sequenceId"
       :availableScenes="sortedScenes"
+      :insert-after-id="afterSceneId"
       @close="sceneModalOpen = false"
       @save="handleSaveScene"
       @delete="handleDeleteScene"
@@ -162,7 +175,8 @@ const vHtml = {
     />
 
     <div v-if="sortedScenes && sortedScenes.length > 0">
-      <div v-for="(scene, index) in sortedScenes" :key="scene.id" class="ml-1 sm:ml-4 mb-3 p-2 sm:p-4 border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+      <template v-for="(scene, index) in sortedScenes" :key="scene.id">
+      <div class="ml-1 sm:ml-4 mb-3 p-2 sm:p-4 border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
         <div class="flex justify-between">
           <h3 :id="`scene-${scene.id}`" class="font-bold text-blue-600 hover:text-blue-800 cursor-pointer" @click="openSceneModal(scene)">
             {{ scene.name }}
@@ -218,17 +232,15 @@ const vHtml = {
         </div>
         <div class="mt-2 prose prose-sm max-w-none scene-content printable-content p-4" v-html="scene.content"></div>
       </div>
-      
-      <!-- Bouton Ajouter après toutes les scènes -->
-      <div class="ml-4 mb-4">
-        <button 
-          @click="openSceneModal()" 
-          class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <PlusIcon class="h-4 w-4 mr-1" />
-          Ajouter une scène
-        </button>
-      </div>
+
+      <!-- Insertion contextuelle, y compris après la dernière scène -->
+      <InsertDivider
+        label="Scène"
+        dense
+        class="ml-1 sm:ml-4"
+        @insert="insertSceneAfter(scene.id)"
+      />
+      </template>
     </div>
     <div v-else class="ml-4">
       <p class="p-4 text-gray-500 italic">Aucune scène dans cette séquence</p>

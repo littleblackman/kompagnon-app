@@ -7,7 +7,9 @@ const { confirm } = useConfirm();
 
 const props = defineProps({
   part: { type: Object, default: null },
-  projectId: { type: Number, required: true }
+  projectId: { type: Number, required: true },
+  /** À la création : insérer juste après cette partie (null = début du projet) */
+  insertAfterId: { type: Number, default: null }
 });
 
 const emit = defineEmits(["close"]);
@@ -29,7 +31,8 @@ watch(() => props.part, (newPart) => {
       afterPartId.value = null;
     }
   } else {
-    afterPartId.value = null;
+    // Création : point d'insertion demandé par l'appelant
+    afterPartId.value = props.insertAfterId;
   }
 
 }, { immediate: true });

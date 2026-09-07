@@ -6,6 +6,7 @@ import PersonnageDetectionModal from "~/components/Project/PersonnageDetectionMo
 import PersonnageConfigModal from "~/components/Project/PersonnageConfigModal.vue";
 import FieldIcon from '@/components/FieldIcon.vue'
 import SceneList from '@/components/Project/SceneList.vue'
+import InsertDivider from '@/components/Project/InsertDivider.vue'
 import { 
   LightBulbIcon,      // Pour intention
   EyeIcon,            // Pour idée esthétique  
@@ -47,6 +48,7 @@ const personnageModalOpen = ref(false);
 const selectedPersonnage = ref(null);
 const showPersonnageConfig = ref(false);
 const criteriaModalSequenceId = ref<number | null>(null);
+const afterSequenceId = ref<number | null>(null);
 
 
 /**** SEQUENCES & SAVE PART ****/
@@ -66,6 +68,15 @@ const openSequenceModal = (sequence = null) => {
     };
   }
   currentSequence.value = sequence;
+  afterSequenceId.value = null;
+  sequenceModalOpen.value = true;
+};
+
+// Insérer une nouvelle séquence juste après celle-ci.
+// currentSequence à null pour que la modale passe en mode création.
+const insertSequenceAfter = (sequenceId: number | null) => {
+  currentSequence.value = null;
+  afterSequenceId.value = sequenceId;
   sequenceModalOpen.value = true;
 };
 
@@ -233,6 +244,8 @@ const updateRating = async (ratingData) => {
     <SequenceModal v-if="sequenceModalOpen"
                    :sequence="currentSequence"
                    :projectId="projectId"
+                   :part-id="partId"
+                   :insert-after-id="afterSequenceId"
                    @close="sequenceModalOpen = false"
                    @save="handleSaveSequence"
                    @delete="handleDeleteSequence"
@@ -250,7 +263,8 @@ const updateRating = async (ratingData) => {
     <PersonnageConfigModal v-model:showConfig="showPersonnageConfig" />
 
 
-    <li v-for="sequence in sortedSequences" :key="sequence.id" class="pl-2 pr-1 pt-4 pb-4 sm:pl-6 sm:pr-3 sm:pt-6 sm:pb-6">
+    <template v-for="sequence in sortedSequences" :key="sequence.id">
+    <li class="pl-2 pr-1 pt-4 pb-4 sm:pl-6 sm:pr-3 sm:pt-6 sm:pb-6">
 
       <div class="mb-4">
         <div class="flex items-center justify-between mb-3">
@@ -428,6 +442,11 @@ const updateRating = async (ratingData) => {
         </div>
       </div>
     </li>
+
+    <li class="list-none px-2 sm:px-6">
+      <InsertDivider label="Séquence" @insert="insertSequenceAfter(sequence.id)" />
+    </li>
+    </template>
   </ul>
 </template>
 

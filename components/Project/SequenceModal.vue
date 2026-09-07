@@ -10,6 +10,10 @@ const { confirm } = useConfirm();
 const props = defineProps({
   sequence: Object,
   projectId: Number,
+  /** À la création : partie cible pré-sélectionnée */
+  partId: { type: Number, default: null },
+  /** À la création : insérer juste après cette séquence (null = début de la partie) */
+  insertAfterId: { type: Number, default: null },
 });
 
 const emit = defineEmits(['close', 'save', 'delete']);
@@ -36,15 +40,18 @@ watch(() => props.sequence, (newVal) => {
     selectedPartId.value = newVal.part_id;
     afterSequenceId.value = null; // Pas de repositionnement en mode édition
   } else {
+    // Création : contexte d'insertion fourni par l'appelant
     currentSequence.value = { name: '', description: '' };
-    selectedPartId.value = null;
-    afterSequenceId.value = null;
+    selectedPartId.value = props.partId;
+    afterSequenceId.value = props.insertAfterId;
   }
 }, { immediate: true });
 
-// Réinitialiser afterSequenceId quand la partie change
-watch(selectedPartId, () => {
-  afterSequenceId.value = null;
+// Changer de partie invalide le point d'insertion, qui appartenait à l'ancienne
+watch(selectedPartId, (newPartId, oldPartId) => {
+  if (oldPartId !== undefined && newPartId !== oldPartId) {
+    afterSequenceId.value = null;
+  }
 });
 
 const save = async () => {

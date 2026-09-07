@@ -4,6 +4,7 @@ import type { Part } from '~/types'
 import SequenceList from "@/components/Project/SequenceList.vue";
 import PartModal from "@/components/Project/PartModal.vue";
 import ActionButtons from "@/components/Project/ActionButtons.vue";
+import InsertDivider from "@/components/Project/InsertDivider.vue";
 import { useProjectStore } from "~/store/project";
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 import { toRoman } from '~/utils/roman';
@@ -14,10 +15,19 @@ const projectStore = useProjectStore();
 // Variables pour la modale
 const modalOpen = ref(false);
 const currentPart = ref<Part | null>(null);
+const insertAfterId = ref<number | null>(null);
 
 // Ouvrir la modale pour édition ou création
 const openModal = (part: Part | null = null) => {
   currentPart.value = part;
+  insertAfterId.value = null;
+  modalOpen.value = true;
+};
+
+// Insérer une nouvelle partie juste après celle-ci
+const insertPartAfter = (partId: number | null) => {
+  currentPart.value = null;
+  insertAfterId.value = partId;
   modalOpen.value = true;
 };
 
@@ -41,8 +51,8 @@ const isPartExpanded = (partId: number) => {
   <div style="width: 100%;">
     <!-- Liste des parties -->
     <ul class="mt-6 space-y-4">
-      <li v-for="(part, index) in projectStore.project?.parts" :key="part.id"
-          class="bg-orange-50 rounded-lg p-2 sm:p-4 hover:bg-orange-100 transition-colors">
+      <template v-for="(part, index) in projectStore.project?.parts" :key="part.id">
+      <li class="bg-orange-50 rounded-lg p-2 sm:p-4 hover:bg-orange-100 transition-colors">
         <div class="flex items-start gap-2">
           <button 
             @click="togglePart(part.id)"
@@ -74,7 +84,23 @@ const isPartExpanded = (partId: number) => {
           </div>
         </div>
       </li>
+
+      <li class="list-none">
+        <InsertDivider label="Partie" @insert="insertPartAfter(part.id)" />
+      </li>
+      </template>
     </ul>
+
+    <!-- Projet encore vide -->
+    <div v-if="!projectStore.project?.parts?.length" class="mt-6 text-center text-gray-500">
+      <p class="italic mb-3">Aucune partie dans ce projet</p>
+      <button
+        @click="insertPartAfter(null)"
+        class="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-amber-600 text-white text-sm font-medium hover:bg-amber-700"
+      >
+        Ajouter une partie
+      </button>
+    </div>
 
     <!-- Boutons d'action -->
     <ActionButtons :projectId="projectStore.project?.id || 0" />
@@ -84,6 +110,7 @@ const isPartExpanded = (partId: number) => {
       v-if="modalOpen"
       :part="currentPart"
       :projectId="projectStore.project?.id || 0"
+      :insert-after-id="insertAfterId"
       @close="modalOpen = false"
     />
   </div>
