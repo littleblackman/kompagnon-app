@@ -52,26 +52,26 @@ const close = () => {
         >
           <div
             v-if="open"
-            class="relative z-10 w-full max-w-sm -rotate-1 rounded-sm bg-amber-100 p-5 shadow-2xl"
+            class="relative z-10 w-full max-w-lg -rotate-1 rounded-sm bg-amber-100 p-7 shadow-2xl"
           >
             <!-- Pas d'en-tête ni de bordure : juste le papier -->
-            <p v-if="sceneName" class="mb-2 text-[11px] uppercase tracking-wide text-amber-700/70">
+            <p v-if="sceneName" class="mb-3 text-xs uppercase tracking-wide text-amber-700/70">
               {{ sceneName }}
             </p>
 
             <textarea
               ref="textareaRef"
               v-model="draft"
-              rows="8"
+              rows="14"
               placeholder="À retravailler, vérifier la chronologie…"
-              class="w-full resize-none border-0 bg-transparent p-0 text-[15px] leading-relaxed
+              class="w-full resize-none border-0 bg-transparent p-0 text-base leading-relaxed
                      text-amber-950 placeholder-amber-600/50 focus:outline-none focus:ring-0"
             ></textarea>
 
             <button
               type="button"
               @click="close"
-              class="absolute right-2 top-2 rounded-full p-1 text-amber-700/40
+              class="absolute right-3 top-3 rounded-full p-1 text-amber-700/40
                      hover:bg-amber-200/70 hover:text-amber-800 transition-colors"
               aria-label="Fermer la note"
             >

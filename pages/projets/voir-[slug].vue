@@ -5,9 +5,12 @@ import { useProjectStore } from '~/store/project';
 import { useUserStore } from '~/store/user';
 import { onMounted, computed, ref, watch, nextTick } from "vue";
 import { PencilIcon } from '@heroicons/vue/24/solid';
+import { ChatBubbleBottomCenterTextIcon } from '@heroicons/vue/24/outline';
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
 import SceneModal from "@/components/Project/SceneModal.vue";
 import PersonnageDetectionModal from "@/components/Project/PersonnageDetectionModal.vue";
+import SceneNoteModal from "@/components/Project/SceneNoteModal.vue";
+import AllNotesPanel from "@/components/Project/AllNotesPanel.vue";
 import { toRoman } from '~/utils/roman';
 
 const auth = useAuthStore();
@@ -257,6 +260,32 @@ const openSceneById = (sceneId: number) => {
 // Le store mute l'arbre en place et parts/allBlocks sont des computed :
 // inutile de recharger le projet, ce qui ferait perdre la position de lecture.
 const closeEditor = () => { editing.value = null; };
+
+// ── Notes de travail ──────────────────────────────────────────────────
+const noteScene = ref<any | null>(null);
+const allNotesOpen = ref(false);
+
+const noteCount = computed(() =>
+  projectStore.scenes.filter((s: any) => s.notes?.trim()).length
+);
+
+const saveNote = async (value: string) => {
+  const scene = noteScene.value;
+  if (!scene || (scene.notes ?? '') === value) return;
+  try {
+    await projectStore.updateSceneNotes(scene.id, value);
+  } catch (error) {
+    console.error("Erreur lors de l'enregistrement de la note :", error);
+  }
+};
+
+const goToScene = async (sceneId: number) => {
+  allNotesOpen.value = false;
+  // Le mode livre n'expose pas d'ancre par scène : on repasse en défilement
+  if (viewMode.value === 'book') viewMode.value = 'scroll';
+  await nextTick();
+  document.getElementById(`scene-${sceneId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
 
 watch([showOrganizational, showPrintable, showTitles, numberParts, viewMode, pageFormat], () => {
   savePreferences({
@@ -561,6 +590,15 @@ ${body}
               <!-- Exports -->
               <div class="flex items-center gap-2 ml-auto">
                 <button
+                  @click="allNotesOpen = true"
+                  class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-colors"
+                  title="Voir toutes les notes de travail"
+                >
+                  <ChatBubbleBottomCenterTextIcon class="w-4 h-4" />
+                  Notes
+                  <span v-if="noteCount" class="text-xs font-semibold text-amber-600">{{ noteCount }}</span>
+                </button>
+                <button
                   @click="exportPdf"
                   class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
                   title="Exporter en PDF (impression)"
@@ -592,15 +630,36 @@ ${body}
                   <div class="space-y-4">
                     <template v-for="scene in sequence.scenes" :key="scene.id">
                       <div>
-                        <h4
-                          v-if="showTitles.h4"
-                          :id="`scene-${scene.id}`"
-                          class="text-lg font-bold mb-2 text-gray-800 cursor-pointer hover:text-amber-700 transition-colors print:cursor-auto"
-                          title="Éditer cette scène"
-                          @click="openScene(scene, sequence)"
-                        >
-                          {{ scene.name }}
-                        </h4>
+                        <div class="group/scene flex items-center gap-2 mb-2">
+                          <h4
+                            v-if="showTitles.h4"
+                            :id="`scene-${scene.id}`"
+                            class="text-lg font-bold text-gray-800 cursor-pointer hover:text-amber-700 transition-colors print:cursor-auto"
+                            title="Éditer cette scène"
+                            @click="openScene(scene, sequence)"
+                          >
+                            {{ scene.name }}
+                          </h4>
+
+                          <!-- Discret tant qu'il n'y a rien à voir -->
+                          <button
+                            type="button"
+                            @click="noteScene = scene"
+                            :title="scene.notes ? 'Note de travail' : 'Ajouter une note'"
+                            class="rounded p-1 text-gray-300 hover:text-amber-500 opacity-0
+                                   group-hover/scene:opacity-100 focus:opacity-100
+                                   transition-opacity print:hidden"
+                          >
+                            <ChatBubbleBottomCenterTextIcon class="h-4 w-4" />
+                          </button>
+
+                          <!-- Présence d'une note : un point, rien de plus -->
+                          <span
+                            v-if="scene.notes"
+                            class="h-1.5 w-1.5 rounded-full bg-amber-400 print:hidden"
+                            title="Cette scène porte une note"
+                          ></span>
+                        </div>
                         <div
                           v-if="showPrintable && scene.content"
                           v-html="scene.content"
@@ -616,7 +675,9 @@ ${body}
                         -->
                         <div
                           v-if="showOrganizational && scene.notes"
-                          class="mt-2 border-l-2 border-amber-300 bg-amber-50/60 rounded-r px-3 py-2 text-sm text-gray-600 italic print:hidden"
+                          class="mt-2 border-l border-amber-300/70 pl-3 text-sm text-amber-800/70 italic cursor-pointer hover:text-amber-900 transition-colors print:hidden"
+                          title="Modifier la note"
+                          @click="noteScene = scene"
                         >
                           {{ scene.notes }}
                         </div>
@@ -692,6 +753,20 @@ ${body}
       surgirait sur une autre page.
     -->
     <PersonnageDetectionModal />
+
+    <SceneNoteModal
+      :open="!!noteScene"
+      :scene-name="noteScene?.name ?? ''"
+      :model-value="noteScene?.notes ?? ''"
+      @update:model-value="saveNote"
+      @close="noteScene = null"
+    />
+
+    <AllNotesPanel
+      :open="allNotesOpen"
+      @close="allNotesOpen = false"
+      @open-scene="goToScene"
+    />
   </div>
 </template>
 
