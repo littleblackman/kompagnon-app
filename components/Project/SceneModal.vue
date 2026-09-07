@@ -54,6 +54,32 @@ const emit = defineEmits(['close', 'save', 'delete', 'navigate']);
 
 const editorRef = ref<any>(null);
 
+/**
+ * Empreinte du contenu tel qu'il a été chargé.
+ * Le watcher deep sur currentScene se déclenche aussi pour des raisons qui
+ * ne sont pas des modifications de l'auteur — remplissage initial, et
+ * surtout normalisation du HTML par TinyMCE à son initialisation. Sans
+ * point de comparaison, fermer sans avoir rien touché réclamait une
+ * confirmation.
+ */
+const baseline = ref<string | null>(null);
+
+// Les espaces entre balises ne portent aucun sens ici : TinyMCE les
+// réécrit à sa guise, et cela ne doit pas compter comme une modification.
+const normalize = (html: string) =>
+  (html ?? '').replace(/>\s+</g, '><').replace(/\s+/g, ' ').trim();
+
+const fingerprint = (scene: any) =>
+  scene
+    ? JSON.stringify([
+        (scene.name ?? '').trim(),
+        normalize(scene.description ?? ''),
+        normalize(scene.content ?? '')
+      ])
+    : null;
+
+const isDirty = () => baseline.value !== null && fingerprint(currentScene.value) !== baseline.value;
+
 // TinyMCE n'est pas prêt au montage : on attend son signal pour viser le
 // paragraphe repéré en lecture.
 const onEditorReady = () => {
@@ -114,6 +140,8 @@ watch(() => props.scene, (newScene) => {
       position: newScene.position
     };
     
+    baseline.value = fingerprint(newScene);
+
     // Trouver la scène précédente pour l'emplacement
     const index = props.availableScenes.findIndex(scene => scene.id === newScene.id);
     if (index > 0) {
@@ -133,6 +161,7 @@ watch(() => props.scene, (newScene) => {
     };
     selectedSequenceId.value = props.sequenceId || null;
     afterSceneId.value = null;
+    baseline.value = fingerprint(currentScene.value);
     
     // Réinitialiser sceneData
     sceneData.value = {
@@ -178,6 +207,7 @@ const handleSave = async () => {
       sceneData.value.id = savedScene.id;
       if (currentScene.value) currentScene.value.id = savedScene.id;
       saveStatus.value = 'saved';
+      baseline.value = fingerprint(currentScene.value);
       emit('save', savedScene);
     }
   } catch (error) {
@@ -314,6 +344,7 @@ const debouncedAutoSave = () => {
         saveStatus.value = 'saving';
         await autoSave();
         saveStatus.value = 'saved';
+        baseline.value = fingerprint(currentScene.value);
         clearLocalStorage(); // Effacer le draft après sauvegarde réussie
       } catch (error) {
         saveStatus.value = 'error';
@@ -325,10 +356,12 @@ const debouncedAutoSave = () => {
 
 // Watcher pour déclencher l'auto-save et la sauvegarde locale
 watch(() => currentScene.value, () => {
-  if (currentScene.value) {
-    saveToLocalStorage(); // Sauvegarde locale immédiate
-    debouncedAutoSave(); // Auto-save backend avec debounce
-  }
+  if (!currentScene.value) return;
+  // Une normalisation HTML de l'éditeur n'est pas une modification
+  if (!isDirty()) return;
+
+  saveToLocalStorage(); // Sauvegarde locale immédiate
+  debouncedAutoSave(); // Auto-save backend avec debounce
 }, { deep: true });
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -355,7 +388,7 @@ onMounted(() => {
   }, 30000);
 
   const beforeUnload = (e: BeforeUnloadEvent) => {
-    if (saveStatus.value === 'unsaved') {
+    if (saveStatus.value === 'unsaved' && isDirty()) {
       e.preventDefault();
       e.returnValue = 'Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?';
     }
@@ -375,7 +408,7 @@ onUnmounted(() => {
 });
 
 const closeModal = async () => {
-  if (saveStatus.value === 'unsaved') {
+  if (saveStatus.value === 'unsaved' && isDirty()) {
     const ok = await confirm({ title: 'Modifications non sauvegardées', message: 'Voulez-vous vraiment fermer sans sauvegarder ?', confirmLabel: 'Fermer quand même', cancelLabel: 'Rester' });
     if (!ok) return;
   }
