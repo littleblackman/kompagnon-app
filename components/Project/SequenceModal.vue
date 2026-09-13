@@ -106,7 +106,7 @@ const deleteSequence = async () => {
 
 <template>
   <div class="fixed inset-0 flex items-center justify-center z-50">
-    <div class="bg-white rounded p-6 w-[800px] border-2 border-amber-950 shadow-xl">
+    <div class="bg-white rounded p-6 w-full max-w-[800px] mx-4 max-h-[90vh] overflow-y-auto border-2 border-amber-950 shadow-xl">
       <h3 class="text-xl font-bold mb-4">
         {{ currentSequence.id ? "Modifier la séquence" : "Ajouter une séquence" }}
       </h3>

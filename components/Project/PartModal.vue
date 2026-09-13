@@ -93,7 +93,7 @@ const confirmDelete = async () => {
 
 <template>
   <div class="fixed inset-0 flex items-center justify-center z-50">
-    <div class="bg-white rounded p-6 w-[500px] border-2 border-amber-950 shadow-xl">
+    <div class="bg-white rounded p-6 w-full max-w-[500px] mx-4 border-2 border-amber-950 shadow-xl">
       <h3 class="text-xl font-bold mb-4">
         {{ editedPart.id ? "Modifier la partie" : "Ajouter une partie" }}
       </h3>
