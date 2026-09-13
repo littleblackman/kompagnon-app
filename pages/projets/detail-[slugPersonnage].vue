@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useConfirm } from '~/composables/useConfirm';
+import { useToast } from '~/composables/useToast';
 import { useRoute, useRouter } from 'vue-router';
 import { usePersonnageStore } from '~/store/personnage';
 import { useProjectStore } from '~/store/project';
@@ -20,11 +21,14 @@ const route = useRoute();
 const router = useRouter();
 const personnageStore = usePersonnageStore();
 const { confirm } = useConfirm();
+const toast = useToast();
 const projectStore = useProjectStore();
 const authStore = useAuthStore();
 const metadataStore = useMetadataStore();
 
-const personnageSlug = route.params.slugPersonnage;
+// Le slug est régénéré côté serveur à chaque sauvegarde, à partir du nom :
+// le figer au montage rendait l'URL caduque dès le premier renommage.
+const personnageSlug = ref(route.params.slugPersonnage);
 const personnage = ref(null);
 const project = ref(null);
 const isEditing = ref(false);
@@ -69,13 +73,9 @@ const loadPersonnageDetails = async () => {
     const config = useRuntimeConfig();
     
     // Debug pour voir le slug
-    console.log('Loading personnage with slug:', personnageSlug);
-    
-    const response = await $fetch(`${config.public.apiBase}/personnage/${personnageSlug}/details`, {
+    const response = await $fetch(`${config.public.apiBase}/personnage/${personnageSlug.value}/details`, {
       headers: { 'X-AUTH-TOKEN': authStore.token || '' },
     });
-    
-    console.log('API response:', response);
     
     personnage.value = response;
     project.value = response.project;
@@ -84,8 +84,13 @@ const loadPersonnageDetails = async () => {
   } catch (err) {
     error.value = err;
     console.error('Erreur lors du chargement du personnage:', err);
-    // Rediriger vers la liste des projets si erreur
-    router.push('/projets/tous');
+
+    // Retour à la liste des personnages du projet, le parent naturel de
+    // cette fiche. On ne connaît le projet que si le store l'a déjà chargé —
+    // sinon la liste des projets, faute de mieux.
+    const projectSlug = project.value?.slug ?? projectStore.project?.slug;
+    toast.error('Ce personnage est introuvable.');
+    router.push(projectSlug ? `/projets/personnages-${projectSlug}` : '/projets/tous');
   } finally {
     loading.value = false;
   }
@@ -139,12 +144,27 @@ const toggleEdit = () => {
 
 const handleSave = async () => {
   try {
-    await personnageStore.savePersonnage(editedPersonnage.value, project.value.id);
+    const saved = await personnageStore.savePersonnage(editedPersonnage.value, project.value.id);
+
+    if (!saved) {
+      toast.error("L'enregistrement a échoué.");
+      return;
+    }
+
+    // Renommer un personnage change son slug : sans mettre l'URL à jour, le
+    // rechargement interrogeait l'ancienne adresse, échouait, et renvoyait
+    // l'utilisateur à la liste des projets.
+    if (saved.slug && saved.slug !== personnageSlug.value) {
+      personnageSlug.value = saved.slug;
+      await router.replace(`/projets/detail-${saved.slug}`);
+    }
+
     isEditing.value = false;
-    // Recharger les détails du personnage
     await loadPersonnageDetails();
+    toast.success('Personnage enregistré');
   } catch (error) {
     console.error('Erreur lors de la sauvegarde:', error);
+    toast.error("L'enregistrement a échoué.");
   }
 };
 
