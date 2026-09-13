@@ -100,8 +100,6 @@ export const usePersonnageStore = defineStore('personnage', {
                     const firstName = personnage.firstName?.toLowerCase() || '';
                     const lastName = personnage.lastName?.toLowerCase() || '';
                     
-                    console.log(`Comparing word "${word}" with ${firstName}/${lastName}`);
-                    
                     if (firstName && this.isMatch(word, firstName)) {
                         const distance = this.levenshteinDistance(word, firstName);
                         const confidence = 1 - (distance / Math.max(word.length, firstName.length));
@@ -129,6 +127,59 @@ export const usePersonnageStore = defineStore('personnage', {
             }
 
             return [...byPersonnage.values()].sort((a, b) => b.confidence - a.confidence);
+        },
+
+        /**
+         * Noms propres du texte qui ne correspondent à aucun personnage connu.
+         *
+         * Heuristique volontairement prudente : en français la majuscule sert
+         * aussi à ouvrir une phrase. On écarte donc les débuts de phrase, les
+         * mots courants capitalisés, et on exige au moins deux occurrences —
+         * un nom qui revient est bien plus probablement un personnage.
+         */
+        findUnknownNames(content: string, minOccurrences = 2): Array<{ name: string; count: number }> {
+            if (!content) return [];
+
+            const text = content
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/\s+/g, ' ');
+
+            const STOP = new Set([
+                'le', 'la', 'les', 'un', 'une', 'des', 'il', 'elle', 'ils', 'elles',
+                'je', 'tu', 'nous', 'vous', 'on', 'ce', 'cet', 'cette', 'mais', 'puis',
+                'alors', 'quand', 'tout', 'tous', 'toute', 'rien', 'plus', 'moins',
+                'oui', 'non', 'monsieur', 'madame', 'docteur', 'dieu',
+                'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche',
+                'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+                'août', 'septembre', 'octobre', 'novembre', 'décembre'
+            ]);
+
+            const known = new Set<string>();
+            this.personnages.forEach((p: any) => {
+                if (p.firstName) known.add(p.firstName.toLowerCase());
+                if (p.lastName) known.add(p.lastName.toLowerCase());
+            });
+
+            const counts = new Map<string, number>();
+            // Capitale non précédée d'une fin de phrase ni d'un début de texte
+            const pattern = /(^|[^.!?…:»"'\n]\s+)([A-ZÀ-Þ][a-zà-ÿ]{2,})/g;
+
+            let match: RegExpExecArray | null;
+            while ((match = pattern.exec(text)) !== null) {
+                const word = match[2];
+                const lower = word.toLowerCase();
+
+                if (STOP.has(lower) || known.has(lower)) continue;
+                // Proche d'un personnage connu : c'est une variante, pas un inconnu
+                if ([...known].some(k => this.isMatch(lower, k))) continue;
+
+                counts.set(word, (counts.get(word) ?? 0) + 1);
+            }
+
+            return [...counts.entries()]
+                .filter(([, count]) => count >= minOccurrences)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count);
         },
 
         // Vérifier si deux mots correspondent selon les critères

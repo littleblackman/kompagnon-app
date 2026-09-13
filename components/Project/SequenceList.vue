@@ -7,6 +7,7 @@ import FieldIcon from '@/components/FieldIcon.vue'
 import SceneList from '@/components/Project/SceneList.vue'
 import InsertDivider from '@/components/Project/InsertDivider.vue'
 import AlignmentGauge from '@/components/Project/AlignmentGauge.vue'
+import SequenceScanModal from '@/components/Project/SequenceScanModal.vue'
 import { 
   LightBulbIcon,      // Pour intention
   EyeIcon,            // Pour idée esthétique  
@@ -31,6 +32,9 @@ const toast = useToast();
 const analysing = ref<{ id: number; kind: 'alignment' | 'criterias' } | null>(null);
 
 const analysingField = ref<{ id: number; field: string } | null>(null);
+
+// Vérification des personnages, séquence par séquence
+const scanningSequence = ref<any | null>(null);
 
 const isAnalysing = (sequenceId: number, kind: 'alignment' | 'criterias') =>
   analysing.value?.id === sequenceId && analysing.value.kind === kind;
@@ -353,6 +357,12 @@ const updateRating = async (ratingData) => {
     
     <PersonnageConfigModal v-model:showConfig="showPersonnageConfig" />
 
+    <SequenceScanModal
+      :open="!!scanningSequence"
+      :sequence="scanningSequence"
+      @close="scanningSequence = null"
+    />
+
 
     <template v-for="sequence in sortedSequences" :key="sequence.id">
     <li class="pl-2 pr-1 pt-4 pb-4 sm:pl-6 sm:pr-3 sm:pt-6 sm:pb-6">
@@ -462,6 +472,14 @@ const updateRating = async (ratingData) => {
                 >
                   <span class="font-bold">+</span>
                   <span>Ajouter</span>
+                </button>
+                <button
+                  @click="scanningSequence = sequence"
+                  class="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs rounded-full transition-colors"
+                  data-controller="tooltip"
+                  title="Relire chaque scène et vérifier qui apparaît vraiment"
+                >
+                  Vérifier
                 </button>
                 <button
                   @click="showPersonnageConfig = true"
