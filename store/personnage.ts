@@ -15,6 +15,28 @@ interface DetectedCharacter {
     confidence: number;
 }
 
+/**
+ * Mots courants exclus de la détection.
+ *
+ * La majuscule de début de phrase suffirait sinon à les prendre pour des
+ * noms propres — et « Famille » est à une lettre de « Camille ».
+ */
+const COMMON_WORDS = new Set([
+    'alors', 'après', 'aussi', 'autre', 'autres', 'avant', 'avec', 'bien',
+    'cela', 'cette', 'chaque', 'comme', 'dans', 'depuis', 'derrière', 'deux',
+    'devant', 'dire', 'donc', 'elle', 'elles', 'encore', 'enfin', 'ensuite',
+    'entre', 'était', 'être', 'faire', 'famille', 'fille', 'fils', 'frère',
+    'homme', 'jamais', 'jour', 'lorsque', 'lui-même', 'mais', 'maison',
+    'maman', 'mère', 'moins', 'monsieur', 'madame', 'mademoiselle', 'nous',
+    'papa', 'parce', 'pendant', 'père', 'personne', 'peut', 'plus', 'point',
+    'pour', 'pourquoi', 'près', 'puis', 'quand', 'quelle', 'quelqu', 'rien',
+    'sans', 'seul', 'sous', 'soudain', 'surtout', 'toujours', 'tous', 'tout',
+    'toute', 'très', 'vers', 'voilà', 'vous',
+    'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche',
+    'janvier', 'février', 'mars', 'avril', 'juin', 'juillet', 'août',
+    'septembre', 'octobre', 'novembre', 'décembre'
+]);
+
 export const usePersonnageStore = defineStore('personnage', {
     state: () => ({
         personnages: [] as Personnage[],
@@ -76,21 +98,37 @@ export const usePersonnageStore = defineStore('personnage', {
             return matrix[str2.length][str1.length];
         },
 
-        // Analyser le contenu pour détecter les personnages
+        /**
+         * Analyser le contenu pour détecter les personnages.
+         *
+         * Seuls les mots capitalisés hors début de phrase sont candidats : dans
+         * un récit un personnage s'écrit « Camille », un nom commun « famille ».
+         * Passer tout le texte en minuscules détruisait ce signal, et une
+         * distance de 1 suffisait alors à confondre les deux — de même pour
+         * Marie/mairie ou Julie/jolie.
+         */
         analyzeContent(content: string): DetectedCharacter[] {
             if (!content || this.personnages.length === 0) return [];
 
-            const cleanContent = content.toLowerCase()
+            const text = content
                 .replace(/<[^>]*>/g, ' ')
-                .replace(/[^\w\s]/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
+                .replace(/\s+/g, ' ');
 
-            const words = [...new Set(
-                cleanContent.split(' ').filter(word =>
-                    word.length >= this.detectionConfig.minLength
-                )
-            )];
+            // Tous les mots capitalisés, débuts de phrase compris : un
+            // personnage peut n'apparaître que là — « … son frère. Amara. »
+            const pattern = /[A-Z\u00c0-\u00de][a-z\u00e0-\u00ff'\u2019-]+/g;
+
+            const found = new Set<string>();
+            for (const raw of text.match(pattern) ?? []) {
+                const candidate = raw.toLowerCase();
+                if (candidate.length < this.detectionConfig.minLength) continue;
+                // Mots courants que la majuscule de début de phrase ferait
+                // passer pour des noms propres
+                if (COMMON_WORDS.has(candidate)) continue;
+                found.add(candidate);
+            }
+
+            const words = [...found];
 
             const detected: DetectedCharacter[] = [];
 
@@ -182,10 +220,21 @@ export const usePersonnageStore = defineStore('personnage', {
                 .sort((a, b) => b.count - a.count);
         },
 
-        // Vérifier si deux mots correspondent selon les critères
+        /**
+         * Correspondance entre un mot du texte et un nom.
+         *
+         * La tolérance suit la longueur : une lettre d'écart sur cinq
+         * caractères change le mot, sur dix ce n'est qu'une coquille. Et un nom
+         * trop court, ou composé comme « de K », ne peut produire que du bruit
+         * face à un mot isolé.
+         */
         isMatch(word1: string, word2: string): boolean {
-            const distance = this.levenshteinDistance(word1, word2);
-            return distance <= this.detectionConfig.maxDistance;
+            const MIN_NAME_LENGTH = 4;
+            if (word2.length < MIN_NAME_LENGTH || word2.includes(' ')) return false;
+
+            const tolerance = word2.length >= 6 ? this.detectionConfig.maxDistance : 0;
+
+            return this.levenshteinDistance(word1, word2) <= tolerance;
         },
 
         // Analyser et proposer l'ajout de personnages
