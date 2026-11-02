@@ -330,12 +330,15 @@ const togglePicker = (sequenceId: number) => {
   pickerSequenceId.value = pickerSequenceId.value === sequenceId ? null : sequenceId;
 };
 
+// « ines » doit trouver Inès
+const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
 const availablePersonnages = (sequence: any) => {
   const assigned = new Set((sequence.sequencePersonnages ?? []).map((sp: any) => sp.personnage?.id));
-  const search = pickerSearch.value.trim().toLowerCase();
+  const search = fold(pickerSearch.value.trim());
   return personnageStore.personnages
     .filter((p: any) => !assigned.has(p.id))
-    .filter((p: any) => !search || getPersonnageName(p).toLowerCase().includes(search))
+    .filter((p: any) => !search || fold(getPersonnageName(p)).includes(search))
     .sort((a: any, b: any) => getPersonnageName(a).localeCompare(getPersonnageName(b)));
 };
 

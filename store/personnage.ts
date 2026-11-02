@@ -37,6 +37,17 @@ const COMMON_WORDS = new Set([
     'septembre', 'octobre', 'novembre', 'décembre'
 ]);
 
+/**
+ * Texte brut d'un contenu TinyMCE.
+ *
+ * Les accents y sont stockés en entités (« In&egrave;s ») : retirer les
+ * balises ne suffit pas, le nom serait coupé en « In » et « s ».
+ */
+const toPlainText = (html: string): string =>
+    // Balises → espaces d'abord, sinon deux paragraphes se collent
+    (new DOMParser().parseFromString(html.replace(/<[^>]*>/g, ' '), 'text/html').body.textContent ?? '')
+        .replace(/\s+/g, ' ');
+
 export const usePersonnageStore = defineStore('personnage', {
     state: () => ({
         personnages: [] as Personnage[],
@@ -110,9 +121,7 @@ export const usePersonnageStore = defineStore('personnage', {
         analyzeContent(content: string): DetectedCharacter[] {
             if (!content || this.personnages.length === 0) return [];
 
-            const text = content
-                .replace(/<[^>]*>/g, ' ')
-                .replace(/\s+/g, ' ');
+            const text = toPlainText(content);
 
             // Tous les mots capitalisés, débuts de phrase compris : un
             // personnage peut n'apparaître que là — « … son frère. Amara. »
@@ -178,9 +187,7 @@ export const usePersonnageStore = defineStore('personnage', {
         findUnknownNames(content: string, minOccurrences = 2): Array<{ name: string; count: number }> {
             if (!content) return [];
 
-            const text = content
-                .replace(/<[^>]*>/g, ' ')
-                .replace(/\s+/g, ' ');
+            const text = toPlainText(content);
 
             const STOP = new Set([
                 'le', 'la', 'les', 'un', 'une', 'des', 'il', 'elle', 'ils', 'elles',
