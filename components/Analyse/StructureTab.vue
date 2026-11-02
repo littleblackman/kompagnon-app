@@ -168,9 +168,16 @@ const analyzeWithAI = async () => {
     } else {
       aiError.value = result.message || "Erreur lors de l'analyse";
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erreur lors de l'analyse IA:", error);
-    aiError.value = "Erreur lors de l'analyse IA";
+    // L'API renvoie sa cause en 500 (clé absente, Mistral injoignable…) :
+    // la masquer laissait deviner. Sans corps, c'est le serveur qui a coupé.
+    const status = error?.statusCode ?? error?.response?.status;
+    aiError.value = error?.data?.message
+      || error?.data?.error
+      || (status === 504 || status === 502
+        ? "Le serveur a coupé la requête avant la fin de l'analyse (délai dépassé)."
+        : `Erreur lors de l'analyse IA${status ? ` (HTTP ${status})` : ''}`);
   } finally {
     isAnalyzing.value = false;
   }

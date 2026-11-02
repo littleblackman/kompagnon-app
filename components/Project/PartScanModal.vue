@@ -9,10 +9,12 @@ import { useConfirm } from '~/composables/useConfirm';
  * Vérification des personnages sur toute une partie : la relecture de
  * SequenceScanModal, appliquée à chaque séquence, sans la grille par scène
  * — illisible à cette échelle. On ne montre que les écarts.
+ * Sans `part`, on relit tout le roman : chaque partie, séquence par séquence.
  */
 const props = defineProps({
   open: { type: Boolean, default: false },
-  part: { type: Object, default: null }
+  part: { type: Object, default: null },
+  parts: { type: Array, default: null }
 });
 
 const emit = defineEmits(['close']);
@@ -28,13 +30,20 @@ const busy = ref(false);
 const scanned = ref(false);
 
 /** Écarts par séquence ; les séquences déjà en accord n'y figurent pas */
-const changes = ref<Array<{ id: number; name: string; add: Change[]; remove: Change[] }>>([]);
+const changes = ref<Array<{ id: number; name: string; partName: string; add: Change[]; remove: Change[] }>>([]);
 /** Noms propres inconnus, cumulés sur la partie */
 const unknown = ref<Array<{ name: string; count: number; sequenceIds: number[]; keep: boolean }>>([]);
 
-const sequences = computed(() =>
-  [...(props.part?.sequences ?? [])].sort((a: any, b: any) => a.position - b.position)
-);
+const wholeNovel = computed(() => !props.part);
+
+const byPosition = (a: any, b: any) => a.position - b.position;
+
+const sequences = computed(() => {
+  const parts = props.part ? [props.part] : [...(props.parts ?? [])].sort(byPosition);
+  return parts.flatMap((part: any) =>
+    [...(part.sequences ?? [])].sort(byPosition).map((sequence: any) => ({ ...sequence, partName: part.name }))
+  );
+});
 
 watch(() => props.open, (open) => {
   if (!open) return;
@@ -60,7 +69,7 @@ const scan = () => {
       .map(r => ({ id: r.id, name: r.name, scenes: 0, keep: true }));
 
     if (add.length || remove.length) {
-      next.push({ id: sequence.id, name: sequence.name, add, remove });
+      next.push({ id: sequence.id, name: sequence.name, partName: sequence.partName, add, remove });
     }
 
     found.forEach(({ name, count }) => {
@@ -155,14 +164,18 @@ const apply = async () => {
 
 <template>
   <Teleport to="body">
-    <div v-if="open && part" class="fixed inset-0 z-[160] flex items-center justify-center p-4">
+    <div v-if="open && (part || parts)" class="fixed inset-0 z-[160] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/40" @click="emit('close')" />
 
       <div class="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl">
         <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-4">
           <div>
-            <h3 class="text-base font-semibold text-gray-900">Vérifier les personnages de la partie</h3>
-            <p class="text-sm text-gray-500">{{ part.name }}</p>
+            <h3 class="text-base font-semibold text-gray-900">
+              {{ wholeNovel ? 'Vérifier les personnages de tout le roman' : 'Vérifier les personnages de la partie' }}
+            </h3>
+            <p class="text-sm text-gray-500">
+              {{ wholeNovel ? plural(sequences.length, 'séquence') : part.name }}
+            </p>
           </div>
           <button
             @click="emit('close')"
@@ -178,7 +191,7 @@ const apply = async () => {
 
         <div class="flex-1 overflow-y-auto px-6 py-4">
           <p v-if="!sequences.length" class="py-6 text-center text-sm italic text-gray-400">
-            Cette partie ne contient aucune séquence.
+            {{ wholeNovel ? 'Le roman ne contient aucune séquence.' : 'Cette partie ne contient aucune séquence.' }}
           </p>
 
           <template v-else>
@@ -203,7 +216,9 @@ const apply = async () => {
 
               <!-- Écarts, séquence par séquence ; décocher pour garder en l'état -->
               <div v-for="seq in changes" :key="seq.id" class="mb-4 rounded-lg border border-gray-200 px-4 py-3">
-                <h4 class="mb-2 text-sm font-semibold text-gray-800">{{ seq.name }}</h4>
+                <h4 class="mb-2 text-sm font-semibold text-gray-800">
+                  <span v-if="wholeNovel" class="font-normal text-gray-400">{{ seq.partName }} · </span>{{ seq.name }}
+                </h4>
                 <div class="flex flex-wrap gap-2">
                   <label
                     v-for="row in seq.add"

@@ -319,6 +319,40 @@ const getPersonnageName = (p) => {
   return personnageStore.getPersonnageName(p);
 };
 
+// Ajout depuis la séquence : on choisit parmi les personnages du projet,
+// la création se fait depuis la page Personnages.
+const pickerSequenceId = ref<number | null>(null);
+const pickerSearch = ref('');
+const addingPersonnageId = ref<number | null>(null);
+
+const togglePicker = (sequenceId: number) => {
+  pickerSearch.value = '';
+  pickerSequenceId.value = pickerSequenceId.value === sequenceId ? null : sequenceId;
+};
+
+const availablePersonnages = (sequence: any) => {
+  const assigned = new Set((sequence.sequencePersonnages ?? []).map((sp: any) => sp.personnage?.id));
+  const search = pickerSearch.value.trim().toLowerCase();
+  return personnageStore.personnages
+    .filter((p: any) => !assigned.has(p.id))
+    .filter((p: any) => !search || getPersonnageName(p).toLowerCase().includes(search))
+    .sort((a: any, b: any) => getPersonnageName(a).localeCompare(getPersonnageName(b)));
+};
+
+const addExistingPersonnage = async (personnage: any, sequenceId: number) => {
+  addingPersonnageId.value = personnage.id;
+  const ok = await personnageStore.addPersonnageToSequence(personnage.id, sequenceId);
+  addingPersonnageId.value = null;
+  if (!ok) {
+    toast.error("Impossible d'ajouter ce personnage.");
+    return;
+  }
+  pickerSequenceId.value = null;
+  if (projectStore.project?.slug) {
+    await projectStore.fetchProject(projectStore.project.slug);
+  }
+};
+
 const removePersonnageFromSequence = async (sequencePersonnageId, sequenceId) => {
   try {
     // Trouver le personnageId depuis le sequencePersonnage
@@ -494,11 +528,13 @@ const updateRating = async (ratingData) => {
       <!-- Contenu séquence (pleine largeur) -->
       <div class="w-full">
           <!-- Bande de contexte repliable : personnages + champs narratifs -->
-          <div class="mb-3 border border-gray-200 rounded-lg overflow-hidden">
+          <!-- Pas d'overflow-hidden : le sélecteur de personnages déborde de la bande -->
+          <div class="mb-3 border border-gray-200 rounded-lg">
             <button
               type="button"
               @click="toggleContext(sequence.id)"
-              class="w-full flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+              class="w-full flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors text-left rounded-t-lg"
+              :class="{ 'rounded-b-lg': !isContextOpen(sequence.id) }"
               :aria-expanded="isContextOpen(sequence.id)"
             >
               <span class="flex items-center gap-2 min-w-0">
@@ -545,14 +581,56 @@ const updateRating = async (ratingData) => {
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Personnages</span>
               <div class="flex items-center gap-2">
-                <button
-                  @click="updatePersonnage(null, sequence.id)"
-                  class="flex items-center gap-1 px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded-full transition-colors"
-                  data-controller="tooltip" title="Ajouter un personnage"
-                >
-                  <span class="font-bold">+</span>
-                  <span>Ajouter</span>
-                </button>
+                <div class="relative">
+                  <button
+                    @click="togglePicker(sequence.id)"
+                    class="flex items-center gap-1 px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded-full transition-colors"
+                    data-controller="tooltip" title="Ajouter un personnage existant"
+                    :aria-expanded="pickerSequenceId === sequence.id"
+                  >
+                    <span class="font-bold">+</span>
+                    <span>Ajouter</span>
+                  </button>
+
+                  <template v-if="pickerSequenceId === sequence.id">
+                    <!-- Clic à côté = fermer -->
+                    <div class="fixed inset-0 z-20" @click="pickerSequenceId = null"></div>
+                    <div class="absolute right-0 z-30 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-lg">
+                      <div class="p-2 border-b border-gray-100">
+                        <input
+                          v-model="pickerSearch"
+                          type="text"
+                          placeholder="Rechercher un personnage…"
+                          class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                          @keyup.esc="pickerSequenceId = null"
+                          autofocus
+                        />
+                      </div>
+                      <ul class="max-h-60 overflow-y-auto py-1">
+                        <li v-for="p in availablePersonnages(sequence)" :key="p.id">
+                          <button
+                            @click="addExistingPersonnage(p, sequence.id)"
+                            :disabled="addingPersonnageId !== null"
+                            class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-green-50 disabled:opacity-50"
+                          >
+                            {{ getPersonnageName(p) }}
+                          </button>
+                        </li>
+                        <li v-if="!availablePersonnages(sequence).length" class="px-3 py-2 text-sm italic text-gray-400">
+                          <template v-if="!personnageStore.personnages.length">
+                            Aucun personnage dans le projet.
+                            <NuxtLink
+                              :to="`/projets/personnages-${projectStore.project?.slug}`"
+                              class="not-italic text-green-700 underline"
+                            >Créer des personnages</NuxtLink>
+                          </template>
+                          <template v-else-if="pickerSearch">Aucun résultat</template>
+                          <template v-else>Tous les personnages sont déjà dans la séquence</template>
+                        </li>
+                      </ul>
+                    </div>
+                  </template>
+                </div>
                 <button
                   @click="scanningSequence = sequence"
                   class="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs rounded-full transition-colors"

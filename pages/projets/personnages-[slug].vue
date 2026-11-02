@@ -8,7 +8,8 @@ import { useConfirm } from '~/composables/useConfirm';
 import PersonnageModal from "@/components/Project/PersonnageModal.vue";
 import PersonnageGalleryViewer from "@/components/Project/PersonnageGalleryViewer.vue";
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
-import { IdentificationIcon, TrashIcon, UserPlusIcon, UserIcon, DocumentDuplicateIcon, EyeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/solid';
+import PartScanModal from "@/components/Project/PartScanModal.vue";
+import { IdentificationIcon, TrashIcon, UserPlusIcon, UserIcon, DocumentDuplicateIcon, EyeIcon, ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/solid';
 import { useImages } from '~/composables/useImages';
 
 const auth = useAuthStore();
@@ -30,6 +31,9 @@ const project = computed(() => projectStore.project);
 // Modal création/édition
 const personnageModalOpen = ref(false);
 const selectedPersonnage = ref(null);
+
+// Vérification des personnages sur tout le roman, séquence par séquence
+const scanningNovel = ref(false);
 
 // Modale quick view
 
@@ -155,14 +159,31 @@ const sortedPersonnages = computed(() => {
       
       <div class="flex justify-between items-center">
         <p class="text-gray-600">Gérez les personnages de votre projet</p>
-        <button
-          @click="openPersonnageModal()"
-          class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          <UserPlusIcon class="w-4 h-4" />
-          Nouveau personnage
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            @click="scanningNovel = true"
+            class="flex items-center gap-2 bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2 rounded-lg transition-colors"
+            data-controller="tooltip"
+            title="Relire chaque séquence du roman et vérifier qui apparaît vraiment"
+          >
+            <MagnifyingGlassIcon class="w-4 h-4" />
+            Vérifier tout le roman
+          </button>
+          <button
+            @click="openPersonnageModal()"
+            class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            <UserPlusIcon class="w-4 h-4" />
+            Nouveau personnage
+          </button>
+        </div>
       </div>
+
+      <PartScanModal
+        :open="scanningNovel"
+        :parts="project.parts ?? []"
+        @close="scanningNovel = false"
+      />
     </div>
 
     <!-- Galerie carousel -->
