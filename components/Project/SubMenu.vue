@@ -24,21 +24,24 @@
             <EyeIcon class="w-5 h-5" />
             <span class="hidden lg:inline">Voir</span>
           </NuxtLink>
+          <span class="nav-sep" aria-hidden="true"></span>
           <NuxtLink :to="`/projets/personnages-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('personnages-') }" data-controller="tooltip" title="Personnages">
             <UserGroupIcon class="w-5 h-5" />
             <span class="hidden lg:inline">Personnages</span>
           </NuxtLink>
+          <NuxtLink :to="`/projets/chronologie-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('chronologie-') }" data-controller="tooltip" title="Chronologie">
+            <ClockIcon class="w-5 h-5" />
+            <span class="hidden lg:inline">Chronologie</span>
+          </NuxtLink>
+          <span class="nav-sep" aria-hidden="true"></span>
           <NuxtLink :to="`/projets/analyse-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('analyse-') }" data-controller="tooltip" title="Analyse">
             <ChartBarIcon class="w-5 h-5" />
             <span class="hidden lg:inline">Analyse</span>
           </NuxtLink>
-          <NuxtLink :to="`/projets/reference-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('reference-') }" data-controller="tooltip" title="Référence">
-            <BookOpenIcon class="w-5 h-5" />
-            <span class="hidden lg:inline">Référence</span>
-          </NuxtLink>
-          <NuxtLink :to="`/projets/modifier-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('modifier-') }" data-controller="tooltip" title="Paramètres">
+          <span class="nav-sep" aria-hidden="true"></span>
+          <!-- Réglages : l'icône suffit, même sur desktop -->
+          <NuxtLink :to="`/projets/modifier-${projectSlug}`" class="nav-link" :class="{ 'active': $route.path.includes('modifier-') }" data-controller="tooltip" title="Paramètres" aria-label="Paramètres">
             <CogIcon class="w-5 h-5" />
-            <span class="hidden lg:inline">Paramètres</span>
           </NuxtLink>
         </div>
 
@@ -53,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon, ArrowLeftIcon, BookOpenIcon, ChartBarIcon } from '@heroicons/vue/24/solid';
+import { PencilIcon, CogIcon, EyeIcon, UserGroupIcon, ArrowLeftIcon, ChartBarIcon, ClockIcon } from '@heroicons/vue/24/solid';
 import { useProjectStore } from '~/store/project';
 
 interface Props {
@@ -95,6 +98,15 @@ const projectStore = useProjectStore();
   .nav-link {
     padding: 0.75rem 1rem;
   }
+}
+
+/* Sépare les groupes : écrire, matière du récit, analyse, réglages */
+.nav-sep {
+  flex-shrink: 0;
+  width: 1px;
+  height: 1.25rem;
+  margin: 0 0.25rem;
+  background-color: #e5e7eb;
 }
 
 /* La barre peut défiler si besoin, sans afficher d'ascenseur */

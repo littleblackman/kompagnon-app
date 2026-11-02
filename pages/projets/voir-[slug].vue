@@ -3,13 +3,16 @@ import { useRoute } from 'vue-router';
 import { useAuthStore } from '~/store/auth';
 import { useProjectStore } from '~/store/project';
 import { useUserStore } from '~/store/user';
-import { onMounted, computed, ref, watch, nextTick } from "vue";
+import { useTodoStore } from '~/store/todo';
+import { onMounted, onUnmounted, computed, ref, watch, nextTick } from "vue";
 import { PencilIcon } from '@heroicons/vue/24/solid';
 import { ChatBubbleBottomCenterTextIcon } from '@heroicons/vue/24/outline';
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
 import SceneModal from "@/components/Project/SceneModal.vue";
 import SceneNoteModal from "@/components/Project/SceneNoteModal.vue";
 import AllNotesPanel from "@/components/Project/AllNotesPanel.vue";
+import TodoList from "@/components/Project/TodoList.vue";
+import NotesList from "@/components/Project/NotesList.vue";
 import { toRoman } from '~/utils/roman';
 
 const auth = useAuthStore();
@@ -17,6 +20,7 @@ auth.requireAuth();
 
 const projectStore = useProjectStore();
 const userStore   = useUserStore();
+const todoStore   = useTodoStore();
 const route = useRoute();
 const slug = route.params.slug as string;
 
@@ -36,6 +40,8 @@ const loadPreferences = () => {
     numberParts: false,
     viewMode: 'scroll',
     pageFormat: 'A4',
+    todoColumn: false,
+    sideTab: 'todo',
   };
 };
 
@@ -51,6 +57,30 @@ const numberParts = ref(preferences.numberParts);
 const viewMode = ref<'scroll' | 'book'>(preferences.viewMode || 'scroll');
 const pageFormat = ref<'A3' | 'A4' | 'A5'>(preferences.pageFormat || 'A4');
 const tocOpen = ref(false);
+/** Todo en colonne à droite du texte, pour cocher en lisant (dès lg) */
+const todoColumn = ref<boolean>(preferences.todoColumn ?? false);
+
+/**
+ * Sous 1920 px, une colonne de plus écraserait le texte : le même bouton
+ * ouvre alors la modale. La colonne ouverte se masque si l'écran rétrécit.
+ */
+const WIDE_QUERY = '(min-width: 1920px)';
+const isWide = ref(import.meta.client ? window.matchMedia(WIDE_QUERY).matches : false);
+let wideMedia: MediaQueryList | null = null;
+const onWideChange = (e: MediaQueryListEvent) => { isWide.value = e.matches; };
+onMounted(() => {
+  wideMedia = window.matchMedia(WIDE_QUERY);
+  wideMedia.addEventListener('change', onWideChange);
+});
+onUnmounted(() => wideMedia?.removeEventListener('change', onWideChange));
+
+const sideColumnOpen = computed(() => todoColumn.value && isWide.value);
+
+const toggleTodoNotes = () => {
+  if (isWide.value) todoColumn.value = !todoColumn.value;
+  else allNotesOpen.value = true;
+};
+const sideTab = ref<'todo' | 'notes'>(preferences.sideTab ?? 'todo');
 
 // px à 96dpi, marges en px
 const PAGE_FORMATS = {
@@ -264,6 +294,8 @@ const closeEditor = () => { editing.value = null; };
 const noteScene = ref<any | null>(null);
 const allNotesOpen = ref(false);
 
+watch(() => projectStore.project?.id, (id) => { if (id) todoStore.fetchTodos(id); }, { immediate: true });
+
 const noteCount = computed(() =>
   projectStore.scenes.filter((s: any) => s.notes?.trim()).length
 );
@@ -286,7 +318,7 @@ const goToScene = async (sceneId: number) => {
   document.getElementById(`scene-${sceneId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
-watch([showOrganizational, showPrintable, showTitles, numberParts, viewMode, pageFormat], () => {
+watch([showOrganizational, showPrintable, showTitles, numberParts, viewMode, pageFormat, todoColumn, sideTab], () => {
   savePreferences({
     showOrganizational: showOrganizational.value,
     showPrintable: showPrintable.value,
@@ -294,6 +326,8 @@ watch([showOrganizational, showPrintable, showTitles, numberParts, viewMode, pag
     numberParts: numberParts.value,
     viewMode: viewMode.value,
     pageFormat: pageFormat.value,
+    todoColumn: todoColumn.value,
+    sideTab: sideTab.value,
   });
   updateStats();
 }, { deep: true });
@@ -589,12 +623,16 @@ ${body}
               <!-- Exports -->
               <div class="flex items-center gap-2 ml-auto">
                 <button
-                  @click="allNotesOpen = true"
-                  class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-colors"
-                  data-controller="tooltip" title="Voir toutes les notes de travail"
+                  @click="toggleTodoNotes"
+                  class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
+                  :class="sideColumnOpen
+                    ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700'"
+                  data-controller="tooltip" title="Voir la todo et les notes de travail"
                 >
                   <ChatBubbleBottomCenterTextIcon class="w-4 h-4" />
-                  Notes
+                  Todo &amp; notes
+                  <span v-if="todoStore.openCount" class="text-xs font-semibold text-indigo-600">{{ todoStore.openCount }} à faire</span>
                   <span v-if="noteCount" class="text-xs font-semibold text-amber-600">{{ noteCount }}</span>
                 </button>
                 <button
@@ -730,6 +768,36 @@ ${body}
 
         </div>
       </main>
+
+      <!-- Todo et notes à côté du texte (≥ 1920 px) : on lit et on coche sans quitter la page -->
+      <aside
+        v-if="sideColumnOpen"
+        class="flex w-[44rem] shrink-0 flex-col h-screen sticky top-0 border-l border-gray-200 bg-white"
+      >
+        <div class="flex items-center justify-between gap-2 border-b border-gray-100 px-5 py-2">
+          <div class="flex gap-1">
+            <button
+              v-for="tab in [{ key: 'todo', label: '☑ Todo', count: todoStore.openCount }, { key: 'notes', label: '🗒 Notes', count: noteCount }]"
+              :key="tab.key"
+              @click="sideTab = tab.key as 'todo' | 'notes'"
+              class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+              :class="sideTab === tab.key ? 'bg-indigo-50 text-indigo-800' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
+            >
+              {{ tab.label }}
+              <span v-if="tab.count" class="ml-1 text-xs font-normal text-gray-400">{{ tab.count }}</span>
+            </button>
+          </div>
+          <button
+            @click="todoColumn = false"
+            class="text-xl leading-none text-gray-400 hover:text-gray-600"
+            aria-label="Masquer la colonne"
+          >&times;</button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+          <TodoList v-if="sideTab === 'todo'" @open-scene="goToScene" />
+          <NotesList v-else :heading="false" @open-scene="goToScene" />
+        </div>
+      </aside>
     </div>
 
     <!-- Édition depuis la lecture -->

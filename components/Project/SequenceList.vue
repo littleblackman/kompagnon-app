@@ -8,12 +8,13 @@ import SceneList from '@/components/Project/SceneList.vue'
 import InsertDivider from '@/components/Project/InsertDivider.vue'
 import AlignmentGauge from '@/components/Project/AlignmentGauge.vue'
 import SequenceScanModal from '@/components/Project/SequenceScanModal.vue'
+import FieldSuggestion from '@/components/Project/FieldSuggestion.vue'
 import { 
   LightBulbIcon,      // Pour intention
   EyeIcon,            // Pour idée esthétique  
   InformationCircleIcon 
 } from '@heroicons/vue/24/solid'
-import { ArrowUpIcon, ArrowDownIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
+import { ArrowUpIcon, ArrowDownIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon, ArrowPathIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import { StarIcon } from '@heroicons/vue/24/solid'
 
 import { useProjectStore } from "~/store/project";
@@ -80,6 +81,62 @@ const applySuggestedCriterias = async (sequence: any) => {
   }
   sequence.suggestedCriterias = null;
   toast.success(`${suggestions.length} note${suggestions.length > 1 ? 's' : ''} appliquée${suggestions.length > 1 ? 's' : ''}`);
+};
+
+// Intensités + rédaction des trois champs ; l'état vit sur la séquence pour
+// que l'analyse lancée depuis la partie s'y voie aussi.
+const runSequenceAnalysis = async (sequence: any) => {
+  // Les étoiles restent sous les yeux pendant le calcul : les notes proposées
+  // s'y affichent, à côté de la saisie manuelle.
+  criteriaModalSequenceId.value = sequence.id;
+
+  const result = await projectStore.analyseSequence(sequence.id);
+  if (!result.success) {
+    toast.error(result.message ?? "L'analyse a échoué.");
+    return;
+  }
+
+  // La rédaction proposée vit dans la bande Contexte : la déplier pour la
+  // retrouver en fermant la modale.
+  if (pendingFieldCount(sequence) && !isContextOpen(sequence.id)) toggleContext(sequence.id);
+};
+
+/**** RÉDACTION PROPOSÉE (intention / esthétique / information) ****/
+
+type FieldKey = 'intention' | 'aesthetic' | 'information';
+
+// Clé de l'analyse → colonne de la séquence
+const FIELD_COLUMNS: Record<FieldKey, string> = {
+  intention: 'intention',
+  aesthetic: 'aesthetic_idea',
+  information: 'information'
+};
+
+const fieldSuggestion = (sequence: any, key: FieldKey): string | null =>
+  sequence.suggestedFields?.[key] ?? null;
+
+const pendingFieldCount = (sequence: any) =>
+  (Object.keys(FIELD_COLUMNS) as FieldKey[]).filter(key => fieldSuggestion(sequence, key)).length;
+
+const dropFieldSuggestion = (sequence: any, key: FieldKey) => {
+  const next = { ...sequence.suggestedFields, [key]: null };
+  sequence.suggestedFields = Object.values(next).some(Boolean) ? next : null;
+};
+
+const applyFieldSuggestion = async (sequence: any, key: FieldKey) => {
+  const value = fieldSuggestion(sequence, key);
+  if (!value) return;
+
+  await updateField(FIELD_COLUMNS[key], value, sequence.id);
+  dropFieldSuggestion(sequence, key);
+  // Le verdict d'alignement portait sur l'ancienne formulation
+  if (sequence.alignment?.[key]) sequence.alignment = { ...sequence.alignment, [key]: null };
+};
+
+const applyAllFieldSuggestions = async (sequence: any) => {
+  for (const key of Object.keys(FIELD_COLUMNS) as FieldKey[]) {
+    await applyFieldSuggestion(sequence, key);
+  }
 };
 const projectStore = useProjectStore();
 const metadataStore = useMetadataStore();
@@ -374,15 +431,32 @@ const updateRating = async (ratingData) => {
           </h3>
 
           <div class="flex items-center space-x-2">
+            <!-- Analyse complète : intensités + rédaction des trois champs -->
+            <button
+              class="p-1 rounded text-violet-500 hover:text-violet-600 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
+              @click="runSequenceAnalysis(sequence)"
+              :disabled="sequence.analysing"
+              data-controller="tooltip"
+              title="Proposer intensités, intention, esthétique et information d'après le texte"
+            >
+              <SparklesIcon class="h-5 w-5" :class="sequence.analysing && 'animate-pulse'" />
+            </button>
+
             <!-- Bouton critères (étoile) -->
             <button
               class="relative p-1 rounded text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50"
               @click="criteriaModalSequenceId = sequence.id"
-              data-controller="tooltip" title="Intensités"
+              data-controller="tooltip"
+              :title="sequence.suggestedCriterias?.length ? 'Intensités — propositions en attente' : 'Intensités'"
             >
               <StarIcon class="h-5 w-5" />
+              <!-- Propositions en attente : prioritaire sur l'indicateur de saisie -->
               <span
-                v-if="metadataStore.criterias?.some(c => getCriteriaRating(sequence, c.id))"
+                v-if="sequence.suggestedCriterias?.length"
+                class="absolute -top-1 -right-1 min-w-[1rem] h-4 px-1 rounded-full bg-amber-500 text-[10px] font-bold leading-4 text-white"
+              >{{ sequence.suggestedCriterias.length }}</span>
+              <span
+                v-else-if="metadataStore.criterias?.some(c => getCriteriaRating(sequence, c.id))"
                 class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-yellow-500"
               ></span>
             </button>
@@ -435,6 +509,12 @@ const updateRating = async (ratingData) => {
 
               <!-- Résumé, pour ne pas oublier ce qui est renseigné une fois replié -->
               <span v-if="!isContextOpen(sequence.id)" class="flex items-center gap-2 text-xs text-gray-400">
+                <span
+                  v-if="pendingFieldCount(sequence)"
+                  class="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800"
+                >
+                  {{ pendingFieldCount(sequence) }} proposition{{ pendingFieldCount(sequence) > 1 ? 's' : '' }}
+                </span>
                 <span v-if="contextSummary(sequence).personnages">
                   {{ contextSummary(sequence).personnages }}
                   personnage{{ contextSummary(sequence).personnages > 1 ? 's' : '' }}
@@ -545,6 +625,13 @@ const updateRating = async (ratingData) => {
                 />
               </button>
             </div>
+            <FieldSuggestion
+              v-if="fieldSuggestion(sequence, 'intention')"
+              :text="fieldSuggestion(sequence, 'intention')!"
+              :replacing="!!sequence.intention?.trim()"
+              @apply="applyFieldSuggestion(sequence, 'intention')"
+              @dismiss="dropFieldSuggestion(sequence, 'intention')"
+            />
 
             <!-- Esthétique -->
             <div class="flex items-center gap-2 bg-purple-50 rounded-full px-3 py-2.5 border border-purple-200 transition-all hover:bg-purple-100 focus-within:ring-2 focus-within:ring-purple-400 focus-within:bg-white">
@@ -575,6 +662,13 @@ const updateRating = async (ratingData) => {
                 />
               </button>
             </div>
+            <FieldSuggestion
+              v-if="fieldSuggestion(sequence, 'aesthetic')"
+              :text="fieldSuggestion(sequence, 'aesthetic')!"
+              :replacing="!!sequence.aesthetic_idea?.trim()"
+              @apply="applyFieldSuggestion(sequence, 'aesthetic')"
+              @dismiss="dropFieldSuggestion(sequence, 'aesthetic')"
+            />
 
             <!-- Info -->
             <div class="flex items-center gap-2 bg-blue-50 rounded-full px-3 py-2.5 border border-blue-200 transition-all hover:bg-blue-100 focus-within:ring-2 focus-within:ring-blue-400 focus-within:bg-white">
@@ -603,6 +697,28 @@ const updateRating = async (ratingData) => {
                   class="h-4 w-4"
                   :class="isAnalysingField(sequence.id, 'information') && 'animate-spin'"
                 />
+              </button>
+            </div>
+            <FieldSuggestion
+              v-if="fieldSuggestion(sequence, 'information')"
+              :text="fieldSuggestion(sequence, 'information')!"
+              :replacing="!!sequence.information?.trim()"
+              @apply="applyFieldSuggestion(sequence, 'information')"
+              @dismiss="dropFieldSuggestion(sequence, 'information')"
+            />
+
+            <div v-if="pendingFieldCount(sequence) > 1" class="flex justify-end gap-2 pt-1">
+              <button
+                @click="sequence.suggestedFields = null"
+                class="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+              >
+                Tout ignorer
+              </button>
+              <button
+                @click="applyAllFieldSuggestions(sequence)"
+                class="rounded bg-amber-500 px-3 py-1 text-xs font-medium text-white hover:bg-amber-600"
+              >
+                Tout reprendre
               </button>
             </div>
           </div>
@@ -637,14 +753,15 @@ const updateRating = async (ratingData) => {
           <!-- L'analyse est ici, au contact des notes qu'elle propose -->
           <button
             @click="runCriterias(sequence.id)"
-            :disabled="!!analysing"
+            :disabled="!!analysing || sequence.analysing"
             class="mb-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
+            <!-- Aussi lancée par ✨ ou par l'analyse de la partie -->
             <ArrowPathIcon
               class="h-3.5 w-3.5"
-              :class="isAnalysing(sequence.id, 'criterias') && 'animate-spin'"
+              :class="(isAnalysing(sequence.id, 'criterias') || sequence.analysing) && 'animate-spin'"
             />
-            {{ isAnalysing(sequence.id, 'criterias') ? 'Analyse…' : 'Proposer d\'après le texte' }}
+            {{ isAnalysing(sequence.id, 'criterias') || sequence.analysing ? 'Analyse…' : 'Proposer d\'après le texte' }}
           </button>
 
           <div v-for="criteria in metadataStore.criterias" :key="criteria.id" class="mb-4">

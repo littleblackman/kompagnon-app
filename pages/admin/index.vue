@@ -8,6 +8,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/store/auth'
 import { useMetadataStore } from '~/store/metadata'
 import { useConfirm } from '~/composables/useConfirm'
+import ErrorLogsPanel from '~/components/Admin/ErrorLogsPanel.vue'
 
 definePageMeta({
   middleware: 'auth'
@@ -89,6 +90,7 @@ const tabs = [
   { id: 'events', name: 'Beats narratifs', icon: '✨', description: 'Gérer les types de beats et les beats narratifs' },
   { id: 'narrative-structures', name: 'Structures Narratives', icon: '🏗️', description: 'Gérer les structures narratives' },
   { id: 'narrative-parts', name: 'Segments narratifs', icon: '🧩', description: 'Gérer les parties narratives universelles' },
+  { id: 'logs', name: 'Logs & erreurs', icon: '🐞', description: 'Erreurs de l\'API et du front, regroupées quand elles se répètent' },
 ]
 
 // Charger les genres avec leurs subgenres
@@ -881,7 +883,7 @@ onMounted(async () => {
       <!-- Tabs Navigation -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
         <div class="border-b border-gray-200">
-          <nav class="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+          <nav class="-mb-px flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
             <button
               v-for="tab in tabs"
               :key="tab.id"
@@ -1475,6 +1477,9 @@ onMounted(async () => {
             </div>
           </div>
         </div>
+
+        <!-- Logs & erreurs : monté seulement à l'ouverture de l'onglet -->
+        <ErrorLogsPanel v-else-if="activeTab === 'logs'" />
       </div>
 
     </div>

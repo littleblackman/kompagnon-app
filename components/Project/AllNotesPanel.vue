@@ -1,44 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useProjectStore } from '~/store/project';
-import { toRoman } from '~/utils/roman';
+import TodoList from './TodoList.vue';
+import NotesList from './NotesList.vue';
 
 defineProps({
   open: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['close', 'open-scene']);
-
-const projectStore = useProjectStore();
-
-/**
- * Toutes les notes du projet, dans l'ordre du récit, avec leur chemin.
- * Sans le chemin, une note sortie de son contexte ne veut plus rien dire.
- */
-const notes = computed(() => {
-  const rows: Array<{
-    sceneId: number;
-    sceneName: string;
-    path: string;
-    note: string;
-  }> = [];
-
-  projectStore.parts.forEach((part, partIndex) => {
-    (part.sequences ?? []).forEach((sequence) => {
-      (sequence.scenes ?? []).forEach((scene: any) => {
-        if (!scene.notes?.trim()) return;
-        rows.push({
-          sceneId: scene.id,
-          sceneName: scene.name || 'Sans titre',
-          path: `${toRoman(partIndex + 1)}. ${part.name} › ${sequence.name}`,
-          note: scene.notes
-        });
-      });
-    });
-  });
-
-  return rows;
-});
 </script>
 
 <template>
@@ -57,10 +25,7 @@ const notes = computed(() => {
         <div class="relative z-10 flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl">
           <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <h3 class="text-base font-semibold text-gray-900">
-              Notes de travail
-              <span v-if="notes.length" class="ml-2 text-sm font-normal text-gray-400">
-                {{ notes.length }}
-              </span>
+              Todo &amp; notes de travail
             </h3>
             <button
               @click="emit('close')"
@@ -74,24 +39,8 @@ const notes = computed(() => {
           </div>
 
           <div class="flex-1 overflow-y-auto px-6 py-4">
-            <p v-if="!notes.length" class="py-8 text-center text-sm italic text-gray-400">
-              Aucune note pour l'instant.
-            </p>
-
-            <ul v-else class="space-y-3">
-              <li
-                v-for="row in notes"
-                :key="row.sceneId"
-                class="cursor-pointer rounded-sm bg-amber-100/70 p-4 shadow-sm transition-shadow hover:shadow-md"
-                @click="emit('open-scene', row.sceneId)"
-              >
-                <p class="mb-1 text-[11px] uppercase tracking-wide text-amber-700/70">
-                  {{ row.path }}
-                </p>
-                <p class="mb-2 text-sm font-semibold text-amber-950">{{ row.sceneName }}</p>
-                <p class="whitespace-pre-wrap text-sm leading-relaxed text-amber-950/90">{{ row.note }}</p>
-              </li>
-            </ul>
+            <TodoList class="mb-6 border-b border-gray-100 pb-6" @open-scene="emit('open-scene', $event)" />
+            <NotesList @open-scene="emit('open-scene', $event)" />
           </div>
         </div>
       </div>

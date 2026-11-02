@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from '#imports'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from '#imports'
 import { useProjectStore } from '~/store/project'
+import { useTodoStore } from '~/store/todo'
 import {
   ChevronDoubleUpIcon,
   ChevronDoubleDownIcon,
@@ -12,13 +13,19 @@ import SequenceModal from './SequenceModal.vue'
 import SceneModal from './SceneModal.vue'
 import SequencePickerModal from './SequencePickerModal.vue'
 import AllNotesPanel from './AllNotesPanel.vue'
+import { useSceneVersions } from '~/composables/useSceneVersions'
+import type { SceneVersion } from '~/utils/sceneStatus'
 
 interface Props {
   projectId: number
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 const projectStore = useProjectStore()
+const todoStore = useTodoStore()
+
+// Chargée d'emblée pour le compteur du menu, avant même d'ouvrir le panneau
+watch(() => props.projectId, (id) => { if (id) todoStore.fetchTodos(id) }, { immediate: true })
 
 const modalType = ref<'part' | 'sequence' | 'scene' | null>(null)
 const modalOpen = ref(false)
@@ -67,6 +74,13 @@ const goToScene = async (sceneId: number) => {
   allNotesOpen.value = false
   await nextTick()
   document.getElementById(`scene-${sceneId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+// Versions : tout le projet d'un coup
+const { setAll } = useSceneVersions()
+const setProjectVersion = (version: SceneVersion) => {
+  isMenuOpen.value = false
+  setAll(projectStore.scenes, version, 'tout le projet')
 }
 
 const collapseAll = () => projectStore.collapseAllParts()
@@ -218,8 +232,25 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
             class="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded flex items-center gap-2"
           >
             <ChatBubbleBottomCenterTextIcon class="w-4 h-4" />
-            Voir les notes
-            <span v-if="noteCount" class="ml-auto text-xs text-amber-600 font-medium">{{ noteCount }}</span>
+            Todo &amp; notes
+            <span v-if="todoStore.openCount" class="ml-auto text-xs text-indigo-600 font-medium">{{ todoStore.openCount }} à faire</span>
+            <span v-else-if="noteCount" class="ml-auto text-xs text-amber-600 font-medium">{{ noteCount }}</span>
+          </button>
+        </div>
+
+        <div v-if="projectStore.scenes.length" class="border-b pb-2 mb-2">
+          <h3 class="text-xs font-semibold text-gray-500 px-2 mb-1">Versions</h3>
+          <button
+            @click="setProjectVersion('travail')"
+            class="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+          >
+            Tout repasser en travail
+          </button>
+          <button
+            @click="setProjectVersion('valide')"
+            class="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded text-green-700"
+          >
+            Tout valider
           </button>
         </div>
 

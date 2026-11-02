@@ -2,7 +2,7 @@
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '~/store/auth';
 import { useProjectStore } from '~/store/project';
-import { onMounted, computed, ref } from "vue";
+import { onMounted, computed, ref, nextTick, watch } from "vue";
 import PartList from "@/components/Project/PartList.vue";
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
 import { Bars3Icon, XMarkIcon } from '@heroicons/vue/24/solid';
@@ -15,7 +15,10 @@ const route = useRoute();
 const slug = route.params.slug as string;
 
 // ✅ Charger le projet une seule fois au montage
-onMounted(() => projectStore.fetchProject(slug));
+onMounted(async () => {
+  await projectStore.fetchProject(slug);
+  scrollToHash();
+});
 const project = computed(() => projectStore.project);
 const parts = computed(() => projectStore.parts);
 
@@ -30,6 +33,18 @@ const scrollToElement = (elementId: string) => {
     showTableOfContents.value = false;
   }
 };
+
+/**
+ * Renvoi « #sequence-12 » depuis une autre page : le contenu n'existe qu'une
+ * fois le projet chargé, le navigateur ne peut donc pas y aller seul.
+ */
+const scrollToHash = async () => {
+  if (!route.hash) return;
+  await nextTick();
+  scrollToElement(decodeURIComponent(route.hash.slice(1)));
+};
+
+watch(() => route.hash, scrollToHash);
 
 </script>
 

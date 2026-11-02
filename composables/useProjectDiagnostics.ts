@@ -11,6 +11,8 @@ export interface Finding {
   level: FindingLevel;
   /** Séquence concernée, quand le constat en vise une */
   sequenceId?: number;
+  /** Personnage concerné, pour renvoyer vers sa fiche */
+  personnageSlug?: string;
   title: string;
   detail?: string;
 }
@@ -141,6 +143,18 @@ export const useProjectDiagnostics = () => {
           detail: 'Ni intention, ni idée esthétique, ni information.'
         });
       }
+
+      // Du texte sans personnage assigné : oubli d'assignation, le plus souvent
+      const hasText = scenes.some((s: any) => s.content?.replace(/<[^>]*>/g, '').trim());
+      if (hasText && !(sequence.sequencePersonnages ?? []).length) {
+        push(id, {
+          id: `${id}-sans-personnage`,
+          level: 'info',
+          sequenceId: id,
+          title: 'Aucun personnage assigné',
+          detail: 'La séquence est écrite mais personne n\'y est rattaché.'
+        });
+      }
     });
 
     return byId;
@@ -234,12 +248,92 @@ export const useProjectDiagnostics = () => {
     return findings;
   });
 
+  /**
+   * Constats portant sur les fiches personnages. Le niveau (1 = principal)
+   * module la gravité : un figurant sans arc est normal, un principal non.
+   */
+  const personnageFindings = computed(() => {
+    const findings: Finding[] = [];
+    const parts = projectStore.parts;
+
+    // Séquences où chaque personnage apparaît, et parties qu'il traverse
+    const seen = new Map<number, { sequences: number; parts: Set<number> }>();
+    parts.forEach((part) => {
+      (part.sequences ?? []).forEach((sequence: any) => {
+        (sequence.sequencePersonnages ?? []).forEach((link: any) => {
+          if (!link.personnage) return;
+          const entry = seen.get(link.personnage.id) ?? { sequences: 0, parts: new Set<number>() };
+          entry.sequences++;
+          entry.parts.add(part.id);
+          seen.set(link.personnage.id, entry);
+        });
+      });
+    });
+
+    (projectStore.personnages ?? []).forEach((personnage: any) => {
+      const name = personnageStore.getPersonnageName(personnage);
+      const level = personnage.level ?? null;
+      const major = level !== null && level <= 2;
+      const base = { personnageSlug: personnage.slug };
+      const presence = seen.get(personnage.id);
+
+      if (!presence) {
+        findings.push({
+          ...base,
+          id: `perso-${personnage.id}-absent`,
+          level: major ? 'warning' : 'info',
+          title: `${name} n'apparaît dans aucune séquence`,
+          detail: 'Fiche créée, mais jamais assignée au récit.'
+        });
+      }
+
+      if (major && !(personnage.personnageNarrativeArcs ?? []).length) {
+        findings.push({
+          ...base,
+          id: `perso-${personnage.id}-sans-arc`,
+          level: level === 1 ? 'warning' : 'info',
+          title: `${name} n'a pas d'arc narratif`,
+          detail: level === 1
+            ? 'Personnage principal : son évolution n\'est pas tracée.'
+            : 'Personnage secondaire : aucun arc ne décrit son évolution.'
+        });
+      }
+
+      if (major && !(personnage.personnageDramaticFunctions ?? []).length) {
+        findings.push({
+          ...base,
+          id: `perso-${personnage.id}-sans-fonction`,
+          level: 'info',
+          title: `${name} n'a pas de fonction dramatique`,
+          detail: 'Son rôle dans le récit (mentor, opposant…) n\'est pas défini.'
+        });
+      }
+
+      // Un principal qui saute une partie entière disparaît du récit
+      if (level === 1 && presence) {
+        parts.forEach((part, partIndex) => {
+          if (!(part.sequences ?? []).length || presence.parts.has(part.id)) return;
+          findings.push({
+            ...base,
+            id: `perso-${personnage.id}-hors-partie-${part.id}`,
+            level: 'warning',
+            title: `${name} absent de la partie ${toRoman(partIndex + 1)}`,
+            detail: `Personnage principal, il n'apparaît dans aucune séquence de « ${part.name} ».`
+          });
+        });
+      }
+    });
+
+    return findings;
+  });
+
   const allFindings = computed(() => [
     ...globalFindings.value,
+    ...personnageFindings.value,
     ...[...findingsBySequence.value.values()].flat()
   ]);
 
   const countFor = (sequenceId: number) => findingsBySequence.value.get(sequenceId)?.length ?? 0;
 
-  return { sequences, findingsBySequence, globalFindings, allFindings, countFor };
+  return { sequences, findingsBySequence, globalFindings, personnageFindings, allFindings, countFor };
 };

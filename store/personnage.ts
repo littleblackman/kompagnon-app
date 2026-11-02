@@ -221,6 +221,68 @@ export const usePersonnageStore = defineStore('personnage', {
         },
 
         /**
+         * Relit chaque scène d'une séquence et confronte les personnages
+         * trouvés aux assignations en place.
+         *
+         * `rows` : un personnage par ligne, avec les scènes où il apparaît.
+         * Les assignés introuvables restent listés (scènes vides) : c'est
+         * précisément ce qu'on vient vérifier.
+         * `unknown` : noms propres absents de la fiche, par occurrences
+         * cumulées sur la séquence — le seuil est laissé à l'appelant.
+         */
+        scanSequence(sequence: any): {
+            rows: Array<{ id: number; name: string; scenes: Set<number>; assigned: boolean }>;
+            unknown: Array<{ name: string; count: number }>;
+        } {
+            const found = new Map<number, { id: number; name: string; scenes: Set<number> }>();
+            const names = new Map<string, number>();
+            const assignedIds = new Set(
+                (sequence?.sequencePersonnages ?? []).map((sp: any) => sp.personnage?.id)
+            );
+
+            (sequence?.scenes ?? []).forEach((scene: any) => {
+                const content = scene.content ?? '';
+                if (!content.trim()) return;
+
+                this.analyzeContent(content).forEach((hit: any) => {
+                    const personnage = hit.personnage;
+                    if (!personnage) return;
+
+                    const entry = found.get(personnage.id) ?? {
+                        id: personnage.id,
+                        name: this.getPersonnageName(personnage),
+                        scenes: new Set<number>()
+                    };
+                    entry.scenes.add(scene.id);
+                    found.set(personnage.id, entry);
+                });
+
+                this.findUnknownNames(content, 1).forEach(({ name, count }) => {
+                    names.set(name, (names.get(name) ?? 0) + count);
+                });
+            });
+
+            (sequence?.sequencePersonnages ?? []).forEach((sp: any) => {
+                const personnage = sp.personnage;
+                if (!personnage || found.has(personnage.id)) return;
+                found.set(personnage.id, {
+                    id: personnage.id,
+                    name: this.getPersonnageName(personnage),
+                    scenes: new Set<number>()
+                });
+            });
+
+            return {
+                rows: [...found.values()]
+                    .map(entry => ({ ...entry, assigned: assignedIds.has(entry.id) }))
+                    .sort((a, b) => b.scenes.size - a.scenes.size),
+                unknown: [...names.entries()]
+                    .map(([name, count]) => ({ name, count }))
+                    .sort((a, b) => b.count - a.count)
+            };
+        },
+
+        /**
          * Correspondance entre un mot du texte et un nom.
          *
          * La tolérance suit la longueur : une lettre d'écart sur cinq

@@ -5,6 +5,7 @@ import { usePersonnageStore } from '~/store/personnage';
 import { useMetadataStore } from '~/store/metadata';
 import type { Project, Part, Sequence, Scene, Personnage } from '~/types';
 import { applyPositions, move, resequence } from '~/utils/position';
+import { SCENE_VERSIONS, type SceneVersion } from '~/utils/sceneStatus';
 
 interface UpdatePartResponse {
     part: Part;
@@ -63,11 +64,29 @@ export const useProjectStore = defineStore('project', {
                     headers: { 'X-AUTH-TOKEN': authStore.token! },
                 });
 
+                // Les propositions du modèle ne vivent que côté client : un
+                // rechargement (après une vérification des personnages, par
+                // exemple) ne doit pas effacer celles qui attendent une décision.
+                const transient = new Map<number, Record<string, unknown>>();
+                if (this.project?.slug === slug) {
+                    for (const part of this.project.parts ?? []) {
+                        for (const seq of (part.sequences ?? []) as any[]) {
+                            const kept = {
+                                alignment: seq.alignment,
+                                suggestedCriterias: seq.suggestedCriterias,
+                                suggestedFields: seq.suggestedFields,
+                            };
+                            if (Object.values(kept).some(v => v != null)) transient.set(seq.id, kept);
+                        }
+                    }
+                }
+
                 // Trier les parties par position et leurs sous-éléments
                 const sortedParts = (response.parts || []).sort((a, b) => a.position - b.position).map(part => ({
                     ...part,
                     sequences: (part.sequences || []).sort((a, b) => a.position - b.position).map(seq => ({
                         ...seq,
+                        ...(transient.get(seq.id) ?? {}),
                         scenes: (seq.scenes || []).sort((a, b) => a.position - b.position)
                     }))
                 }));
@@ -306,13 +325,69 @@ export const useProjectStore = defineStore('project', {
                     headers: { 'X-AUTH-TOKEN': authStore.token! },
                 });
 
-                (found.sequence as any).suggestedCriterias = result.ratings;
+                const target = (this.findSequenceContext(sequenceId)?.sequence ?? found.sequence) as any;
+                target.suggestedCriterias = result.ratings;
                 return { success: true };
             } catch (error: any) {
                 const message = error?.data?.message ?? "L'analyse a échoué.";
                 console.error("Erreur lors de la suggestion de critères :", error);
                 return { success: false, message };
             }
+        },
+
+        /**
+         * Rédaction proposée pour l'intention, l'idée esthétique et
+         * l'information. Comme les intensités, rien n'est enregistré tant que
+         * l'auteur ne reprend pas la proposition.
+         */
+        async suggestSequenceFields(sequenceId: number): Promise<{ success: boolean; message?: string }> {
+            const found = this.findSequenceContext(sequenceId);
+            if (!found) return { success: false, message: 'Séquence introuvable' };
+
+            const config = useRuntimeConfig();
+            const authStore = useAuthStore();
+
+            try {
+                const result: any = await $fetch(`${config.public.apiBase}/sequence/${sequenceId}/analyse/fields`, {
+                    method: 'POST',
+                    headers: { 'X-AUTH-TOKEN': authStore.token! },
+                });
+
+                // Relu après l'attente : fetchProject a pu remplacer l'objet
+                const target = (this.findSequenceContext(sequenceId)?.sequence ?? found.sequence) as any;
+                target.suggestedFields = result.fields;
+                return { success: true };
+            } catch (error: any) {
+                const message = error?.data?.message ?? "L'analyse a échoué.";
+                console.error("Erreur lors de la rédaction proposée :", error);
+                return { success: false, message };
+            }
+        },
+
+        /**
+         * Intensités et rédaction des trois champs en un geste. Les deux appels
+         * partent ensemble : ce sont deux prompts indépendants.
+         * `analysing` est posé sur la séquence pour que l'analyse d'une partie
+         * se voie aussi sur chacune de ses séquences.
+         */
+        async analyseSequence(sequenceId: number): Promise<{ success: boolean; message?: string }> {
+            const found = this.findSequenceContext(sequenceId);
+            if (!found) return { success: false, message: 'Séquence introuvable' };
+
+            (found.sequence as any).analysing = true;
+
+            const [criterias, fields] = await Promise.all([
+                this.suggestSequenceCriterias(sequenceId),
+                this.suggestSequenceFields(sequenceId),
+            ]);
+
+            // fetchProject a pu remplacer l'objet pendant l'attente
+            (found.sequence as any).analysing = false;
+            const current = this.findSequenceContext(sequenceId)?.sequence as any;
+            if (current) current.analysing = false;
+
+            if (criterias.success || fields.success) return { success: true };
+            return { success: false, message: fields.message ?? criterias.message };
         },
 
         /**
@@ -348,6 +423,50 @@ export const useProjectStore = defineStore('project', {
                 console.error("Erreur lors de l'enregistrement de la note :", error);
                 throw error;
             }
+        },
+
+        /**
+         * Passe une ou plusieurs scènes à une version (en travail / à relire / validé).
+         * Optimiste ; une requête par scène faute d'endpoint groupé, et seules
+         * les scènes en échec reprennent leur ancien statut.
+         * Renvoie le nombre d'échecs.
+         */
+        async setScenesVersion(sceneIds: number[], version: SceneVersion): Promise<number> {
+            const metadataStore = useMetadataStore();
+            if (!metadataStore.loaded) await metadataStore.fetchMetadata();
+
+            const def = SCENE_VERSIONS.find(v => v.key === version)!;
+            const status = metadataStore.status.find(s => s.name === def.statusName);
+            if (!status) throw new Error(`Statut « ${def.statusName} » introuvable`);
+
+            const config = useRuntimeConfig();
+            const authStore = useAuthStore();
+
+            const targets = sceneIds
+                .map(id => this.findSceneContext(id)?.scene)
+                .filter((scene): scene is Scene => !!scene);
+
+            const results = await Promise.allSettled(targets.map(async (scene) => {
+                const previous = scene.status;
+                scene.status = { id: status.id, name: status.name };
+                try {
+                    await $fetch(`${config.public.apiBase}/scene/update`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-AUTH-TOKEN': authStore.token!,
+                        },
+                        body: { id: scene.id, status_id: status.id },
+                    });
+                } catch (error) {
+                    scene.status = previous;
+                    throw error;
+                }
+            }));
+
+            const failures = results.filter(r => r.status === 'rejected').length;
+            if (failures) console.error(`Statut non enregistré pour ${failures} scène(s)`);
+            return failures;
         },
 
         /**

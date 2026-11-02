@@ -2,6 +2,7 @@
 import { useAuthStore } from '~/store/auth'
 import { useAnalyticsStore } from '~/store/analytics'
 import { useUserStore } from '~/store/user'
+import { useActivityStore } from '~/store/activity'
 import { HomeIcon, UserIcon, PowerIcon, FolderIcon, PlusIcon, Bars3Icon, XMarkIcon, Cog6ToothIcon } from '@heroicons/vue/24/solid'
 import { onMounted, computed, ref } from 'vue'
 import ProfileModal from '~/components/ProfileModal.vue'
@@ -9,6 +10,7 @@ import ProfileModal from '~/components/ProfileModal.vue'
 const auth = useAuthStore()
 const analyticsStore = useAnalyticsStore()
 const userStore = useUserStore()
+const activityStore = useActivityStore()
 
 const isMenuOpen = ref(false)
 const isProfileModalOpen = ref(false)
@@ -279,6 +281,18 @@ const avatarUrl = computed(() => {
             <NuxtLink to="/" :style="isDev ? 'color:white' : ''">Kompagnon</NuxtLink>
             <span v-if="isDev" style="font-size:0.7rem;font-weight:700;background:#1e40af;color:#dbeafe;padding:2px 8px;border-radius:999px;letter-spacing:0.05em;text-transform:uppercase">localhost</span>
           </h1>
+        </div>
+
+        <!-- Analyse en cours : visible sur toutes les pages tant qu'elle tourne -->
+        <div
+          v-if="activityStore.isBusy"
+          class="ml-auto mr-4 flex min-w-0 items-center gap-2 rounded-full px-3 py-1 text-sm"
+          :style="isDev ? 'background:#1e40af;color:#dbeafe' : 'background:rgba(255,255,255,0.6);color:#374151'"
+          role="status"
+        >
+          <span class="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+          <span class="hidden truncate sm:inline">{{ activityStore.label }}</span>
+          <span v-if="activityStore.tasks.length > 1" class="shrink-0 text-xs opacity-75">+{{ activityStore.tasks.length - 1 }}</span>
         </div>
 
         <!-- Avatar + nom en haut à droite -->

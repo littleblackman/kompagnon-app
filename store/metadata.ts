@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { useAuthStore } from '~/store/auth';
-import type { NarrativeArc, DramaticFunction, ActantialSchema } from '~/types';
+import type { NarrativeArc, DramaticFunction, ActantialSchema, LanguageLevel } from '~/types';
 
 interface StructureEventMapping {
     eventId: number;
@@ -15,6 +15,7 @@ interface MetadataResponse {
     types: Type[];
     narrativeArcs: NarrativeArc[];
     dramaticFunctions: DramaticFunction[];
+    languageLevels: LanguageLevel[];
     actantialSchema: ActantialSchema[];
     genres: Genre[];
     subgenres: Subgenre[];
@@ -98,6 +99,7 @@ export const useMetadataStore = defineStore('metadata', () => {
     const types = ref<Type[]>([]);
     const narrativeArcs = ref<NarrativeArc[]>([]);
     const dramaticFunctions = ref<DramaticFunction[]>([]);
+    const languageLevels = ref<LanguageLevel[]>([]);
     const actantialSchema = ref<ActantialSchema[]>([]);
     const genres = ref<Genre[]>([]);
     const subgenres = ref<Subgenre[]>([]);
@@ -123,6 +125,7 @@ export const useMetadataStore = defineStore('metadata', () => {
             types.value = response.types || [];
             narrativeArcs.value = response.narrativeArcs || [];
             dramaticFunctions.value = response.dramaticFunctions || [];
+            languageLevels.value = response.languageLevels || [];
             actantialSchema.value = response.actantialSchema || [];
             genres.value = response.genres || [];
             subgenres.value = response.subgenres || [];
@@ -146,6 +149,7 @@ export const useMetadataStore = defineStore('metadata', () => {
         types,
         narrativeArcs,
         dramaticFunctions,
+        languageLevels,
         actantialSchema,
         genres,
         subgenres,

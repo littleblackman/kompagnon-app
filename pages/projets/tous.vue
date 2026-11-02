@@ -5,8 +5,9 @@ definePageMeta({
 const config = useRuntimeConfig();
 
 import { useAuthStore } from '~/store/auth';
-import { computed } from 'vue';
-import { PlusIcon } from '@heroicons/vue/24/solid';
+import { computed, ref } from 'vue';
+import { PlusIcon, ArrowUpTrayIcon } from '@heroicons/vue/24/solid';
+import { useToast } from '~/composables/useToast';
 
 const auth = useAuthStore()
 auth.requireAuth();
@@ -19,6 +20,47 @@ const { data, pending, error } = useFetch(`${config.public.apiBase}/projects`, {
 })
 
 const projects = computed(() => data.value || [])
+
+// Import d'un instantané : toujours recréé en nouveau projet
+const toast = useToast()
+const fileInput = ref(null)
+const isImporting = ref(false)
+
+const importProject = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  let snapshot
+  try {
+    snapshot = JSON.parse(await file.text())
+  } catch {
+    toast.error("Ce fichier n'est pas un JSON valide.")
+    return
+  }
+
+  isImporting.value = true
+  try {
+    const result = await $fetch(`${config.public.apiBase}/project/import`, {
+      method: 'POST',
+      headers: { 'X-AUTH-TOKEN': auth.token || '', 'Content-Type': 'application/json' },
+      body: snapshot
+    })
+
+    if (result.warnings?.length) {
+      // Métadonnées absentes de cette base : l'élément a été ignoré
+      toast.info(`Projet importé, ${result.warnings.length} élément(s) ignoré(s) : ${result.warnings.join(' ')}`)
+    } else {
+      toast.success('Projet importé.')
+    }
+    await navigateTo(`/projets/projet-${result.project.slug}`)
+  } catch (error) {
+    console.error("Erreur lors de l'import:", error)
+    toast.error(error?.data?.error || "Le projet n'a pas pu être importé.")
+  } finally {
+    isImporting.value = false
+  }
+}
 </script>
 
 <template>
@@ -30,7 +72,7 @@ const projects = computed(() => data.value || [])
       </div>
 
       <!-- Bouton Créer un projet -->
-      <div class="mb-8">
+      <div class="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center">
         <NuxtLink
           to="/projets/creer"
           class="create-project-btn"
@@ -38,6 +80,19 @@ const projects = computed(() => data.value || [])
           <PlusIcon class="w-5 h-5" />
           <span>Créer un nouveau projet</span>
         </NuxtLink>
+
+        <button
+          type="button"
+          @click="fileInput?.click()"
+          :disabled="isImporting"
+          class="flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          data-controller="tooltip"
+          title="Recréer un projet depuis un instantané exporté (fichier JSON)"
+        >
+          <ArrowUpTrayIcon class="w-5 h-5" />
+          <span>{{ isImporting ? 'Import en cours…' : 'Importer un projet' }}</span>
+        </button>
+        <input ref="fileInput" type="file" accept="application/json,.json" class="hidden" @change="importProject" />
       </div>
 
       <div v-if="projects" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

@@ -9,9 +9,14 @@ import { PropType } from 'vue';
 import type { Scene } from '~/types';
 import { TrashIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, DocumentDuplicateIcon, PencilIcon, ArrowRightOnRectangleIcon, ChatBubbleBottomCenterTextIcon } from '@heroicons/vue/24/outline';
 import { useConfirm } from '~/composables/useConfirm';
+import { useToast } from '~/composables/useToast';
+import { useSceneVersions } from '~/composables/useSceneVersions';
+import { SCENE_VERSIONS, getSceneVersion, nextSceneVersion } from '~/utils/sceneStatus';
 
 const projectStore = useProjectStore();
 const { confirm } = useConfirm();
+const toast = useToast();
+const { setAll } = useSceneVersions();
 
 const props = defineProps({
   scenes: {
@@ -33,6 +38,21 @@ const sortedScenes = computed(() => {
   if (!props.scenes) return [];
   return [...props.scenes].sort((a, b) => a.position - b.position);
 });
+
+// Versions : décompte de la séquence, affiché à côté des boutons de lot
+const versionCounts = computed(() =>
+  SCENE_VERSIONS.map(v => ({
+    ...v,
+    count: sortedScenes.value.filter(s => getSceneVersion(s).key === v.key).length
+  })).filter(v => v.count > 0)
+);
+
+// Un clic sur la pastille fait avancer la version, sans confirmation : c'est réversible au clic suivant
+const cycleVersion = async (scene: Scene) => {
+  const failures = await projectStore.setScenesVersion([scene.id!], nextSceneVersion(getSceneVersion(scene).key))
+    .catch(() => 1);
+  if (failures) toast.error("La version n'a pas pu être enregistrée.");
+};
 
 const sceneModalOpen = ref(false);
 const currentScene = ref<Scene | null>(null);
@@ -246,12 +266,44 @@ const vHtml = {
     />
 
     <div v-if="sortedScenes && sortedScenes.length > 0">
+      <!-- Versions de la séquence -->
+      <div class="ml-1 sm:ml-4 mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 print:hidden">
+        <span v-for="v in versionCounts" :key="v.key" class="flex items-center gap-1">
+          <span :class="['inline-block h-2 w-2 rounded-full border', v.badge]"></span>
+          {{ v.count }} {{ v.label.toLowerCase() }}
+        </span>
+        <span class="ml-auto flex gap-1">
+          <button
+            class="px-2 py-1 rounded border border-gray-200 hover:bg-gray-50"
+            @click="setAll(sortedScenes, 'travail', 'cette séquence')"
+          >
+            Tout en travail
+          </button>
+          <button
+            class="px-2 py-1 rounded border border-green-200 text-green-700 hover:bg-green-50"
+            @click="setAll(sortedScenes, 'valide', 'cette séquence')"
+          >
+            Tout valider
+          </button>
+        </span>
+      </div>
+
       <template v-for="(scene, index) in sortedScenes" :key="scene.id">
       <div class="ml-1 sm:ml-4 mb-3 p-2 sm:p-4 border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
         <div class="flex justify-between">
-          <h3 :id="`scene-${scene.id}`" class="font-bold text-blue-600 hover:text-blue-800 cursor-pointer" @click="openSceneModal(scene)">
-            {{ scene.name }}
-          </h3>
+          <div class="flex items-center gap-2 min-w-0">
+            <button
+              :class="['shrink-0 px-2 py-0.5 rounded-full border text-xs font-medium print:hidden', getSceneVersion(scene).badge]"
+              @click="cycleVersion(scene)"
+              data-controller="tooltip"
+              :title="`Passer en « ${SCENE_VERSIONS.find(v => v.key === nextSceneVersion(getSceneVersion(scene).key))!.label} »`"
+            >
+              {{ getSceneVersion(scene).label }}
+            </button>
+            <h3 :id="`scene-${scene.id}`" class="font-bold text-blue-600 hover:text-blue-800 cursor-pointer" @click="openSceneModal(scene)">
+              {{ scene.name }}
+            </h3>
+          </div>
           <div class="flex space-x-1">
             <!-- Bouton Éditer -->
             <button 

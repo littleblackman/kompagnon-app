@@ -11,7 +11,13 @@ import RichTextEditor from '~/components/RichTextEditor.vue';
 import ImageUploader from '~/components/Project/ImageUploader.vue';
 import ProjectSubMenu from '~/components/Project/SubMenu.vue';
 import Lightbox from '~/components/Lightbox.vue';
+import SequenceRefText from '~/components/Project/SequenceRefText.vue';
+import MissingList from '~/components/Project/MissingList.vue';
+import PersonnageCoverage from '~/components/Project/PersonnageCoverage.vue';
 import { useImages } from '~/composables/useImages';
+import { usePersonnageChecks } from '~/composables/usePersonnageChecks';
+import { useActivityStore } from '~/store/activity';
+import { useTodoStore } from '~/store/todo';
 
 definePageMeta({
   middleware: 'auth'
@@ -25,6 +31,8 @@ const toast = useToast();
 const projectStore = useProjectStore();
 const authStore = useAuthStore();
 const metadataStore = useMetadataStore();
+const activityStore = useActivityStore();
+const todoStore = useTodoStore();
 
 // Le slug est régénéré côté serveur à chaque sauvegarde, à partir du nom :
 // le figer au montage rendait l'URL caduque dès le premier renommage.
@@ -32,6 +40,8 @@ const personnageSlug = ref(route.params.slugPersonnage);
 const personnage = ref(null);
 const project = ref(null);
 const isEditing = ref(false);
+// Ce que l'auteur déclare d'un côté, ce que le texte montre de l'autre
+const activeTab = ref('auteur');
 const editedPersonnage = ref({});
 const lightboxImages = ref([]);
 const lightboxIndex = ref(0);
@@ -177,32 +187,271 @@ const handleImagesUpdated = (images) => {
   }
 };
 
-// Fonction pour créer le schéma actantiel
+// Schéma actantiel proposé par le modèle : le personnage est toujours le Sujet
+const generatingSchema = ref(false);
+
 const createActantielSchema = async () => {
+  if (generatingSchema.value) return;
+  generatingSchema.value = true;
+
   try {
-    console.log('Création du schéma actantiel pour:', personnage.value);
-    
     const config = useRuntimeConfig();
-    
-    const response = await $fetch(`${config.public.apiBase}/personnage/${personnage.value.id}/analyse/actantiel-schema`, {
-      method: 'POST',
-      headers: {
-        'X-AUTH-TOKEN': authStore.token || '',
-        'Content-Type': 'application/json'
-      },
-      body: {
-        personnageId: personnage.value.id,
-        projectId: project.value.id
-      }
-    });
-    
-    console.log('Résultat du schéma actantiel:', response);
-    
-    // TODO: Afficher le résultat dans l'interface
-    
-  } catch (error) {
-    console.error('Erreur lors de la création du schéma actantiel:', error);
+    const response = await activityStore.track(`Schéma actantiel de ${personnage.value.firstName}…`, () =>
+      $fetch(`${config.public.apiBase}/personnage/${personnage.value.id}/analyse/actantiel-schema`, {
+        method: 'POST',
+        headers: { 'X-AUTH-TOKEN': authStore.token || '' },
+      })
+    );
+
+    personnage.value = { ...personnage.value, actantialSchema: response.schema };
+    toast.success('Schéma actantiel généré.');
+  } catch (err) {
+    // 422 : le personnage n'a rien d'analysable, le message l'explique
+    toast.error(err?.data?.message || 'Le schéma actantiel n\'a pas pu être généré.');
+  } finally {
+    generatingSchema.value = false;
   }
+};
+
+// Vérification : tout ce qu'elle produit est de l'analyse et s'enregistre
+// tel quel. Ce qui toucherait la fiche (ajouter un arc, une fonction,
+// déplacer une étape) attend un clic de l'auteur dans l'onglet.
+const verifying = ref(false);
+
+const { boundsOf, arcChecks, globalChecks, todoDrafts } = usePersonnageChecks(personnage);
+
+const runVerification = async () => {
+  if (verifying.value || !personnage.value) return;
+  verifying.value = true;
+  activeTab.value = 'analyse';
+
+  try {
+    const config = useRuntimeConfig();
+    await activityStore.track(`Analyse de ${personnage.value.firstName}…`, () =>
+      $fetch(`${config.public.apiBase}/personnage/${personnage.value.id}/analyse/verification`, {
+        method: 'POST',
+        headers: { 'X-AUTH-TOKEN': authStore.token || '' },
+      })
+    );
+
+    await loadPersonnageDetails();
+    toast.success('Analyse enregistrée.');
+
+    const added = await todoStore.addFromAnalysis(project.value.id, todoDrafts());
+    if (added) toast.success(added > 1 ? `${added} tâches ajoutées à la todo.` : '1 tâche ajoutée à la todo.');
+  } catch (err) {
+    // 422 : rien d'écrit à vérifier, le message l'explique
+    toast.error(err?.data?.message || 'L\'analyse n\'a pas pu aboutir.');
+  } finally {
+    verifying.value = false;
+  }
+};
+
+const wasAutoPlaced = (pnaId, index) =>
+  personnage.value?.verification?.autoPlaced?.some(p => p.personnageNarrativeArcId === pnaId && p.index === index);
+
+const functionStillAssigned = (pdfId) => personnage.value?.personnageDramaticFunctions?.some(p => p.id === pdfId);
+
+/** Bornes actuelles de la fonction, recalculées par chaque analyse */
+const functionBounds = (pdfId) => {
+  const pdf = personnage.value?.personnageDramaticFunctions?.find(p => p.id === pdfId);
+  if (!pdf?.fromSequence) return null;
+  return pdf.fromSequence.id === pdf.toSequence?.id || !pdf.toSequence
+    ? pdf.fromSequence.name
+    : `${pdf.fromSequence.name} → ${pdf.toSequence.name}`;
+};
+
+// ── Actions sur la fiche depuis l'analyse : toujours un clic de l'auteur ──
+const applyingId = ref(null);
+
+const narrativeArcRequest = async (path, body) => {
+  const config = useRuntimeConfig();
+  await $fetch(`${config.public.apiBase}/personnage/${personnage.value.id}/narrative-arc/${path}`, {
+    method: 'POST',
+    headers: { 'X-AUTH-TOKEN': authStore.token || '', 'Content-Type': 'application/json' },
+    body
+  });
+};
+
+/** Déplace l'étape là où le texte la joue */
+const alignStep = async (pnaId, step) => {
+  const pna = personnage.value?.personnageNarrativeArcs?.find(p => p.id === pnaId);
+  const bounds = boundsOf(step.sequenceIds ?? []);
+  if (!pna || !bounds) return;
+
+  applyingId.value = `align-${pnaId}-${step.index}`;
+  try {
+    const source = pna.steps?.length ? pna.steps : (pna.narrativeArc?.steps ?? []).map(s => ({ step: s, fromSequenceId: null, toSequenceId: null }));
+    const steps = source.map((s, i) => i === step.index ? { ...s, ...bounds } : s);
+    await narrativeArcRequest(`${pnaId}/update`, {
+      narrativeArcId: pna.narrativeArc.id,
+      steps,
+      fromSequenceId: pna.fromSequence?.id ?? null,
+      toSequenceId: pna.toSequence?.id ?? null,
+      weight: pna.weight,
+      comment: pna.comment
+    });
+    await loadPersonnageDetails();
+    toast.success('Étape placée là où le texte la joue.');
+  } catch (err) {
+    toast.error('Le déplacement de l\'étape a échoué.');
+  } finally {
+    applyingId.value = null;
+  }
+};
+
+/** Ajoute à la fiche un arc détecté, ses étapes placées là où le texte les joue */
+const addDetectedArc = async (arc) => {
+  applyingId.value = `arc-${arc.narrativeArc.id}`;
+  try {
+    await narrativeArcRequest('add', {
+      narrativeArcId: arc.narrativeArc.id,
+      weight: arc.weight,
+      comment: arc.comment,
+      steps: arc.steps.map(s => ({ step: s.step, ...(boundsOf(s.sequenceIds) ?? { fromSequenceId: null, toSequenceId: null }) }))
+    });
+    await loadPersonnageDetails();
+    toast.success(`Arc « ${arc.narrativeArc.name} » ajouté à la fiche.`);
+  } catch (err) {
+    toast.error('L\'ajout de l\'arc a échoué.');
+  } finally {
+    applyingId.value = null;
+  }
+};
+
+/** Ajoute à la fiche une fonction détectée ; la prochaine analyse la vérifiera */
+const addDetectedFunction = async (detected) => {
+  applyingId.value = `function-${detected.dramaticFunction.id}`;
+  try {
+    const saved = await personnageStore.savePersonnage({
+      id: personnage.value.id,
+      firstName: personnage.value.firstName,
+      lastName: personnage.value.lastName,
+      dramaticFunctionIds: [
+        ...(personnage.value.personnageDramaticFunctions ?? []).map(pdf => pdf.dramaticFunction.id),
+        detected.dramaticFunction.id
+      ]
+    }, project.value.id);
+    if (!saved) throw new Error();
+    await loadPersonnageDetails();
+    toast.success(`Fonction « ${detected.dramaticFunction.name} » ajoutée à la fiche.`);
+  } catch (err) {
+    toast.error('L\'ajout de la fonction a échoué.');
+  } finally {
+    applyingId.value = null;
+  }
+};
+
+const isAssignedArc = (arcId) => personnage.value?.personnageNarrativeArcs?.some(p => p.narrativeArc.id === arcId);
+const isAssignedFunction = (functionId) => personnage.value?.personnageDramaticFunctions?.some(p => p.dramaticFunction.id === functionId);
+
+// Les six actants dans l'ordre du référentiel, même ceux que le modèle a laissés vides
+const actantialRoles = computed(() => {
+  const roles = personnage.value?.actantialSchema?.roles;
+  if (!roles) return [];
+  return metadataStore.actantialSchema.map(actant => ({
+    ...actant,
+    concerned: roles[actant.role]?.concerned || [],
+    comment: roles[actant.role]?.comment || null,
+  }));
+});
+
+// Le slug change au renommage : on le résout à l'affichage plutôt que de le stocker
+const personnageSlugById = (id) => projectStore.personnages.find(p => p.id === id)?.slug;
+
+// ── Analyse des arcs (onglet analyse) ──
+const ARC_STATUS = {
+  joue: { label: 'Jouée', classes: 'bg-green-100 text-green-800' },
+  esquisse: { label: 'Esquissée', classes: 'bg-amber-100 text-amber-800' },
+  absent: { label: 'Absente', classes: 'bg-red-100 text-red-700' },
+};
+
+const sequenceNameById = (id) => projectSequences.value.find(s => s.id === id)?.name ?? `#${id}`;
+const sequenceRank = (id) => projectSequences.value.findIndex(s => s.id === id);
+
+const arcStillAssigned = (pnaId) => personnage.value?.personnageNarrativeArcs?.some(p => p.id === pnaId);
+
+/**
+ * Place que l'auteur a donnée à l'étape, quand elle ne recouvre aucune des
+ * séquences où le texte la joue. Calculé sur la fiche actuelle : un écart
+ * corrigé depuis l'analyse disparaît de lui-même.
+ */
+const placementGap = (pnaId, step) => {
+  if (!step.sequenceIds?.length) return null;
+  const placed = personnage.value?.personnageNarrativeArcs?.find(p => p.id === pnaId)?.steps?.[step.index];
+  const from = placed?.fromSequenceId ?? placed?.toSequenceId;
+  const to = placed?.toSequenceId ?? placed?.fromSequenceId;
+  if (!from) return null;
+
+  const low = Math.min(sequenceRank(from), sequenceRank(to));
+  const high = Math.max(sequenceRank(from), sequenceRank(to));
+  const overlaps = step.sequenceIds.some(id => {
+    const rank = sequenceRank(id);
+    return rank >= low && rank <= high;
+  });
+  if (overlaps) return null;
+
+  return from === to ? sequenceNameById(from) : `${sequenceNameById(from)} → ${sequenceNameById(to)}`;
+};
+
+const SEQUENCE_ROLES = {
+  central: { label: 'Porte la séquence', classes: 'bg-indigo-100 text-indigo-800' },
+  secondaire: { label: 'Y agit', classes: 'bg-gray-100 text-gray-700' },
+  evoque: { label: 'Seulement évoqué', classes: 'bg-gray-50 text-gray-500 italic' },
+};
+
+/**
+ * Détail séquence par séquence : le rôle et le résumé viennent de l'analyse,
+ * les étapes d'arc et les fonctions jouées se déduisent de ses verdicts.
+ */
+const sequenceDetails = computed(() => {
+  const verification = personnage.value?.verification;
+  if (!verification?.sequences?.length) return [];
+
+  return verification.sequences.map((entry) => {
+    const id = entry.sequenceId;
+    const steps = [
+      ...(verification.arcs?.verdicts ?? []).flatMap(arc => (arc.steps ?? [])
+        .filter(step => step.status !== 'absent' && step.sequenceIds?.includes(id))
+        .map(step => ({ arcName: arc.arcName, index: step.index, step: step.step, status: step.status, detected: false }))),
+      ...(verification.arcs?.detected ?? []).flatMap(arc => (arc.steps ?? [])
+        .filter(step => step.sequenceIds?.includes(id))
+        .map(step => ({ arcName: arc.narrativeArc.name, index: step.index, step: step.step, status: 'joue', detected: true }))),
+    ];
+    const functions = [
+      ...(verification.functions?.verdicts ?? [])
+        .filter(fn => fn.status !== 'absent' && fn.sequenceIds?.includes(id))
+        .map(fn => ({ name: fn.functionName, status: fn.status, detected: false })),
+      ...(verification.functions?.detected ?? [])
+        .filter(fn => fn.sequenceIds?.includes(id))
+        .map(fn => ({ name: fn.dramaticFunction.name, status: 'joue', detected: true })),
+    ];
+    return { ...entry, steps, functions };
+  });
+});
+
+// ── Ce que dit l'analyse, en regard de la fiche (onglet auteur, lecture seule) ──
+const arcVerdictFor = (pnaId) =>
+  personnage.value?.verification?.arcs?.verdicts?.find(v => v.personnageNarrativeArcId === pnaId) ?? null;
+
+const stepVerdictFor = (pnaId, index) =>
+  arcVerdictFor(pnaId)?.steps?.find(s => s.index === index) ?? null;
+
+const functionVerdictFor = (pdfId) =>
+  personnage.value?.verification?.functions?.verdicts?.find(v => v.personnageDramaticFunctionId === pdfId) ?? null;
+
+// Ce que l'analyse a détecté et qui n'est toujours pas sur la fiche
+const detectedArcsOffSheet = computed(() =>
+  (personnage.value?.verification?.arcs?.detected ?? []).filter(arc => !isAssignedArc(arc.narrativeArc.id))
+);
+const detectedFunctionsOffSheet = computed(() =>
+  (personnage.value?.verification?.functions?.detected ?? []).filter(f => !isAssignedFunction(f.dramaticFunction.id))
+);
+
+const tendencyClasses = {
+  positive: 'bg-green-50 border-green-200',
+  negative: 'bg-red-50 border-red-200',
+  ambiguous: 'bg-gray-50 border-gray-200',
 };
 
 const getLevelLabel = (level) => {
@@ -323,8 +572,29 @@ const deleteNarrativeArc = async (arcId) => {
     });
 
     await loadPersonnageDetails();
+    toast.success('Arc retiré de la fiche.');
   } catch (error) {
     console.error('Erreur lors de la suppression de l\'arc narratif:', error);
+    toast.error('L\'arc n\'a pas pu être supprimé.');
+  }
+};
+
+// Une fonction à la fois : la sauvegarde de la fiche recréerait les autres
+const deleteDramaticFunction = async (pdfId) => {
+  const ok = await confirm({ title: 'Retirer cette fonction dramatique ?', danger: true, confirmLabel: 'Retirer' });
+  if (!ok) return;
+
+  try {
+    const config = useRuntimeConfig();
+    await $fetch(`${config.public.apiBase}/personnage/${personnage.value.id}/dramatic-function/${pdfId}/delete`, {
+      method: 'DELETE',
+      headers: { 'X-AUTH-TOKEN': authStore.token || '' }
+    });
+    await loadPersonnageDetails();
+    toast.success('Fonction retirée de la fiche.');
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la fonction dramatique:', error);
+    toast.error('La fonction n\'a pas pu être retirée.');
   }
 };
 
@@ -426,7 +696,7 @@ const updateStep = (index, field, value) => {
               <img 
                 v-if="getPersonnageAvatar(personnage)" 
                 :src="getPersonnageAvatar(personnage)" 
-                :alt="`${personnage.firstName} ${personnage.lastName}`"
+                :alt="`${personnage.firstName} ${personnage.lastName ?? ''}`.trim()"
                 class="w-full h-full object-cover"
               />
               <div v-else class="w-full h-full flex items-center justify-center text-gray-400 text-4xl font-bold">
@@ -503,7 +773,39 @@ const updateStep = (index, field, value) => {
                 >
                   <span class="text-base">🎭</span>
                   {{ pdf.dramaticFunction.name }}
+                  <!-- Verdict de l'analyse : tenue, esquissée ou absente dans le texte -->
+                  <span
+                    v-if="functionVerdictFor(pdf.id)"
+                    class="ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                    :class="ARC_STATUS[functionVerdictFor(pdf.id).status]?.classes"
+                    data-controller="tooltip"
+                    :title="`Selon le texte : ${functionVerdictFor(pdf.id).comment || ARC_STATUS[functionVerdictFor(pdf.id).status]?.label}`"
+                  >🤖 {{ ARC_STATUS[functionVerdictFor(pdf.id).status]?.label }}</span>
+                  <button
+                    type="button"
+                    @click.stop="deleteDramaticFunction(pdf.id)"
+                    class="ml-1 rounded-full px-1 leading-none text-purple-200 hover:bg-purple-800 hover:text-white"
+                    data-controller="tooltip"
+                    title="Retirer cette fonction"
+                    aria-label="Retirer cette fonction"
+                  >×</button>
                 </span>
+              </div>
+
+              <!-- Fonctions tenues dans le texte, absentes de la fiche : signalées, ajout dans l'onglet analyse -->
+              <div v-if="!isEditing && detectedFunctionsOffSheet.length" class="flex flex-wrap items-center gap-2 mt-2">
+                <span class="text-xs text-sky-700">🤖 Le texte lui prête aussi :</span>
+                <button
+                  v-for="detected in detectedFunctionsOffSheet"
+                  :key="detected.dramaticFunction.id"
+                  type="button"
+                  @click="activeTab = 'analyse'"
+                  data-controller="tooltip"
+                  :title="`${detected.comment || ''}\n\nCorrespondance ${detected.weight} % — voir l'analyse pour l'ajouter`"
+                  class="inline-flex items-center gap-1 rounded-full border border-dashed border-sky-400 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100"
+                >
+                  🎭 {{ detected.dramaticFunction.name }}
+                </button>
               </div>
 
               <!-- Fonctions dramatiques — édition -->
@@ -547,6 +849,37 @@ const updateStep = (index, field, value) => {
                   {{ pna.narrativeArc.name }}
                 </span>
               </div>
+
+              <div v-if="!isEditing && detectedArcsOffSheet.length" class="flex flex-wrap items-center gap-2 mt-2">
+                <span class="text-xs text-sky-700">🤖 Arcs qui se dessinent dans le texte :</span>
+                <button
+                  v-for="arc in detectedArcsOffSheet"
+                  :key="arc.narrativeArc.id"
+                  type="button"
+                  @click="activeTab = 'analyse'"
+                  data-controller="tooltip"
+                  :title="`${arc.comment || ''}\n\nCorrespondance ${arc.weight} % — voir l'analyse pour l'ajouter`"
+                  class="inline-flex items-center gap-1 rounded-full border border-dashed border-sky-400 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100"
+                >
+                  {{ arc.narrativeArc.tendency === 'positive' ? '↗️' : arc.narrativeArc.tendency === 'negative' ? '↘️' : '↔️' }}
+                  {{ arc.narrativeArc.name }}
+                </button>
+              </div>
+
+              <!-- Niveaux de langage : lus dans les répliques, rien ne se saisit -->
+              <div v-if="!isEditing && personnage?.personnageLanguageLevels?.length" class="flex flex-wrap items-center gap-2 mt-2">
+                <span class="text-xs text-sky-700">🤖 Parle :</span>
+                <span
+                  v-for="pll in personnage.personnageLanguageLevels"
+                  :key="pll.id"
+                  data-controller="tooltip"
+                  :title="[pll.comment, pll.quote && `« ${pll.quote} »`].filter(Boolean).join('\n\n')"
+                  class="inline-flex items-center gap-1 rounded-full border border-dashed border-sky-400 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 cursor-help"
+                >
+                  💬 {{ pll.languageLevel.name }}
+                  <span class="font-normal opacity-70">{{ pll.weight }} %</span>
+                </span>
+              </div>
             </div>
           </div>
           
@@ -557,14 +890,6 @@ const updateStep = (index, field, value) => {
               class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors"
             >
               Modifier
-            </button>
-            <button 
-              v-if="!isEditing"
-              @click="createActantielSchema"
-              class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-            >
-              <span>🎭</span>
-              Créer le schéma actantiel
             </button>
             <template v-else>
               <button 
@@ -584,7 +909,26 @@ const updateStep = (index, field, value) => {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Onglets : la fiche de l'auteur d'un côté, ce que le texte montre de l'autre -->
+      <div class="mb-6 flex gap-1 border-b border-gray-200" role="tablist">
+        <button
+          v-for="tab in [{ key: 'auteur', label: 'Détail du perso' }, { key: 'analyse', label: 'Analyse du perso' }]"
+          :key="tab.key"
+          role="tab"
+          :aria-selected="activeTab === tab.key"
+          @click="activeTab = tab.key"
+          :class="[
+            '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+            activeTab === tab.key
+              ? 'border-amber-600 text-amber-800'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          ]"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <div v-if="activeTab === 'auteur'" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         <!-- Colonne gauche - Petite colonne -->
         <div class="space-y-6">
@@ -655,7 +999,7 @@ const updateStep = (index, field, value) => {
               >
                 <img 
                   :src="image" 
-                  :alt="`Image ${index + 1} de ${personnage.firstName} ${personnage.lastName}`"
+                  :alt="`Image ${index + 1} de ${personnage.firstName} ${personnage.lastName ?? ''}`.trim()"
                   class="w-full h-full object-cover hover:scale-105 transition-transform"
                 />
               </div>
@@ -714,26 +1058,33 @@ const updateStep = (index, field, value) => {
                 </div>
                 <p v-else class="text-gray-500 italic">Aucun background défini</p>
               </div>
-              
+
               <div v-else class="min-h-96">
                 <RichTextEditor 
                   v-model="editedPersonnage.background" 
                   class="border border-gray-300 rounded-lg h-96" 
                 />
               </div>
-            </div>
-          </div>
 
-          <!-- Analyse rapide -->
-          <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              <span class="mr-2">🔍</span>
-              Analyse rapide
-            </h2>
-            <div
-              class="p-4 bg-blue-50 rounded-lg border border-blue-200 min-h-[120px]"
-              v-html="personnage?.analysis || '<em class=\'text-gray-500\'>Aucune analyse disponible</em>'"
-            >
+              <!-- Écarts relevés par l'analyse : votre texte n'est pas touché -->
+              <div
+                v-if="!isEditing && (personnage?.verification?.novelties?.length || personnage?.verification?.contradictions?.length)"
+                class="mt-4 rounded-lg border border-dashed border-sky-300 bg-sky-50/50 p-3"
+              >
+                <p class="mb-2 text-xs font-semibold text-sky-800">🤖 Selon le texte</p>
+                <div v-if="personnage.verification.novelties?.length" class="mb-2">
+                  <p class="text-xs font-medium text-blue-800">Ce que le récit apprend, absent du background</p>
+                  <ul class="mt-1 list-disc space-y-0.5 pl-5">
+                    <li v-for="(item, i) in personnage.verification.novelties" :key="i" class="text-sm text-gray-700"><SequenceRefText :text="item" /></li>
+                  </ul>
+                </div>
+                <div v-if="personnage.verification.contradictions?.length">
+                  <p class="text-xs font-medium text-red-700">Ce que le récit contredit</p>
+                  <ul class="mt-1 list-disc space-y-0.5 pl-5">
+                    <li v-for="(item, i) in personnage.verification.contradictions" :key="i" class="text-sm text-gray-700"><SequenceRefText :text="item" /></li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -769,6 +1120,10 @@ const updateStep = (index, field, value) => {
                       {{ pna.narrativeArc.name }}
                     </h3>
                     <p class="text-sm text-gray-700 mt-1 italic">{{ pna.narrativeArc.description }}</p>
+                    <p v-if="arcVerdictFor(pna.id)?.comment" class="mt-2 rounded border border-dashed border-sky-300 bg-sky-50/60 px-2 py-1 text-xs text-sky-900">
+                      🤖 <SequenceRefText :text="arcVerdictFor(pna.id).comment" />
+                    </p>
+                    <MissingList title="Pour avancer et boucler l'arc" :items="arcVerdictFor(pna.id)?.missing ?? []" />
                   </div>
                   <div class="flex items-center gap-2">
                     <span class="px-2 py-1 text-xs font-medium rounded bg-indigo-200 text-indigo-800">
@@ -808,8 +1163,15 @@ const updateStep = (index, field, value) => {
                       :key="index"
                       class="p-2 bg-white rounded border border-indigo-200"
                     >
-                      <div class="text-sm font-medium text-indigo-900 mb-1">
-                        {{ index + 1 }}. {{ stepData.step }}
+                      <div class="flex flex-wrap items-baseline gap-2 text-sm font-medium text-indigo-900 mb-1">
+                        <span>{{ index + 1 }}. {{ stepData.step }}</span>
+                        <span
+                          v-if="stepVerdictFor(pna.id, index)"
+                          class="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                          :class="ARC_STATUS[stepVerdictFor(pna.id, index).status]?.classes"
+                          data-controller="tooltip"
+                          :title="stepVerdictFor(pna.id, index).comment || ''"
+                        >🤖 {{ ARC_STATUS[stepVerdictFor(pna.id, index).status]?.label }}</span>
                       </div>
                       <div v-if="stepData.fromSequenceId || stepData.toSequenceId" class="text-xs text-gray-600 ml-4">
                         <span v-if="stepData.fromSequenceId">
@@ -820,6 +1182,13 @@ const updateStep = (index, field, value) => {
                           Seq. {{ projectSequences.find(s => s.id === stepData.toSequenceId)?.name || stepData.toSequenceId }}
                         </span>
                       </div>
+                      <!-- Où le texte la joue, quand ce n'est pas là où vous l'avez placée -->
+                      <p
+                        v-if="stepVerdictFor(pna.id, index) && placementGap(pna.id, stepVerdictFor(pna.id, index))"
+                        class="ml-4 mt-1 text-xs text-amber-700"
+                      >
+                        🤖 Jouée dans le texte en <SequenceRefText :ids="stepVerdictFor(pna.id, index).sequenceIds" />
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -853,6 +1222,473 @@ const updateStep = (index, field, value) => {
             </div>
           </div>
 
+          <!-- ── Ce que l'IA a lu dans le texte : lecture seule, tout se lance depuis l'onglet analyse ── -->
+          <div
+            v-if="!isEditing && !personnage?.analysis && !personnage?.languageAnalysis && !personnage?.actantialSchema && !personnage?.verification"
+            class="rounded-lg border border-dashed border-sky-300 bg-sky-50/40 p-4 text-sm text-sky-900"
+          >
+            🤖 Aucune analyse IA pour ce personnage.
+            <button @click="activeTab = 'analyse'" class="ml-1 font-medium underline hover:no-underline">Lancer une analyse</button>
+          </div>
+
+          <template v-if="!isEditing">
+            <div v-if="personnage?.analysis" class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-sky-400">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center">
+                  <span class="mr-2" data-controller="tooltip" title="Produit par l'analyse IA">🤖</span>
+                  Analyse du texte
+                </h2>
+                <button @click="activeTab = 'analyse'" class="text-xs text-sky-700 hover:underline">Voir l'analyse</button>
+              </div>
+              <div class="prose prose-sm max-w-none rounded-lg border border-dashed border-sky-300 bg-sky-50/40 p-4"><SequenceRefText :text="personnage.analysis" html /></div>
+            </div>
+
+            <div v-if="personnage?.languageAnalysis || personnage?.personnageLanguageLevels?.length" class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-sky-400">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center">
+                  <span class="mr-2" data-controller="tooltip" title="Produit par l'analyse IA">🤖</span>
+                  Langage
+                </h2>
+                <button @click="activeTab = 'analyse'" class="text-xs text-sky-700 hover:underline">Voir l'analyse</button>
+              </div>
+              <div v-if="personnage.personnageLanguageLevels?.length" class="mb-3 space-y-1.5">
+                <div v-for="pll in personnage.personnageLanguageLevels" :key="pll.id" class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
+                  <span class="font-semibold text-gray-900">{{ pll.languageLevel.name }}</span>
+                  <span class="text-xs tabular-nums text-gray-500">{{ pll.weight }} %</span>
+                  <span v-if="pll.comment" class="text-gray-600"><SequenceRefText :text="pll.comment" /></span>
+                  <span v-if="pll.quote" class="w-full border-l-2 border-sky-300 pl-2 text-xs italic text-gray-500">« {{ pll.quote }} »</span>
+                </div>
+              </div>
+              <div
+                v-if="personnage.languageAnalysis"
+                class="prose prose-sm max-w-none rounded-lg border border-dashed border-sky-300 bg-sky-50/40 p-4"><SequenceRefText :text="personnage.languageAnalysis" html /></div>
+            </div>
+
+            <div v-if="personnage?.actantialSchema" class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-sky-400">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center">
+                  <span class="mr-2" data-controller="tooltip" title="Produit par l'analyse IA">🤖</span>
+                  Schéma actantiel
+                </h2>
+                <button @click="activeTab = 'analyse'" class="text-xs text-sky-700 hover:underline">Voir l'analyse</button>
+              </div>
+              <dl class="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                <div v-for="actant in actantialRoles" :key="actant.role">
+                  <dt class="text-xs uppercase tracking-wide text-gray-500">{{ actant.role }}</dt>
+                  <dd class="text-gray-900">
+                    {{ actant.concerned.length ? actant.concerned.map(c => c.name).join(', ') : '—' }}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </template>
+
+        </div>
+      </div>
+
+      <!-- Onglet analyse : tout ce qui est tiré du texte, rien de déclaré -->
+      <div v-else class="space-y-6">
+        <div class="flex flex-col gap-3 rounded-lg bg-white p-4 shadow sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-sm text-gray-600">
+            Lu dans les séquences où le personnage apparaît. Votre fiche n'est jamais réécrite.
+            <span v-if="personnage?.verification?.analyzedAt" class="block text-xs text-gray-400">
+              Dernière analyse le {{ new Date(personnage.verification.analyzedAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) }}
+            </span>
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              @click="createActantielSchema"
+              :disabled="generatingSchema"
+              class="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 disabled:cursor-wait text-white text-sm rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <span>🎭</span>
+              {{ generatingSchema ? 'Analyse en cours…' : personnage?.actantialSchema ? 'Régénérer le schéma actantiel' : 'Créer le schéma actantiel' }}
+            </button>
+            <button
+              @click="runVerification"
+              :disabled="verifying"
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-wait text-white text-sm rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <span>📈</span>
+              {{ verifying ? 'Analyse en cours…' : 'Analyser le personnage' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Ce que l'analyse lira, et les séquences qui le nomment sans l'avoir assigné -->
+        <PersonnageCoverage v-if="personnage?.id" :personnage="personnage" />
+
+        <!-- Analyse du texte : produite par « Analyser le personnage », jamais relue en entrée -->
+        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
+          <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <span class="mr-2">🔍</span>
+            Analyse du texte
+          </h2>
+          <div
+            class="p-4 bg-blue-50 rounded-lg border border-blue-200 min-h-[120px]"
+            >
+            <SequenceRefText v-if="personnage?.analysis" :text="personnage.analysis" html />
+            <em v-else class="text-gray-500">Aucune analyse : lancez « Analyser le personnage ».</em>
+          </div>
+        </div>
+
+        <!-- Contrôles de la fiche : calculés sans modèle, sur ce que l'auteur a saisi -->
+        <div v-if="globalChecks.length" class="rounded-lg border border-red-200 bg-red-50 p-4">
+          <h2 class="mb-1 text-sm font-semibold text-red-800">À vérifier sur la fiche</h2>
+          <ul class="space-y-0.5">
+            <li v-for="issue in globalChecks" :key="issue" class="text-sm text-red-700">⚠ {{ issue }}</li>
+          </ul>
+        </div>
+
+        <!-- Fonctions dramatiques : déclarées par l'auteur, vérifiées dans le texte -->
+        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-fuchsia-500">
+          <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <span class="mr-2">🎭</span>
+            Fonctions dramatiques
+          </h2>
+
+          <p v-if="!personnage?.verification" class="text-sm italic text-gray-500">
+            Aucune analyse : lancez « Analyser le personnage ».
+          </p>
+
+          <template v-else>
+            <p v-if="!personnage.verification.functions?.verdicts?.length" class="mb-3 text-sm italic text-gray-400">
+              Aucune fonction sur la fiche au moment de l'analyse.
+            </p>
+
+            <div
+              v-for="verdict in personnage.verification.functions?.verdicts ?? []"
+              :key="verdict.personnageDramaticFunctionId"
+              class="mb-3 rounded-lg border border-fuchsia-200 bg-fuchsia-50/40 p-4"
+            >
+              <div class="flex flex-wrap items-baseline gap-2">
+                <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="ARC_STATUS[verdict.status]?.classes">
+                  {{ ARC_STATUS[verdict.status]?.label }}
+                </span>
+                <h3 class="font-semibold text-fuchsia-900">{{ verdict.functionName }}</h3>
+                <button
+                  v-if="functionStillAssigned(verdict.personnageDramaticFunctionId)"
+                  @click="deleteDramaticFunction(verdict.personnageDramaticFunctionId)"
+                  class="ml-auto rounded border border-red-200 bg-white px-2 py-0.5 text-xs text-red-700 transition-colors hover:bg-red-50"
+                >Retirer de la fiche</button>
+                <span v-if="functionBounds(verdict.personnageDramaticFunctionId)" class="text-xs text-gray-500">
+                  — {{ functionBounds(verdict.personnageDramaticFunctionId) }}
+                </span>
+              </div>
+              <p v-if="!functionStillAssigned(verdict.personnageDramaticFunctionId)" class="text-xs italic text-gray-400">
+                Fonction retirée de la fiche depuis cette analyse.
+              </p>
+              <p v-if="verdict.comment" class="mt-1 text-sm text-gray-700"><SequenceRefText :text="verdict.comment" /></p>
+              <p v-if="verdict.suggestion" class="mt-2 rounded border border-dashed border-amber-300 bg-amber-50/60 px-3 py-1.5 text-xs text-amber-900">
+                <span class="font-semibold text-amber-700">Piste<template v-if="verdict.suggestion.sequenceId"> (<SequenceRefText :ids="[verdict.suggestion.sequenceId]" />)</template> :</span>
+                <SequenceRefText :text="verdict.suggestion.text" />
+              </p>
+              <MissingList title="Pour remplir la fonction" :items="verdict.missing ?? []" />
+            </div>
+
+            <h3 class="mb-2 mt-5 text-sm font-semibold text-gray-700">Fonctions tenues dans le texte, absentes de votre fiche</h3>
+            <p v-if="!personnage.verification.functions?.detected?.length" class="text-sm italic text-gray-400">
+              Le personnage ne tient aucune autre fonction du référentiel.
+            </p>
+            <div
+              v-for="detected in personnage.verification.functions?.detected ?? []"
+              :key="detected.dramaticFunction.id"
+              class="mb-3 rounded-lg border border-gray-200 p-4"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h4 class="font-semibold text-gray-900">{{ detected.dramaticFunction.name }}</h4>
+                <div class="flex items-center gap-3">
+                  <span class="text-xs text-gray-500">Correspondance {{ detected.weight }} %</span>
+                  <span v-if="isAssignedFunction(detected.dramaticFunction.id)" class="text-xs text-green-700">✓ Sur la fiche</span>
+                  <button
+                    v-else
+                    @click="addDetectedFunction(detected)"
+                    :disabled="!!applyingId"
+                    class="rounded-lg bg-fuchsia-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-fuchsia-700 disabled:opacity-50"
+                  >
+                    {{ applyingId === `function-${detected.dramaticFunction.id}` ? 'Ajout…' : 'Ajouter à la fiche' }}
+                  </button>
+                </div>
+              </div>
+              <p v-if="detected.comment" class="mt-1 text-sm text-gray-700"><SequenceRefText :text="detected.comment" /></p>
+              <p v-if="detected.sequenceIds?.length" class="mt-1 text-xs text-gray-500">
+                Dans le texte : <SequenceRefText :ids="detected.sequenceIds" />
+              </p>
+              <MissingList title="Pour remplir la fonction" :items="detected.missing ?? []" />
+            </div>
+          </template>
+        </div>
+
+        <!-- Arcs : déclarés par l'auteur, vérifiés étape par étape dans le texte -->
+        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-indigo-500">
+          <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <span class="mr-2">📈</span>
+            Analyse des arcs
+          </h2>
+
+          <p v-if="!personnage?.verification" class="text-sm italic text-gray-500">
+            Aucune analyse : lancez « Analyser le personnage ».
+          </p>
+
+          <template v-else>
+            <div
+              v-for="verdict in personnage.verification.arcs?.verdicts ?? []"
+              :key="verdict.personnageNarrativeArcId"
+              class="mb-4 rounded-lg border border-indigo-200 bg-indigo-50/40 p-4"
+            >
+              <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 class="font-semibold text-indigo-900">{{ verdict.arcName }}</h3>
+                <button
+                  v-if="arcStillAssigned(verdict.personnageNarrativeArcId)"
+                  @click="deleteNarrativeArc(verdict.personnageNarrativeArcId)"
+                  class="rounded border border-red-200 bg-white px-2 py-0.5 text-xs text-red-700 transition-colors hover:bg-red-50"
+                >Retirer de la fiche</button>
+              </div>
+              <p v-if="!arcStillAssigned(verdict.personnageNarrativeArcId)" class="text-xs italic text-gray-400">
+                Arc retiré de la fiche depuis cette analyse.
+              </p>
+              <p
+                v-for="issue in arcChecks.get(verdict.personnageNarrativeArcId)?.issues ?? []"
+                :key="issue"
+                class="mt-1 text-sm text-red-600"
+              >⚠ {{ issue }}</p>
+              <p v-if="verdict.comment" class="mt-1 text-sm text-gray-700"><SequenceRefText :text="verdict.comment" /></p>
+              <MissingList title="Pour avancer et boucler l'arc" :items="verdict.missing ?? []" />
+
+              <ol class="mt-3 space-y-2">
+                <li v-for="step in verdict.steps" :key="step.index" class="text-sm">
+                  <div class="flex flex-wrap items-baseline gap-2">
+                    <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="ARC_STATUS[step.status]?.classes">
+                      {{ ARC_STATUS[step.status]?.label }}
+                    </span>
+                    <span class="font-medium text-gray-900">{{ step.index + 1 }}. {{ step.step }}</span>
+                    <span v-if="step.sequenceIds?.length" class="text-xs text-gray-500">— <SequenceRefText :ids="step.sequenceIds" /></span>
+                    <span
+                      v-if="wasAutoPlaced(verdict.personnageNarrativeArcId, step.index)"
+                      class="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700"
+                      data-controller="tooltip"
+                      title="Vous ne l'aviez pas placée : l'analyse l'a rattachée aux séquences où le texte la joue"
+                    >placée par l'analyse</span>
+                  </div>
+                  <p v-if="step.comment" class="ml-1 mt-0.5 text-xs text-gray-600"><SequenceRefText :text="step.comment" /></p>
+                  <p
+                    v-for="issue in arcChecks.get(verdict.personnageNarrativeArcId)?.stepIssues.get(step.index) ?? []"
+                    :key="issue"
+                    class="ml-1 mt-0.5 text-xs text-red-600"
+                  >⚠ {{ issue }}</p>
+                  <!-- Écart avec la place que l'auteur lui a donnée, recalculé sur la fiche actuelle -->
+                  <div v-if="placementGap(verdict.personnageNarrativeArcId, step)" class="ml-1 mt-1 flex flex-wrap items-center gap-2 text-xs text-amber-700">
+                    <span>⚠ Placée par vous en {{ placementGap(verdict.personnageNarrativeArcId, step) }}, jouée ailleurs dans le texte.</span>
+                    <button
+                      v-if="arcStillAssigned(verdict.personnageNarrativeArcId)"
+                      @click="alignStep(verdict.personnageNarrativeArcId, step)"
+                      :disabled="!!applyingId"
+                      class="rounded-full border border-amber-300 bg-white px-2 py-0.5 font-medium text-amber-800 transition-colors hover:bg-amber-50 disabled:opacity-50"
+                    >
+                      {{ applyingId === `align-${verdict.personnageNarrativeArcId}-${step.index}` ? 'Déplacement…' : 'Aligner sur le texte' }}
+                    </button>
+                  </div>
+                  <p v-if="step.suggestion" class="ml-1 mt-1 rounded border border-dashed border-amber-300 bg-amber-50/60 px-3 py-1.5 text-xs text-amber-900">
+                    <span class="font-semibold text-amber-700">Piste<template v-if="step.suggestion.sequenceId"> (<SequenceRefText :ids="[step.suggestion.sequenceId]" />)</template> :</span>
+                    <SequenceRefText :text="step.suggestion.text" />
+                  </p>
+                </li>
+              </ol>
+            </div>
+
+            <h3 class="mb-2 mt-5 text-sm font-semibold text-gray-700">Arcs détectés dans le texte, absents de votre fiche</h3>
+            <p v-if="!personnage.verification.arcs?.detected?.length" class="text-sm italic text-gray-400">
+              Aucun autre arc du référentiel ne se dessine dans le texte.
+            </p>
+            <div
+              v-for="arc in personnage.verification.arcs?.detected ?? []"
+              :key="arc.narrativeArc.id"
+              class="mb-3 rounded-lg border border-gray-200 p-4"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h4 class="font-semibold text-gray-900">
+                  {{ arc.narrativeArc.tendency === 'positive' ? '↗️' : arc.narrativeArc.tendency === 'negative' ? '↘️' : '↔️' }}
+                  {{ arc.narrativeArc.name }}
+                </h4>
+                <div class="flex items-center gap-3">
+                  <span class="text-xs text-gray-500">Correspondance {{ arc.weight }} %</span>
+                  <span v-if="isAssignedArc(arc.narrativeArc.id)" class="text-xs text-green-700">✓ Sur la fiche</span>
+                  <button
+                    v-else
+                    @click="addDetectedArc(arc)"
+                    :disabled="!!applyingId"
+                    class="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {{ applyingId === `arc-${arc.narrativeArc.id}` ? 'Ajout…' : 'Ajouter à la fiche' }}
+                  </button>
+                </div>
+              </div>
+              <p v-if="arc.comment" class="mt-1 text-sm text-gray-700"><SequenceRefText :text="arc.comment" /></p>
+              <MissingList title="Pour boucler l'arc" :items="arc.missing ?? []" />
+              <ol class="mt-2 space-y-0.5">
+                <li v-for="step in arc.steps" :key="step.index" class="text-xs" :class="step.sequenceIds.length ? 'text-gray-700' : 'text-gray-400'">
+                  {{ step.index + 1 }}. {{ step.step }}
+                  <span v-if="step.sequenceIds.length" class="text-gray-500">— <SequenceRefText :ids="step.sequenceIds" /></span>
+                  <span v-else>— pas encore dans le texte</span>
+                </li>
+              </ol>
+            </div>
+          </template>
+        </div>
+
+        <!-- Séquence par séquence : ce que l'analyse lit dans chaque séquence où il apparaît -->
+        <div v-if="sequenceDetails.length" class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-slate-400">
+          <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <span class="mr-2">🗂️</span>
+            Séquence par séquence
+          </h2>
+          <ol class="space-y-3">
+            <li v-for="entry in sequenceDetails" :key="entry.sequenceId" class="rounded-lg border border-gray-200 p-3">
+              <div class="flex flex-wrap items-baseline gap-2">
+                <SequenceRefText :ids="[entry.sequenceId]" />
+                <span class="font-medium text-gray-900">{{ sequenceNameById(entry.sequenceId) }}</span>
+                <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="SEQUENCE_ROLES[entry.role]?.classes">
+                  {{ SEQUENCE_ROLES[entry.role]?.label }}
+                </span>
+              </div>
+              <p v-if="entry.summary" class="mt-1 text-sm text-gray-700"><SequenceRefText :text="entry.summary" /></p>
+              <div v-if="entry.steps.length || entry.functions.length" class="mt-2 flex flex-wrap gap-1.5">
+                <span
+                  v-for="(step, i) in entry.steps"
+                  :key="`s${i}`"
+                  class="rounded-full border px-2 py-0.5 text-xs"
+                  :class="step.detected ? 'border-dashed border-sky-300 bg-sky-50 text-sky-800' : 'border-indigo-200 bg-indigo-50 text-indigo-800'"
+                  data-controller="tooltip"
+                  :title="step.detected ? 'Arc détecté, absent de votre fiche' : ARC_STATUS[step.status]?.label"
+                >📈 {{ step.arcName }} · {{ step.index + 1 }}. {{ step.step }}</span>
+                <span
+                  v-for="(fn, i) in entry.functions"
+                  :key="`f${i}`"
+                  class="rounded-full border px-2 py-0.5 text-xs"
+                  :class="fn.detected ? 'border-dashed border-sky-300 bg-sky-50 text-sky-800' : 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800'"
+                  data-controller="tooltip"
+                  :title="fn.detected ? 'Fonction détectée, absente de votre fiche' : ARC_STATUS[fn.status]?.label"
+                >🎭 {{ fn.name }}</span>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <!-- Écarts avec la fiche : signalés, jamais tranchés à la place de l'auteur -->
+        <div
+          v-if="personnage?.verification?.novelties?.length || personnage?.verification?.contradictions?.length"
+          class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-amber-500"
+        >
+          <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <span class="mr-2">⚖️</span>
+            Écarts avec la fiche
+          </h2>
+          <div v-if="personnage.verification.novelties?.length" class="mb-4">
+            <h3 class="mb-1 text-sm font-semibold text-blue-800">Ce que le texte apprend, absent de la fiche</h3>
+            <ul class="space-y-1 rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <li v-for="(item, i) in personnage.verification.novelties" :key="i" class="text-sm text-blue-800"><SequenceRefText :text="item" /></li>
+            </ul>
+          </div>
+          <div v-if="personnage.verification.contradictions?.length">
+            <h3 class="mb-1 text-sm font-semibold text-red-800">Ce que le texte contredit</h3>
+            <ul class="space-y-1 rounded-lg border border-red-200 bg-red-50 p-3">
+              <li v-for="(item, i) in personnage.verification.contradictions" :key="i" class="text-sm text-red-800"><SequenceRefText :text="item" /></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Schéma actantiel -->
+        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-purple-500">
+          <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <span class="mr-2">🎭</span>
+            Schéma actantiel
+          </h2>
+
+          <p v-if="!personnage?.actantialSchema && !generatingSchema" class="text-gray-500 italic text-sm">
+            Aucun schéma : lancez « Créer le schéma actantiel ».
+          </p>
+
+          <div v-if="generatingSchema && !personnage?.actantialSchema" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div v-for="n in 6" :key="n" class="h-24 rounded-lg bg-gray-100 animate-pulse"></div>
+          </div>
+
+          <template v-else-if="personnage?.actantialSchema">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" :class="{ 'opacity-50': generatingSchema }">
+              <div
+                v-for="actant in actantialRoles"
+                :key="actant.role"
+                class="p-3 rounded-lg border"
+                :class="tendencyClasses[actant.tendency] || tendencyClasses.ambiguous"
+              >
+                <div class="flex items-baseline justify-between gap-2 mb-1">
+                  <h3 class="font-semibold text-gray-800">{{ actant.role }}</h3>
+                  <span class="text-xs text-gray-500 text-right">{{ actant.description }}</span>
+                </div>
+
+                <div v-if="actant.concerned.length" class="flex flex-wrap gap-1.5 mb-2">
+                  <template v-for="(entity, i) in actant.concerned" :key="i">
+                    <NuxtLink
+                      v-if="entity.personnage_id && personnageSlugById(entity.personnage_id)"
+                      :to="`/projets/detail-${personnageSlugById(entity.personnage_id)}`"
+                      class="px-2 py-0.5 text-sm rounded bg-purple-100 text-purple-800 hover:bg-purple-200 transition-colors"
+                    >
+                      {{ entity.name }}
+                    </NuxtLink>
+                    <span v-else class="px-2 py-0.5 text-sm rounded bg-white text-gray-700 border border-gray-200">
+                      {{ entity.name }}
+                    </span>
+                  </template>
+                </div>
+                <p v-else class="text-sm text-gray-400 italic mb-2">Non identifié dans le texte</p>
+
+                <p v-if="actant.comment" class="text-sm text-gray-700"><SequenceRefText :text="actant.comment" /></p>
+              </div>
+            </div>
+
+            <p v-if="personnage.actantialSchema.comment" class="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-200 text-sm text-gray-800">
+              <SequenceRefText :text="personnage.actantialSchema.comment" />
+            </p>
+          </template>
+        </div>
+
+        <!-- Langage -->
+        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-teal-500">
+          <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <span class="mr-2">💬</span>
+            Langage
+          </h2>
+
+          <!-- Lu dans les répliques du personnage, rien ne se saisit -->
+          <div v-if="personnage?.personnageLanguageLevels?.length" class="space-y-2 mb-4">
+            <div
+              v-for="pll in personnage.personnageLanguageLevels"
+              :key="pll.id"
+              class="rounded-lg border border-teal-200 bg-teal-50/50 p-3"
+            >
+              <div class="flex items-center gap-3">
+                <span
+                  class="text-sm font-semibold text-teal-900 cursor-help"
+                  data-controller="tooltip" :title="pll.languageLevel.description"
+                >{{ pll.languageLevel.name }}</span>
+                <!-- Le poids se lit d'un coup d'œil : lequel domine -->
+                <div class="h-1.5 flex-1 max-w-40 rounded-full bg-teal-100">
+                  <div class="h-1.5 rounded-full bg-teal-500" :style="{ width: `${pll.weight}%` }"></div>
+                </div>
+                <span class="text-xs tabular-nums text-gray-500">{{ pll.weight }} %</span>
+              </div>
+              <p v-if="pll.comment" class="mt-1 text-sm text-gray-700"><SequenceRefText :text="pll.comment" /></p>
+              <p v-if="pll.quote" class="mt-1.5 border-l-2 border-teal-300 pl-2 text-sm italic text-gray-500">« {{ pll.quote }} »</p>
+            </div>
+          </div>
+          <p v-else class="text-gray-500 italic text-sm mb-4">Aucun niveau de langage relevé</p>
+
+          <div
+            v-if="personnage?.languageAnalysis"
+            class="prose prose-sm max-w-none rounded-lg border border-teal-200 bg-teal-50/30 p-4"><SequenceRefText :text="personnage.languageAnalysis" html /></div>
+          <p v-else class="text-xs text-gray-400">
+            L'analyse du langage se génère depuis « Analyser le personnage ».
+          </p>
+
         </div>
       </div>
     </div>
@@ -866,6 +1702,7 @@ const updateStep = (index, field, value) => {
       @close="closeLightbox"
       @update:current-index="updateLightboxIndex"
     />
+
 
     <!-- Modal Arc Narratif -->
     <div

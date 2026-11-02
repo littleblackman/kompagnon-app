@@ -8,7 +8,7 @@ import { useConfirm } from '~/composables/useConfirm';
 import PersonnageModal from "@/components/Project/PersonnageModal.vue";
 import PersonnageGalleryViewer from "@/components/Project/PersonnageGalleryViewer.vue";
 import ProjectSubMenu from "@/components/Project/SubMenu.vue";
-import { PencilIcon, TrashIcon, UserPlusIcon, UserIcon, DocumentDuplicateIcon, EyeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/solid';
+import { IdentificationIcon, TrashIcon, UserPlusIcon, UserIcon, DocumentDuplicateIcon, EyeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/solid';
 import { useImages } from '~/composables/useImages';
 
 const auth = useAuthStore();
@@ -290,9 +290,9 @@ const sortedPersonnages = computed(() => {
               v-if="personnage.slug"
               :to="`/projets/detail-${personnage.slug}`"
               class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              data-controller="tooltip" title="Modifier la fiche"
+              data-controller="tooltip" title="Voir le détail"
             >
-              <PencilIcon class="w-4 h-4" />
+              <IdentificationIcon class="w-4 h-4" />
             </NuxtLink>
             <button
               @click="duplicatePersonnage(personnage)"

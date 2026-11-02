@@ -5,12 +5,51 @@ import SequenceList from "@/components/Project/SequenceList.vue";
 import PartModal from "@/components/Project/PartModal.vue";
 import ActionButtons from "@/components/Project/ActionButtons.vue";
 import InsertDivider from "@/components/Project/InsertDivider.vue";
+import PartScanModal from "@/components/Project/PartScanModal.vue";
 import { useProjectStore } from "~/store/project";
-import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
+import { useToast } from "~/composables/useToast";
+import { ChevronDownIcon, ChevronRightIcon, SparklesIcon, UserGroupIcon } from '@heroicons/vue/24/outline'
 import { toRoman } from '~/utils/roman';
 
 // Récupérer le store
 const projectStore = useProjectStore();
+const toast = useToast();
+
+/**** ANALYSE D'UNE PARTIE ****/
+
+// Une partie à la fois, et ses séquences l'une après l'autre : chacune
+// déclenche déjà deux appels au modèle.
+const partAnalysis = ref<{ partId: number; done: number; total: number } | null>(null);
+const scanningPart = ref<Part | null>(null);
+
+const hasText = (sequence: any) =>
+  (sequence.scenes ?? []).some((scene: any) => (scene.content ?? '').replace(/<[^>]*>/g, '').trim());
+
+const analysePart = async (part: Part) => {
+  const targets = (part.sequences ?? []).filter(hasText);
+  if (!targets.length) {
+    toast.error('Aucune séquence de cette partie ne contient de texte.');
+    return;
+  }
+
+  // Les propositions s'affichent sur les séquences : il faut les voir
+  if (!isPartExpanded(part.id)) togglePart(part.id);
+
+  partAnalysis.value = { partId: part.id, done: 0, total: targets.length };
+  let failures = 0;
+
+  for (const sequence of targets) {
+    const result = await projectStore.analyseSequence(sequence.id);
+    if (!result.success) failures++;
+    partAnalysis.value.done++;
+  }
+
+  partAnalysis.value = null;
+
+  failures
+    ? toast.error(`${failures} séquence${failures > 1 ? 's' : ''} sur ${targets.length} n'ont pas pu être analysées.`)
+    : toast.success('Propositions prêtes : à reprendre séquence par séquence');
+};
 
 // Variables pour la modale
 const modalOpen = ref(false);
@@ -69,11 +108,35 @@ const isPartExpanded = (partId: number) => {
             >
               {{ toRoman(index + 1) }}. {{ part.name }}
             </h2>
-            <div 
-              v-html="part.description || ''" 
-              class="cursor-pointer hover:text-blue-600 transition-colors text-gray-500 organizational-text" 
+            <div
+              v-html="part.description || ''"
+              class="cursor-pointer hover:text-blue-600 transition-colors text-gray-500 organizational-text"
               @click="openModal(part)"
             ></div>
+            <div v-if="part.sequences?.length" class="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                @click="analysePart(part)"
+                :disabled="!!partAnalysis"
+                class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                data-controller="tooltip"
+                title="Proposer intensités, intention, esthétique et information pour chaque séquence"
+              >
+                <SparklesIcon class="h-3.5 w-3.5" :class="partAnalysis?.partId === part.id && 'animate-pulse'" />
+                <template v-if="partAnalysis?.partId === part.id">
+                  Analyse {{ partAnalysis.done + 1 }}/{{ partAnalysis.total }}…
+                </template>
+                <template v-else>Analyser la partie</template>
+              </button>
+              <button
+                @click="scanningPart = part"
+                class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                data-controller="tooltip"
+                title="Relire toutes les séquences et vérifier qui apparaît vraiment"
+              >
+                <UserGroupIcon class="h-3.5 w-3.5" />
+                Personnages
+              </button>
+            </div>
             <div v-if="isPartExpanded(part.id)" class="mt-4">
               <SequenceList 
                 :sequences="part.sequences" 
@@ -112,6 +175,12 @@ const isPartExpanded = (partId: number) => {
       :projectId="projectStore.project?.id || 0"
       :insert-after-id="insertAfterId"
       @close="modalOpen = false"
+    />
+
+    <PartScanModal
+      :open="!!scanningPart"
+      :part="scanningPart"
+      @close="scanningPart = null"
     />
   </div>
 </template>

@@ -104,12 +104,6 @@
             </div>
           </div>
 
-          <!-- Origine -->
-          <div v-if="current?.origin" class="space-y-1">
-            <p class="text-xs uppercase tracking-widest text-white/40">Origine</p>
-            <p class="text-white/70 text-sm">{{ current.origin }}</p>
-          </div>
-
           <!-- Bio -->
           <div v-if="current?.background" class="space-y-2">
             <p class="text-xs uppercase tracking-widest text-white/40">Biographie</p>

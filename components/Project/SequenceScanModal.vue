@@ -30,10 +30,6 @@ const scenes = computed(() => {
   return list.sort((a: any, b: any) => a.position - b.position);
 });
 
-const assignedIds = computed(
-  () => new Set((props.sequence?.sequencePersonnages ?? []).map((sp: any) => sp.personnage?.id))
-);
-
 // Repartir d'une feuille blanche à chaque ouverture : un scan périmé
 // donnerait un état de présence qui ne correspond plus au texte.
 watch(() => props.open, (open) => {
@@ -46,53 +42,14 @@ watch(() => props.open, (open) => {
 const scan = () => {
   busy.value = true;
 
-  const found = new Map<number, { id: number; name: string; scenes: Set<number> }>();
-  const names = new Map<string, number>();
-
-  scenes.value.forEach((scene: any) => {
-    const content = scene.content ?? '';
-    if (!content.trim()) return;
-
-    personnageStore.analyzeContent(content).forEach((hit: any) => {
-      const personnage = hit.personnage;
-      if (!personnage) return;
-
-      const entry = found.get(personnage.id) ?? {
-        id: personnage.id,
-        name: personnageStore.getPersonnageName(personnage),
-        scenes: new Set<number>()
-      };
-      entry.scenes.add(scene.id);
-      found.set(personnage.id, entry);
-    });
-
-    personnageStore.findUnknownNames(content, 1).forEach(({ name, count }) => {
-      names.set(name, (names.get(name) ?? 0) + count);
-    });
-  });
-
-  // Les personnages déjà assignés mais introuvables doivent rester visibles :
-  // c'est précisément ce qu'on vient vérifier.
-  (props.sequence?.sequencePersonnages ?? []).forEach((sp: any) => {
-    const personnage = sp.personnage;
-    if (!personnage || found.has(personnage.id)) return;
-    found.set(personnage.id, {
-      id: personnage.id,
-      name: personnageStore.getPersonnageName(personnage),
-      scenes: new Set<number>()
-    });
-  });
-
-  rows.value = [...found.values()]
-    .map(entry => ({ ...entry, assigned: assignedIds.value.has(entry.id) }))
-    .sort((a, b) => b.scenes.size - a.scenes.size);
+  const result = personnageStore.scanSequence(props.sequence);
+  rows.value = result.rows;
 
   // Un nom qui ne revient pas sur l'ensemble de la séquence est trop
   // incertain pour être proposé comme personnage.
-  unknown.value = [...names.entries()]
-    .filter(([, count]) => count >= 2)
-    .map(([name, count]) => ({ name, count, keep: false }))
-    .sort((a, b) => b.count - a.count);
+  unknown.value = result.unknown
+    .filter(({ count }) => count >= 2)
+    .map(candidate => ({ ...candidate, keep: false }));
 
   scanned.value = true;
   busy.value = false;
